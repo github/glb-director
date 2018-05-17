@@ -27,6 +27,9 @@
 
 #define MAX_HOPS 256
 
+#ifdef DEBUG
+#define PRINT_DEBUG(...) printk(__VA_ARGS__)
+/* like WARN_ON(), except returns NF_DROP as well */
 #define DROP_ON(condition) do { \
 	if (unlikely((condition)!=0)) { \
 		printk("Failed condition (%s) in %s at %s:%d, dropping packet\n", #condition, __FUNCTION__, __FILE__, __LINE__); \
@@ -34,11 +37,14 @@
 		return NF_DROP; \
 	} \
 } while (0)
-
-#ifdef DEBUG
-#define PRINT_DEBUG(...) printk(__VA_ARGS__)
 #else
 #define PRINT_DEBUG(...)
+/* when debugging is off, still validate these assertions but don't print the debug trace */
+#define DROP_ON(condition) do { \
+	if (unlikely((condition)!=0)) { \
+		return NF_DROP; \
+	} \
+} while (0)
 #endif
 
 struct glbgue_chained_routing {
@@ -345,10 +351,12 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int inner_ip_ofs, struct iphdr *iph_v4, struct ipv6hdr *iph_v6, struct tcphdr *th)
 {
+#ifdef DEBUG
 	WARN_ON(net == NULL);
 	WARN_ON(skb == NULL);
 	WARN_ON(iph_v4 == NULL && iph_v6 == NULL);
 	WARN_ON(th == NULL);
+#endif
 
 	PRINT_DEBUG(KERN_ERR " -> checking for established\n");
 
