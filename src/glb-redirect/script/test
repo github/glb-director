@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+
+HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v
