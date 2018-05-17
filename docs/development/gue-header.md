@@ -1,7 +1,9 @@
 ## GUE Header usage in GLB
 
 <!--
-./protocol "Source port:16,Destination port:16,Length:16,Checksum:16,0:2,C:1,Hlen:5,Proto/ctype:8,Flags:16,Private data type (0):16,Next hop idx:8,Hop count:8"
+https://github.com/luismartingarcia/protocol
+
+./protocol "Source port:16,Destination port:16,Length:16,Checksum:16,0:2,C:1,Hlen:5,Proto/ctype:8,Flags:16,Private data type (0):16,Next hop idx:8,Hop count:8,Hop 0:32,...:32,Hop N:32"
 -->
 
 GLB Director uses [Generic UDP Encapsulation](https://tools.ietf.org/html/draft-ietf-intarea-gue-04) to encapsulate received IP packets and send them over the wire to proxy servers. GUE provides an extensible header with an unspecified private data area, and GLB Director uses this area to encode the additional servers which may be given a second chance at utilising the given packet in the case that the current server believes it is invalid (not for a given local connection)
