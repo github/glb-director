@@ -28,6 +28,12 @@ GLB Director uses [Generic UDP Encapsulation](https://tools.ietf.org/html/draft-
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+/
 ```
 
+#### UDP fields
+
+GLB Director currently uses a UDP `Destination port` of `19523` (historically a pre-GUE version used internally at GitHub used `19522` which is `LB`'s bytes decoded as a uint16, so the GUE version incremented this number).
+
+`Source port` is used to encourage flows to be steered to different ECMP paths and different NIC RX queues. GLB Director hashes part of the header to use as the `Source port`. The hash must be consistent for an entire TCP flow to avoid packet reordering.
+
 #### GUE fields
 
 The GUE version, C-bit and Flags fields are all set to `0`. The length of the private data is calculated from the standard GUE header length as defined in the [GUE draft RFC](https://tools.ietf.org/html/draft-ietf-intarea-gue-04).
