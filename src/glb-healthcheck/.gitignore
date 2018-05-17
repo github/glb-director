@@ -1,0 +1,4 @@
+glb-healthcheck
+.gopath
+.test
+vendor

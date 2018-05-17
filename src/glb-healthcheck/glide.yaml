@@ -1,0 +1,16 @@
+package: .
+import:
+- package: github.com/google/gopacket
+  version: ~1.1.14
+- package: github.com/docopt/docopt-go
+  version: ~0.6.2
+- package: github.com/sirupsen/logrus
+  version: ~1.0.5
+- package: golang.org/x/sys
+  subpackages:
+  - unix
+- package: golang.org/x/crypto
+  subpackages:
+  - ssh/terminal
+- package: github.com/rs/xid
+  version: ~1.1.0
