@@ -35,6 +35,12 @@
 	} \
 } while (0)
 
+#ifdef DEBUG
+#define PRINT_DEBUG(...) printk(__VA_ARGS__)
+#else
+#define PRINT_DEBUG(...)
+#endif
+
 struct glbgue_chained_routing {
 	uint16_t private_data_type;
 	uint8_t next_hop;
@@ -58,9 +64,7 @@ static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_bu
 		return NF_STOLEN;
 	}
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> forwarded to alternate\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> forwarded to alternate\n");
 	ip_local_out(
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
 		net,
@@ -87,9 +91,7 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 
 	/* SYN packets are always taken locally. */
 	if (th->syn) {
-#ifdef DEBUG
-		printk(KERN_ERR " -> SYN packet, accepting locally\n");
-#endif
+		PRINT_DEBUG(KERN_ERR " -> SYN packet, accepting locally\n");
 		return XT_CONTINUE;
 	}
 
@@ -97,27 +99,19 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	 * The local IP stack is the best option, and it can handle responses.
 	 */
 	if (glb_routing->next_hop >= glb_routing->hop_count) {
-#ifdef DEBUG
-		printk(KERN_ERR " -> no more alternative hops available, accept here regardless\n");
-#endif
+		PRINT_DEBUG(KERN_ERR " -> no more alternative hops available, accept here regardless\n");
 		return XT_CONTINUE;
 	}
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> checking for local matching connection\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> checking for local matching connection\n");
 
 	/* Do we know about this flow? Handle through local IP stack too */
 	if (is_valid_locally(net, skb, inner_ip_ofs, inner_ip_v4, inner_ip_v6, th)) {
-#ifdef DEBUG
-		printk(KERN_ERR " -> matched local flow, accepting\n");
-#endif
+		PRINT_DEBUG(KERN_ERR " -> matched local flow, accepting\n");
 		return XT_CONTINUE;
 	}
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> unknown locally\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> unknown locally\n");
 
 	/* Extract our next alternate server. */
 	alt = glb_routing->hops[glb_routing->next_hop];
@@ -126,9 +120,7 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	if (alt == outer_ip->daddr)
 		return XT_CONTINUE;
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> got an alternate: %08x\n", alt);
-#endif
+	PRINT_DEBUG(KERN_ERR " -> got an alternate: %08x\n", alt);
 
 	/* Steal the packet and forward it on to the next alternate hop.
 	 * As we do this, we want to increment our next hop
@@ -187,8 +179,7 @@ static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buf
 	if (th == NULL)
 		return NF_DROP;
 
-#ifdef DEBUG
-	printk(KERN_ERR "IP<%08x,%08x> GUE<> IPv6<%08x %08x %08x %08x,%08x %08x %08x %08x> TCP<%d,%d flags %c%c%c%c%c>\n",
+	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> IPv6<%08x %08x %08x %08x,%08x %08x %08x %08x> TCP<%d,%d flags %c%c%c%c%c>\n",
 		outer_ip->saddr, outer_ip->daddr,
 		ntohl(inner_ip_v6->saddr.in6_u.u6_addr32[0]),
 		ntohl(inner_ip_v6->saddr.in6_u.u6_addr32[1]),
@@ -205,7 +196,6 @@ static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buf
 		th->psh ? 'P' : '.',
 		th->fin ? 'F' : '.'
 	);
-#endif
 
 	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, inner_ip_ofs, NULL, inner_ip_v6, th);
 }
@@ -242,8 +232,7 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 	if (th == NULL)
 		return NF_DROP;
 
-#ifdef DEBUG
-	printk(KERN_ERR "IP<%08x,%08x> GUE<> IPv4<%08x,%08x> TCP<%d,%d flags %c%c%c%c%c>\n",
+	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> IPv4<%08x,%08x> TCP<%d,%d flags %c%c%c%c%c>\n",
 		outer_ip->saddr, outer_ip->daddr,
 		inner_ip_v4->saddr, inner_ip_v4->daddr,
 		ntohs(th->source), ntohs(th->dest),
@@ -253,7 +242,6 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 		th->psh ? 'P' : '.',
 		th->fin ? 'F' : '.'
 	);
-#endif
 
 	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, inner_ip_ofs, inner_ip_v4, NULL, th);
 }
@@ -359,9 +347,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 	WARN_ON(iph_v4 == NULL && iph_v6 == NULL);
 	WARN_ON(th == NULL);
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> checking for established\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> checking for established\n");
 
 	/* First check: existing established connection is fine.
 	 * This avoids locking on any central resource (LISTEN socket, conntrack)
@@ -389,9 +375,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 		}
 	}
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> checking conntrack for SYN_RECV\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> checking conntrack for SYN_RECV\n");
 
 	/* If we're not ESTABLISHED yet, check conntrack for a SYN_RECV.
 	 * When syncookies aren't enabled, this will let ACKs come in to complete
@@ -442,9 +426,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 
 no_ct_entry:
 
-#ifdef DEBUG
-	printk(KERN_ERR " -> checking for syncookie\n");
-#endif
+	PRINT_DEBUG(KERN_ERR " -> checking for syncookie\n");
 
 	/* Last chance, if syncookies are enabled, then a valid syncookie ACK is also acceptable */
 	if (th->ack && !th->fin && !th->rst && !th->syn) {
