@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -e
+
+HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+script/helpers/prepare-vagrant director
+script/helpers/prepare-vagrant proxy1
+script/helpers/prepare-vagrant proxy2
+
+for proxy in proxy1 proxy2; do
+  vagrant ssh $proxy -- bash /dev/stdin <<EOF
+    if lsmod | grep -q 'ipt_GLBREDIRECT'; then
+      sudo iptables -F
+      sudo rmmod ipt_GLBREDIRECT
+    fi
+
+    sudo apt remove -y glb-redirect-iptables-dkms && sudo apt-get clean || true
+    sudo apt install -y /vagrant/tmp/build/glb-redirect-iptables-dkms_1.0.3_all.deb
+
+    sudo iptables -A INPUT -p udp -m udp --dport 19523 -j GLBREDIRECT
+    sudo iptables -L -v
+EOF
+done

@@ -1,0 +1,5 @@
+nose
+pyroute2
+scapy
+siphash
+netaddr
