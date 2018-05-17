@@ -48,8 +48,8 @@ Each server receiving a GLB GUE packet must take the following steps:
 
  0. If the packet is a SYN packet or relates to an existing, established or in progress connection, handle it locally by decapsulating the packet.
  0. If the packet is otherwise invalid locally, forward the packet to the next alternate server:
-   0. If `Next hop idx >= Hop count`, we have no further alternate servers to try, drop the packet (or handle it locally).
-   0. Take the outer IP packet Destination IP address and store it in Source IP address field.
-   0. Take the hop specified by `Next hop idx` and store it in the Destination IP address field.
-   0. Increment the `Next hop idx` field.
-   0. Re-route the packet through the kernel IP stack to forward the packet to the destination.
+    0. If `Next hop idx >= Hop count`, we have no further alternate servers to try, drop the packet (or handle it locally).
+    0. Take the outer IP packet Destination IP address and store it in Source IP address field.
+    0. Take the hop specified by `Next hop idx` and store it in the Destination IP address field.
+    0. Increment the `Next hop idx` field.
+    0. Re-route the packet through the kernel IP stack to forward the packet to the destination.
