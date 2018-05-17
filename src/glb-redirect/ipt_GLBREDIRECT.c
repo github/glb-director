@@ -116,7 +116,10 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	/* Extract our next alternate server. */
 	alt = glb_routing->hops[glb_routing->next_hop];
 
-	/* Validate that we're not creating a loop. If so, just take locally. */
+	/* Although in theory we can forward to ourselves because we always increment the
+	 * next hop index, be defensive and force the packet to be taken locally.
+	 * Avoids any potential loops if something goes wrong.
+	 */
 	if (alt == outer_ip->daddr)
 		return XT_CONTINUE;
 
