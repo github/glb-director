@@ -182,7 +182,9 @@ func (g *TunnelHealthChecker) CheckTarget(resultChannel HealthResultStream, targ
 		gueCounters.Add("PrependFailure", 1)
 		resultChannel := g.getCheckCompletionChannel(checkIdentifier)
 		resultChannel <- HealthResult{
-			Healthy: false,
+			// this is an internal error in healthchecking, so fail-open
+			// since this essentially means we can't test this proxy via tunnel.
+			Healthy: true,
 			Failure: err.Error(),
 		}
 		return
