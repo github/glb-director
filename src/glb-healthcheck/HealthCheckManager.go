@@ -62,6 +62,7 @@ func (hhc *HealthCheckManager) SetTargets(targets []HealthCheckTarget) error {
 	// pre-validate every target
 	for _, target := range targets {
 		if _, ok := hhc.checkers[target.CheckType]; !ok {
+			managerCounters.Add("InvalidCheckType", 1)
 			return fmt.Errorf("Invalid check type: %s", target.CheckType)
 		}
 	}

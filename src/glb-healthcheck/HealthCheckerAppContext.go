@@ -182,6 +182,7 @@ func (ctx *HealthCheckerAppContext) StoreCheckedForwardingTable() error {
 	}).Info("Storing forwarding table to disk")
 	err := ft.WriteToFile(ctx.config.ForwardingTable.Dst)
 	if err != nil {
+		appCounters.Add("ForwardingTableWriteFailures", 1)
 		return fmt.Errorf("Could not store forwarding table '%s': %s\n", ctx.config.ForwardingTable.Dst, err)
 	}
 
