@@ -134,7 +134,10 @@ cleanup() {
 
     echo "Cleaning up by killing from pid files."
 
-    [ -e "${TEMPDIR}/glb-healthcheck.pid" ] && kill $(cat ${TEMPDIR}/glb-healthcheck.pid)
+    for pidfile in $(ls ${TEMPDIR}/*.pid); do
+      echo "Cleaning up from $pidfile"
+      kill $(cat $pidfile)
+    done
 
     rm -rf ${TEMPDIR}/*.pid
 

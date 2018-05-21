@@ -139,13 +139,14 @@ begin_test "responds to health check changes"
   # start up a HTTP server
   python -m SimpleHTTPServer 8765 &
   http_pid=$!
+  echo "$http_pid" > "${TEMPDIR}/http.pid"
 
   # wait >1 HC round, shouldn't change because need 3 OKs to change healthy
   sleep 5
   [[ "$(jq -r '.tables[1].backends[3].healthy' $TEMPDIR/forwarding_table.hc.json)" == "false" ]]
 
-  # wait for total >3 HC rounds, should then trigger healthy
-  sleep 3
+  # wait for total >3 HC rounds and also over 10s hold period, should then trigger healthy
+  sleep 8
   [[ "$(jq -r '.tables[1].backends[3].healthy' $TEMPDIR/forwarding_table.hc.json)" == "true" ]]
 
   kill $http_pid
@@ -154,8 +155,8 @@ begin_test "responds to health check changes"
   sleep 5
   [[ "$(jq -r '.tables[1].backends[3].healthy' $TEMPDIR/forwarding_table.hc.json)" == "true" ]]
 
-  # wait for total >3 HC rounds, should then trigger unhealthy
-  sleep 3
+  # wait for total >3 HC rounds and also over 10s hold period, should then trigger unhealthy
+  sleep 8
   [[ "$(jq -r '.tables[1].backends[3].healthy' $TEMPDIR/forwarding_table.hc.json)" == "false" ]]
 )
 end_test

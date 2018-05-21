@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 var (
@@ -32,6 +33,7 @@ type HealthCheckerAppContext struct {
 	sync.Mutex
 	forwardingTableConfig *GLBTableConfig
 	dirty                 bool
+	nextAllowedDirtyClear time.Time
 }
 
 func (ctx *HealthCheckerAppContext) LoadConfig(filename string) error {
@@ -152,6 +154,8 @@ func (ctx *HealthCheckerAppContext) LoadForwardingTable() error {
 
 	// mark dirty, similar to a HC change, in case the underlying tables or backend list changed
 	ctx.dirty = true
+	// also allow write outs immediately, since this was an explicit (externally requested) reload
+	ctx.nextAllowedDirtyClear = time.Now()
 	ctx.Unlock()
 
 	return ctx.SyncBackendsToCheckManager()
@@ -164,7 +168,8 @@ func (ctx *HealthCheckerAppContext) SyncAndMaybeReload() {
 
 	// if needed, write out the new table (with updated `healthy` fields)
 	// and call the reload command to create the binary table / signal reload.
-	if ctx.CheckAndClearDirty() {
+	if ctx.CheckAndClearDirty(10 * time.Second) {
+		ctx.logContext.Info("Table is dirty, storing and reloading")
 		ctx.StoreCheckedForwardingTable()
 		ctx.RunReloadCommand()
 	}
@@ -213,12 +218,31 @@ func (ctx *HealthCheckerAppContext) RunReloadCommand() {
 	}
 }
 
-func (ctx *HealthCheckerAppContext) CheckAndClearDirty() bool {
+// returns if the health check state is dirty and needs to be written out.
+// any time the dirty flag is cleared, we guarantee not to return dirty again
+// until `minHoldTime` has elapsed.
+func (ctx *HealthCheckerAppContext) CheckAndClearDirty(minHoldTime time.Duration) bool {
 	ctx.Lock()
 	defer ctx.Unlock()
 
 	d := ctx.dirty
-	ctx.dirty = false
+
+	if d {
+		// if flag is set, bail if we've cleared the flag sooner than the hold time specified
+		if time.Now().Before(ctx.nextAllowedDirtyClear) {
+			// simulates not being dirty, but keeps the dirty mark until we are allowed to clear it
+			appCounters.Add("SupressDirtyFlag", 1)
+			ctx.logContext.WithFields(log.Fields{
+				"now":           time.Now(),
+				"holdPeriodEnd": ctx.nextAllowedDirtyClear,
+			}).Warn("Supressing table adjustments as previous change too recent")
+			return false
+		}
+
+		appCounters.Add("PassThroughDirtyFlag", 1)
+		ctx.nextAllowedDirtyClear = time.Now().Add(minHoldTime)
+		ctx.dirty = false
+	}
 
 	return d
 }

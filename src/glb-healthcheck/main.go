@@ -33,7 +33,7 @@ Options:
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 
-	ctx := &HealthCheckerAppContext{dirty: true}
+	ctx := &HealthCheckerAppContext{dirty: true, nextAllowedDirtyClear: time.Now()}
 	ctx.logContext = log.WithFields(log.Fields{
 		"app": "glb-healthcheck",
 	})
