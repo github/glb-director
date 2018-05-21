@@ -177,48 +177,40 @@ func (g *TunnelHealthChecker) CheckTarget(resultChannel HealthResultStream, targ
 		},
 		gopacket.Payload([]byte(checkIdentifier)))
 
-	packetData := buf.Bytes()
+	encapHeader, err := buf.PrependBytes(8)
+	if err != nil {
+		gueCounters.Add("PrependFailure", 1)
+		resultChannel := g.getCheckCompletionChannel(checkIdentifier)
+		resultChannel <- HealthResult{
+			Healthy: false,
+			Failure: err.Error(),
+		}
+		return
+	}
 
 	if target.CheckType == "fou" {
 		// legacy FOU with GRE inside
-		fouHeader, err := buf.PrependBytes(8)
-		if err != nil {
-			gueCounters.Add("GOUPrependFailure", 1)
-			resultChannel := g.getCheckCompletionChannel(checkIdentifier)
-			resultChannel <- HealthResult{
-				Healthy: false,
-				Failure: err.Error(),
-			}
-			return
-		}
-
-		fouHeader[0] = 0x20 // key present (where we encode the IP)
-		fouHeader[1] = 0x00
-		fouHeader[2] = 0x08 // ether protocol (0x8000 - IPv4)
-		fouHeader[3] = 0x00
-		fouHeader[4] = 0x00 // alternate service IP, unused in health checks
-		fouHeader[5] = 0x00
-		fouHeader[6] = 0x00
-		fouHeader[7] = 0x00
+		encapHeader[0] = 0x20 // key present (where we encode the IP)
+		encapHeader[1] = 0x00
+		encapHeader[2] = 0x08 // ether protocol (0x8000 - IPv4)
+		encapHeader[3] = 0x00
+		encapHeader[4] = 0x00 // alternate service IP, unused in health checks
+		encapHeader[5] = 0x00
+		encapHeader[6] = 0x00
+		encapHeader[7] = 0x00
 	} else {
 		// new implementation using GUE and private data.
-		// no need to include the private data here as only testing single server.
-		gueHeader, err := buf.PrependBytes(4)
-		if err != nil {
-			gueCounters.Add("GUEPrependFailure", 1)
-			resultChannel := g.getCheckCompletionChannel(checkIdentifier)
-			resultChannel <- HealthResult{
-				Healthy: false,
-				Failure: err.Error(),
-			}
-			return
-		}
-
-		gueHeader[0] = 0 // VVCHHHHH - version, control_msg, hlen
-		gueHeader[1] = 4 // IP protocol - IPv4
-		gueHeader[2] = 0 // flags
-		gueHeader[3] = 0 // flags
+		encapHeader[0] = 1 // VVCHHHHH - version=0, control_msg=0, hlen=1
+		encapHeader[1] = 4 // IP protocol - IPv4
+		encapHeader[2] = 0 // flags
+		encapHeader[3] = 0 // flags
+		encapHeader[4] = 0 // GLB Private Data, type = 0
+		encapHeader[5] = 0 //
+		encapHeader[6] = 0 // next hop idx
+		encapHeader[7] = 0 // hop count
 	}
+
+	packetData := buf.Bytes()
 
 	// run a timeout routine, if the ping happens before this timeout
 	// the resultChannel will be nil and we just complete quietly.
