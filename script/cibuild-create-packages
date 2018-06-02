@@ -5,18 +5,24 @@ set -e
 HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
 cd "$(dirname "$0")/.."
 
-echo "%%%FOLD {Preparing Docker build environment}%%%"
-docker build -t glb-director-build-jessie -f script/Dockerfile.jessie script
-echo "%%%END FOLD%%%"
+. script/helpers/folding.sh
 
-echo "%%%FOLD {Building packages}%%%"
-# prep
-rm -rf tmp/build/
-mkdir -p tmp/build/
+begin_fold "Preparing Docker build environment"
+(
+  docker build -t glb-director-build-jessie -f script/Dockerfile.jessie script
+)
+end_fold
 
-docker run --rm \
-  --volume "$HOSTPATH":/glb-director \
-  "glb-director-build-jessie" \
-  bash -c "cd /glb-director &&
-    make BUILDDIR=/glb-director/tmp/build"
-echo "%%%END FOLD%%%"
+begin_fold "Building packages"
+(
+  # prep
+  rm -rf tmp/build/
+  mkdir -p tmp/build/
+
+  docker run --rm \
+    --volume "$HOSTPATH":/glb-director \
+    "glb-director-build-jessie" \
+    bash -c "cd /glb-director &&
+      make BUILDDIR=/glb-director/tmp/build"
+)
+end_fold
