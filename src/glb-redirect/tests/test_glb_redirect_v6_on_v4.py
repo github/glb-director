@@ -1,9 +1,10 @@
 from nose.tools import assert_equals
 from scapy.all import IP, IPv6, UDP, TCP, ICMPv6EchoRequest, ICMPv6EchoReply, sniff, send, conf, L3RawSocket6
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
+from glb_test_utils import GLBTestHelpers
 import random
 
-class TestGLBRedirectModuleV6OnV4():
+class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 	PROXY_HOST = '192.168.50.10'
 	ALT_HOST = '192.168.50.11'
 	SELF_HOST = '192.168.50.5'
@@ -16,20 +17,6 @@ class TestGLBRedirectModuleV6OnV4():
 		'192.168.50.11': 'fd33:75c6:d3f2:7e9f::11',
 	}
 
-	def _sendrecv(self, pkt, **kwargs):
-		s = L3RawSocket6(**kwargs)
-		send(pkt)
-		ret = sniff(opened_socket=s, timeout=1, **kwargs)
-		s.close()
-		return ret[0]
-
-	def _sendrecv4(self, pkt, **kwargs):
-		s = conf.L3socket(**kwargs)
-		send(pkt)
-		ret = sniff(opened_socket=s, timeout=1, **kwargs)
-		s.close()
-		return ret[0]
-
 	def test_00_icmp_accepted(self):
 		for dst in [self.PROXY_HOST, self.ALT_HOST]:
 			pkt = \
@@ -40,8 +27,8 @@ class TestGLBRedirectModuleV6OnV4():
 				ICMPv6EchoRequest()
 			print repr(pkt)
 			# expect a ICMP echo response back from self.PROXY_HOST (decapsulated)
-			resp_ip = self._sendrecv(pkt, filter='ip6 host {} and icmp && ip6[40] == 129'.format(self.V4_TO_V6[dst]))
-			print repr(resp_ip)
+			resp_ip = self._sendrecv6(pkt, lfilter=lambda p: isinstance(p, IPv6) and isinstance(p.payload, ICMPv6EchoReply))
+
 			assert isinstance(resp_ip, IPv6)
 			assert_equals(resp_ip.src, self.V4_TO_V6[dst])
 			assert_equals(resp_ip.dst, self.SELF_HOST_V6)
@@ -59,7 +46,7 @@ class TestGLBRedirectModuleV6OnV4():
 			TCP(sport=123, dport=22, flags='S')
 
 		# expect a SYN-ACK back from self.PROXY_HOST (decapsulated)
-		resp_ip = self._sendrecv(pkt, filter='host {} and port 22'.format(self.V4_TO_V6[self.PROXY_HOST]))
+		resp_ip = self._sendrecv6(pkt, filter='host {} and port 22'.format(self.V4_TO_V6[self.PROXY_HOST]))
 		assert isinstance(resp_ip, IPv6)
 		assert_equals(resp_ip.src, self.V4_TO_V6[self.PROXY_HOST])
 		assert_equals(resp_ip.dst, self.SELF_HOST_V6)
@@ -80,7 +67,7 @@ class TestGLBRedirectModuleV6OnV4():
 
 		# expect the packet to arrive back to us as a FOU packet since nobody knew about the connection
 		# should arrive from the last host in the chain that wasn't us.
-		resp_ip = self._sendrecv4(pkt, filter='host {} and udp and port 19523'.format(self.ALT_HOST))
+		resp_ip = self._sendrecv4(pkt, filter='src host {} and udp and port 19523'.format(self.ALT_HOST))
 		assert isinstance(resp_ip, IP)
 		assert_equals(resp_ip.src, self.ALT_HOST) # outer FOU will come from penultimate hop
 		assert_equals(resp_ip.dst, self.SELF_HOST)
@@ -124,7 +111,7 @@ class TestGLBRedirectModuleV6OnV4():
 			TCP(sport=eph_port, dport=22, flags='S', seq=1234)
 
 		# retrieve the SYN-ACK
-		resp_ip = self._sendrecv(syn, filter='ip6 host {} and port 22'.format(self.VIP))
+		resp_ip = self._sendrecv6(syn, filter='ip6 host {} and port 22'.format(self.VIP))
 		assert isinstance(resp_ip, IPv6)
 		assert_equals(resp_ip.src, self.VIP)
 		assert_equals(resp_ip.dst, self.SELF_HOST_V6)
@@ -147,7 +134,7 @@ class TestGLBRedirectModuleV6OnV4():
 			TCP(sport=eph_port, dport=22, flags='A', seq=syn_ack.ack, ack=syn_ack.seq + 1)
 
 		# ensure we get a PSH from the host, since SSH should send us the banner
-		resp_ip = self._sendrecv(ack, filter='ip6 host {} and port 22'.format(self.VIP))
+		resp_ip = self._sendrecv6(ack, filter='ip6 host {} and port 22'.format(self.VIP))
 		assert isinstance(resp_ip, IPv6)
 		assert_equals(resp_ip.src, self.VIP)
 		assert_equals(resp_ip.dst, self.SELF_HOST_V6)
