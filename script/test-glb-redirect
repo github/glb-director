@@ -5,7 +5,13 @@ set -e
 HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
 cd "$(dirname "$0")/.."
 
-vagrant ssh director -- bash /dev/stdin <<'EOF'
-  cd /vagrant/src/glb-redirect
-  sudo script/test
+. script/helpers/folding.sh
+
+begin_fold "Testing GLB-REDIRECT iptables module"
+(
+  vagrant ssh director -- bash /dev/stdin <<'EOF'
+    cd /vagrant/src/glb-redirect
+    sudo script/test
 EOF
+)
+end_fold
