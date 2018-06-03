@@ -11,7 +11,8 @@ kmod:
 	$(BUILD_VARS) make -C $(KDIR) M=$(ROOT_DIR) modules
 
 clean:
-	$(BUILD_VARS) make -C $(KDIR) M=$(ROOT_DIR) clean
+	# we allow the following to fail since in our Docker build env we don't have a valid KDIR
+	$(BUILD_VARS) make -C $(KDIR) M=$(ROOT_DIR) clean || true
 	rm -rf libxt_GLBREDIRECT.so
 
 .PHONY: lib

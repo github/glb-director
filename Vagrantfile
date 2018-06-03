@@ -52,7 +52,7 @@ Vagrant.configure("2") do |config|
     # install DPDK et al.
     v.vm.provision "shell", inline: <<-SHELL
       apt-get install -y apt-transport-https curl
-      echo 'deb http://ftp.debian.org/debian jessie-backports main' >/etc/apt/sources.list.d/backports.list
+      echo 'deb http://ftp.debian.org/debian stretch-backports main' >/etc/apt/sources.list.d/backports.list
       apt-get update
       curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | sudo bash
       apt-get install -y linux-headers-`(uname -r)` # dpdk requires this for the current kernel, but won't block if not installed

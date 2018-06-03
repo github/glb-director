@@ -2,3 +2,4 @@ glb-healthcheck
 .gopath
 .test
 vendor
+*.deb

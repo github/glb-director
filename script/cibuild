@@ -1,2 +1,13 @@
 #!/bin/bash
 
+set -e
+
+HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+. script/helpers/folding.sh
+
+script/cibuild-create-packages
+script/cibuild-prepare
+script/test-glb-redirect
+script/test-glb-healthcheck
