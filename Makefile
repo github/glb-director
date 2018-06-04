@@ -4,3 +4,4 @@ mkdeb:
 
 clean:
 	make -C src/glb-redirect clean
+	make -C src/glb-healthcheck clean
