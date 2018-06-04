@@ -1,0 +1,71 @@
+--- dkms-2.3/dkms	2018-02-12 18:03:16.454187565 +0100
++++ dkms.fixed/dkms	2018-02-12 18:02:24.901872644 +0100
+@@ -132,8 +132,8 @@
+ show_usage()
+ {
+     echo $"Usage: $0 [action] [options]"
+-    echo $"  [action]  = { add | remove | build | install | uninstall | match | autoinstall"
+-    echo $"               | mkdriverdisk | mktarball | ldtarball | mkrpm | mkkmp | mkdeb | mkbmdeb | status }"
++    echo $"  [action]  = { add | remove | build | install | uninstall | match | autoinstall | mkdriverdisk |"
++    echo $"                mktarball | ldtarball | mkrpm | mkkmp | mkdeb | mkdsc | mkbmdeb | status }"
+     echo $"  [options] = [-m module] [-v module-version] [-k kernel-version] [-a arch]"
+     echo $"              [-d distro] [-c dkms.conf-location] [-q] [--force] [--all]"
+     echo $"              [--templatekernel=kernel] [--directive='cli-directive=cli-value']"
+@@ -3087,23 +3087,6 @@
+         invoke_command "cp '$PREFIX/usr/lib/dkms/common.postinst' '$temp_dir_debian'" "copying legacy postinstall template"
+     fi
+ 
+-    # Copy in the source tree
+-    if [[ ! $binaries_only ]]; then
+-        invoke_command "cp -Lpr '$dkms_tree/$module/$module_version/source' '$temp_dir_debian/$module-$module_version'" "Copying source tree"
+-    fi
+-
+-    # Only if we are shipping binary modules, make a .tgz for the deb
+-    local archive_location="$dkms_tree/$module/$module_version/tarball/$module-$module_version.dkms.tar.gz"
+-    if [[ ! $source_only ]]; then
+-        binaries_only="binaries-only"
+-        invoke_command "make_tarball" "Gathering binaries"
+-        if [[ -f $archive_location ]]; then
+-            invoke_command "cp '$archive_location' '$temp_dir_debian'" "Copying DKMS tarball into DKMS tree"
+-        else
+-            die 12 $"Unable to find created tarball."
+-        fi
+-    fi
+-
+     # Calculate destination directory
+     deb_basedir=$dkms_tree/$module/$module_version/${create_type}
+     mkdir -p ${deb_basedir} >/dev/null 2>&1
+@@ -3112,6 +3095,7 @@
+     pushd "$temp_dir_debian" > /dev/null 2>&1
+     case "$create_type" in
+     dsc)
++        invoke_command "cp -Lpr '$dkms_tree/$module/$module_version/source' '$temp_dir_debian/$module-$module_version'" "Copying source tree"
+         invoke_command "dpkg-buildpackage -S -us -uc 1>/dev/null" "Building source package" || \
+             die 7 $"There was a problem creating your ${create_type}."
+         echo $""
+@@ -3119,13 +3103,24 @@
+         invoke_command "mv '$temp_dir/${debian_package}-dkms_${module_version}_source.changes' '$temp_dir/${debian_package}-dkms_${module_version}.dsc' '$temp_dir/${debian_package}-dkms_${module_version}.tar.gz' '$deb_basedir'" "Moving built files to $deb_basedir"
+         ;;
+     deb)
++        invoke_command "cp -Lpr '$dkms_tree/$module/$module_version/source' '$temp_dir_debian/$module-$module_version'" "Copying source tree"
+         invoke_command "dpkg-buildpackage -rfakeroot -d -b -us -uc 1>/dev/null" "Building binary package" || \
+             die 7 $"There was a problem creating your ${create_type}."
+         echo $""
+         echo $"DKMS: mk${create_type} completed."
+-	invoke_command "mv '$temp_dir/${debian_package}-dkms_${module_version}_${debian_build_arch}.deb' '$deb_basedir'" "Moving built files to $deb_basedir"
++	invoke_command "mv '$temp_dir/${debian_package}-dkms_${module_version}_all.deb' '$deb_basedir'" "Moving built files to $deb_basedir"
+ 	;;
+     bmdeb)
++  # Only if we are shipping binary modules, make a .tgz for the deb
++  local archive_location="$dkms_tree/$module/$module_version/tarball/$module-$module_version.dkms.tar.gz"
++  binaries_only="binaries-only"
++  invoke_command "make_tarball" "Gathering binaries"
++  if [[ -f $archive_location ]]; then
++      invoke_command "cp '$archive_location' '$temp_dir_debian'" "Copying DKMS tarball into DKMS tree"
++  else
++      die 12 $"Unable to find created tarball."
++  fi
++
+ 	export KVER="$kernelver"
+ 	export KARCH="$arch"
+ 	invoke_command "dpkg-buildpackage -rfakeroot -d -b -us -uc 1>/dev/null" "Building binary package" || \

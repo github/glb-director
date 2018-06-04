@@ -3,9 +3,21 @@ set -e
 ROOTDIR=$(dirname $0)/..
 cd $ROOTDIR
 
+GLB_HEALTHCHECK_VERSION="0.1"
+
 rm -rf .gopath
 mkdir -p .gopath/src/github.com/github
 ln -s `pwd`/../../ .gopath/src/github.com/github/glb-director
 export GOPATH=`pwd`/.gopath
 cd $GOPATH/src/github.com/github/glb-director/src/glb-healthcheck
 go build
+
+rm -rf .root
+mkdir -p .root/usr/local/bin/
+cp glb-healthcheck .root/usr/local/bin/
+fpm -f -s dir -t deb -n glb-healthcheck -v ${GLB_HEALTHCHECK_VERSION} .root
+rm -rf .root
+
+if [ -d "$BUILDDIR" ]; then
+  cp glb-healthcheck_${GLB_HEALTHCHECK_VERSION}_amd64.deb $BUILDDIR/
+fi
