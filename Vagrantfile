@@ -70,7 +70,7 @@ Vagrant.configure("2") do |config|
       #dpdk-devbind --status
     SHELL
 
-    v.vm.provision "shell", inline: <<-SHELL
+    v.vm.provision "shell", run: "always", inline: <<-SHELL
       ip addr add fd33:75c6:d3f2:7e9f::5/64 dev eth1 || true
     SHELL
   end
@@ -79,6 +79,10 @@ Vagrant.configure("2") do |config|
     v.vm.network "private_network", ip: "192.168.50.10"
 
     v.vm.provision "shell", inline: <<-SHELL
+      DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+    SHELL
+
+    v.vm.provision "shell", run: "always", inline: <<-SHELL
       modprobe fou
       modprobe sit
       ip link set up dev tunl0 || true
@@ -88,8 +92,6 @@ Vagrant.configure("2") do |config|
       ip addr add fd2c:394c:33a3:26bf::1/128 dev sit0 || true
 
       ip addr add fd33:75c6:d3f2:7e9f::10/64 dev eth1 || true
-
-      DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
     SHELL
   end
 
@@ -97,6 +99,10 @@ Vagrant.configure("2") do |config|
     v.vm.network "private_network", ip: "192.168.50.11"
 
     v.vm.provision "shell", inline: <<-SHELL
+      DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+    SHELL
+
+    v.vm.provision "shell", run: "always", inline: <<-SHELL
       modprobe fou
       modprobe sit
       ip link set up dev tunl0 || true
@@ -106,8 +112,6 @@ Vagrant.configure("2") do |config|
       ip addr add fd2c:394c:33a3:26bf::1/128 dev sit0 || true
 
       ip addr add fd33:75c6:d3f2:7e9f::11/64 dev eth1 || true
-
-      DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
     SHELL
   end
 end
