@@ -19,7 +19,8 @@ fpm -f -s dir -t deb \
 	--config-files /etc/glb \
 	glb-healthcheck=/usr/sbin/ \
 	packaging/healthcheck.conf=/etc/glb/ \
-	packaging/forwarding_table.src.json=/etc/glb/
+	packaging/forwarding_table.src.json=/etc/glb/ \
+	packaging/forwarding_table.checked.json=/etc/glb/
 
 if [ -d "$BUILDDIR" ]; then
   cp glb-healthcheck_${GLB_HEALTHCHECK_VERSION}_amd64.deb $BUILDDIR/
