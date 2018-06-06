@@ -3,7 +3,7 @@ set -e
 ROOTDIR=$(dirname $0)/..
 cd $ROOTDIR
 
-GLB_HEALTHCHECK_VERSION="0.1"
+. packaging/version.sh
 
 rm -rf .gopath
 mkdir -p .gopath/src/github.com/github
@@ -12,11 +12,14 @@ export GOPATH=`pwd`/.gopath
 cd $GOPATH/src/github.com/github/glb-director/src/glb-healthcheck
 go build
 
-rm -rf .root
-mkdir -p .root/usr/local/bin/
-cp glb-healthcheck .root/usr/local/bin/
-fpm -f -s dir -t deb -n glb-healthcheck -v ${GLB_HEALTHCHECK_VERSION} .root
-rm -rf .root
+fpm -f -s dir -t deb \
+	-n glb-healthcheck \
+	-v ${GLB_HEALTHCHECK_VERSION} \
+	--deb-systemd packaging/glb-healthcheck.service \
+	--config-files /etc/glb \
+	glb-healthcheck=/usr/sbin/ \
+	packaging/healthcheck.conf=/etc/glb/ \
+	packaging/forwarding_table.src.json=/etc/glb/
 
 if [ -d "$BUILDDIR" ]; then
   cp glb-healthcheck_${GLB_HEALTHCHECK_VERSION}_amd64.deb $BUILDDIR/
