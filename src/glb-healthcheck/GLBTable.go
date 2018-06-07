@@ -6,8 +6,10 @@ import (
 )
 
 type GLBHealthcheckConfig struct {
-	Http *int `json:"http,omitempty"`
-	GUE  *int `json:"gue,omitempty"`
+	Http    *int    `json:"http,omitempty"`
+	HttpUri *string `json:"http_uri,omitempty"`
+	GUE     *int    `json:"gue,omitempty"`
+	FOU     *int    `json:"fou,omitempty"`
 }
 
 type GLBBind struct {
@@ -65,10 +67,15 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 	targets := make([]HealthCheckTarget, 0, 2)
 
 	if backend.HealthcheckConfig.Http != nil {
+		var uri string = "/"
+		if backend.HealthcheckConfig.HttpUri != nil {
+			uri = *backend.HealthcheckConfig.HttpUri
+		}
 		targets = append(targets, HealthCheckTarget{
 			CheckType: "http",
 			Ip:        backend.Ip,
 			Port:      *backend.HealthcheckConfig.Http,
+			Uri:       uri,
 		})
 	}
 

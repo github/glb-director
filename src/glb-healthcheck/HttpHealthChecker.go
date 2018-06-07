@@ -63,7 +63,7 @@ func (h *HttpHealthChecker) CheckTarget(resultChannel HealthResultStream, target
 
 	go func() {
 		logContext.Debug("Sending HTTP request to health check port")
-		resultCh := httpCheckURL(fmt.Sprintf("http://%s:%d/", target.Ip, target.Port))
+		resultCh := httpCheckURL(fmt.Sprintf("http://%s:%d%s", target.Ip, target.Port, target.Uri))
 
 		// either receive the successful result, or time out and craft an error result.
 		var result HealthResult
