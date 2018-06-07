@@ -80,5 +80,13 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 		})
 	}
 
+	if backend.HealthcheckConfig.FOU != nil {
+		targets = append(targets, HealthCheckTarget{
+			CheckType: "fou",
+			Ip:        backend.Ip,
+			Port:      *backend.HealthcheckConfig.FOU,
+		})
+	}
+
 	return targets
 }
