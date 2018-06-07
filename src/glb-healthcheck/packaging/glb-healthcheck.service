@@ -1,0 +1,13 @@
+[Unit]
+Description=GLB Director Healthcheck
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/usr/sbin/glb-healthcheck --config=/etc/glb/healthcheck.conf
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
