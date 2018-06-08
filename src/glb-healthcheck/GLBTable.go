@@ -13,11 +13,11 @@ type GLBHealthcheckConfig struct {
 }
 
 type GLBBind struct {
-	Ip        string `json:"ip"`
-	Proto     string `json:"proto"`
-	Port      *int16 `json:"port,omitempty"`
-	PortStart *int16 `json:"port_start,omitempty"`
-	PortEnd   *int16 `json:"port_end,omitempty"`
+	Ip        string  `json:"ip"`
+	Proto     string  `json:"proto"`
+	Port      *uint16 `json:"port,omitempty"`
+	PortStart *uint16 `json:"port_start,omitempty"`
+	PortEnd   *uint16 `json:"port_end,omitempty"`
 }
 
 type GLBBackend struct {
