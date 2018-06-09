@@ -8,6 +8,7 @@ type HealthCheckTarget struct {
 	CheckType string
 	Ip        string
 	Port      int
+	Uri       string
 }
 
 type HealthResult struct {

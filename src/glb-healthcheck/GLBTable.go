@@ -6,16 +6,18 @@ import (
 )
 
 type GLBHealthcheckConfig struct {
-	Http *int `json:"http,omitempty"`
-	GUE  *int `json:"gue,omitempty"`
+	Http    *int    `json:"http,omitempty"`
+	HttpUri *string `json:"http_uri,omitempty"`
+	GUE     *int    `json:"gue,omitempty"`
+	FOU     *int    `json:"fou,omitempty"`
 }
 
 type GLBBind struct {
-	Ip        string `json:"ip"`
-	Proto     string `json:"proto"`
-	Port      *int16 `json:"port,omitempty"`
-	PortStart *int16 `json:"port_start,omitempty"`
-	PortEnd   *int16 `json:"port_end,omitempty"`
+	Ip        string  `json:"ip"`
+	Proto     string  `json:"proto"`
+	Port      *uint16 `json:"port,omitempty"`
+	PortStart *uint16 `json:"port_start,omitempty"`
+	PortEnd   *uint16 `json:"port_end,omitempty"`
 }
 
 type GLBBackend struct {
@@ -65,10 +67,15 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 	targets := make([]HealthCheckTarget, 0, 2)
 
 	if backend.HealthcheckConfig.Http != nil {
+		var uri string = "/"
+		if backend.HealthcheckConfig.HttpUri != nil {
+			uri = *backend.HealthcheckConfig.HttpUri
+		}
 		targets = append(targets, HealthCheckTarget{
 			CheckType: "http",
 			Ip:        backend.Ip,
 			Port:      *backend.HealthcheckConfig.Http,
+			Uri:       uri,
 		})
 	}
 
@@ -77,6 +84,14 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 			CheckType: "gue",
 			Ip:        backend.Ip,
 			Port:      *backend.HealthcheckConfig.GUE,
+		})
+	}
+
+	if backend.HealthcheckConfig.FOU != nil {
+		targets = append(targets, HealthCheckTarget{
+			CheckType: "fou",
+			Ip:        backend.Ip,
+			Port:      *backend.HealthcheckConfig.FOU,
 		})
 	}
 
