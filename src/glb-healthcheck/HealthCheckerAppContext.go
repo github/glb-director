@@ -122,6 +122,7 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 				ctx.dirty = true
 
 				logContext.WithFields(log.Fields{
+					"tableName": table.Name,
 					"backendIp": backend.Ip,
 					"successes": successes,
 					"failures":  failures,

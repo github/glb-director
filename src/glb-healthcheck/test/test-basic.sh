@@ -17,6 +17,7 @@ cat >$TEMPDIR/forwarding_table.json <<EOF
 {
   "tables": [
     {
+      "name": "example1",
       "hash_key": "12345678901234561234567890123456",
       "seed": "34567890123456783456789012345678",
       "binds": [
@@ -30,6 +31,7 @@ cat >$TEMPDIR/forwarding_table.json <<EOF
       ]
     },
     {
+      "name": "example2",
       "hash_key": "12345678901234561234567890123456",
       "seed": "12345678901234561234567890123456",
       "binds": [
