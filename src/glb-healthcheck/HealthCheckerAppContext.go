@@ -96,6 +96,9 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 	targetResults := ctx.checkManager.GetResults()
 
 	for _, table := range ft.Tables {
+		tableNumHealthy := 0
+		tableNumUnhealthy := 0
+
 		for _, backend := range table.Backends {
 			logContext := ctx.logContext
 
@@ -122,6 +125,7 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 				ctx.dirty = true
 
 				logContext.WithFields(log.Fields{
+					"tableName": table.Name,
 					"backendIp": backend.Ip,
 					"successes": successes,
 					"failures":  failures,
@@ -130,8 +134,20 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 				}).Info("Health state changed for backend")
 			}
 
+			if healthy {
+				tableNumHealthy += 1
+			} else {
+				tableNumUnhealthy += 1
+			}
+
 			backend.Healthy = healthy
 		}
+
+		ctx.logContext.WithFields(log.Fields{
+			"tableName":         table.Name,
+			"healthyBackends":   tableNumHealthy,
+			"unhealthyBackends": tableNumUnhealthy,
+		}).Info("Table backend summary")
 	}
 }
 

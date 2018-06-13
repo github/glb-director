@@ -29,6 +29,7 @@ type GLBBackend struct {
 }
 
 type GLBTable struct {
+	Name     string        `json:"name"`
 	HashKey  string        `json:"hash_key"`
 	Seed     string        `json:"seed"`
 	Binds    []*GLBBind    `json:"binds"`
