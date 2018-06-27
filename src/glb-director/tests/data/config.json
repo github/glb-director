@@ -1,0 +1,21 @@
+{
+    "outbound_src_ip": "65.65.65.65",
+    "outbound_gateway_mac": "3a:89:7c:7b:5d:1f",
+    "num_worker_queues": 1,
+    "flow_paths": [
+    	{ "rx_port": 0, "rx_queue": 0, "tx_port": 0, "tx_queue": 0 }
+    ],
+    "lcores": {
+    	"lcore-1": {
+			"rx": true,
+			"tx": true,
+			"flow_paths": [0],
+			"dist": true,
+			"num_dist_workers": 1
+		},
+		"lcore-2": {
+			"work": true,
+			"work_source": 1
+		}
+    }
+}
