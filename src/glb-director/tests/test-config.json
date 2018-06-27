@@ -1,0 +1,80 @@
+{
+    "tables": [
+        {
+            "binds": [
+                {
+                    "ip": "1.1.1.1", 
+                    "port": 80, 
+                    "proto": "tcp"
+                }, 
+                {
+                    "ip": "1.1.1.1", 
+                    "port": 443, 
+                    "proto": "tcp"
+                }
+            ], 
+            "seed": "34567890123456783456789012345678", 
+            "hash_key": "12345678901234561234567890123456", 
+            "backends": [
+                {
+                    "healthy": true, 
+                    "ip": "1.2.3.4", 
+                    "state": "active"
+                }, 
+                {
+                    "healthy": true, 
+                    "ip": "2.3.4.5", 
+                    "state": "active"
+                }, 
+                {
+                    "healthy": true, 
+                    "ip": "3.4.5.6", 
+                    "state": "active"
+                }
+            ]
+        }, 
+        {
+            "binds": [
+                {
+                    "ip": "1.1.1.2", 
+                    "port": 80, 
+                    "proto": "tcp"
+                }, 
+                {
+                    "ip": "1.1.1.3", 
+                    "port": 80, 
+                    "proto": "tcp"
+                }, 
+                {
+                    "ip": "fdb4:98ce:52d4::42", 
+                    "port": 80, 
+                    "proto": "tcp"
+                }
+            ], 
+            "seed": "12345678901234561234567890123456", 
+            "hash_key": "12345678901234561234567890123456", 
+            "backends": [
+                {
+                    "healthy": true, 
+                    "ip": "4.5.6.7", 
+                    "state": "active"
+                }, 
+                {
+                    "healthy": true, 
+                    "ip": "5.6.7.8", 
+                    "state": "active"
+                }, 
+                {
+                    "healthy": true, 
+                    "ip": "6.7.8.9", 
+                    "state": "active"
+                }, 
+                {
+                    "healthy": true, 
+                    "ip": "7.8.9.0", 
+                    "state": "active"
+                }
+            ]
+        }
+    ]
+}

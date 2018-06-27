@@ -26,3 +26,5 @@ ls -1 test/test-*.sh | xargs -I % -n 1 /bin/bash %
 echo "==="
 date "+%Y-%m-%dT%H:%M:%SZ"
 echo "Done."
+
+rm -rf .gopath

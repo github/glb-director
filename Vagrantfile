@@ -56,7 +56,7 @@ Vagrant.configure("2") do |config|
       apt-get update
       curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | sudo bash
       apt-get install -y linux-headers-`(uname -r)` # dpdk requires this for the current kernel, but won't block if not installed
-      apt-get install -y python-pip dpdk-dev dpdk-rte-kni-dkms dpdk-igb-uio-dkms libjansson-dev
+      apt-get install -y python-pip dpdk-dev=17.11.1-6 dpdk-rte-kni-dkms dpdk-igb-uio-dkms libjansson-dev
       apt-get install -y valgrind vim tcpdump clang golang
 
       echo 'rte_kni' >/etc/modules-load.d/dpdk

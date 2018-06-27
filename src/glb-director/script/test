@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -e
+
+export BASEDIR=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+. ../../script/helpers/folding.sh
+
+begin_fold "Building glb-director for testing"
+(
+  make clean
+  make -C cli clean
+
+  scan-build make
+  scan-build make -C cli
+)
+end_fold
+
+begin_fold "Running scapy packet tests against glb-director"
+(
+  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v
+)
+end_fold
+
+begin_fold "Running glb-director config tests"
+(
+  bash tests/config_check.sh
+)
+end_fold
+
+begin_fold "Running pcap tests"
+(
+  # needs hugepages run after other tests since its already set up
+  bash tests/pcap_tests.sh
+)
+end_fold
+
+begin_fold "valgrind tests"
+(
+  bash tests/valgrind_check.sh
+)
+end_fold
+
+begin_fold "stub server tests"
+(
+  bash tests/stub_server_tests.sh
+)
+end_fold
