@@ -25,3 +25,5 @@ fpm -f -s dir -t deb \
 if [ -d "$BUILDDIR" ]; then
   cp glb-healthcheck_${GLB_HEALTHCHECK_VERSION}_amd64.deb $BUILDDIR/
 fi
+
+rm -rf .gopath
