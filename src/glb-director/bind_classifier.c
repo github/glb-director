@@ -382,7 +382,9 @@ int create_bind_classifier(struct glb_fwd_config_content *config,
 
 	if (num_total_binds == 0) {
 		glb_log_info("No binds found in configuration");
-		return 1;
+		*ipv4_ctx_ptr = NULL;
+		*ipv6_ctx_ptr = NULL;
+		return 0;
 	}
 
 	if (!g_director_config->forward_icmp_ping_responses) {

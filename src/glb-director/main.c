@@ -261,9 +261,8 @@ int main(int argc, char **argv)
 
 	if (config_ctx->bind_classifier_v4 == NULL &&
 	    config_ctx->bind_classifier_v6 == NULL) {
-		glb_log_error_and_exit(
-		    "Expecting at least one initial bind classifier"
-		    " creation to suceed.");
+		glb_log_error(
+		    "No bind classifiers found, are you missing binds?");
 	}
 
 	glb_log_info("GLB config context: %p", config_ctx);
