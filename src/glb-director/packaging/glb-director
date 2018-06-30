@@ -1,0 +1,3 @@
+GLB_DIRECTOR_EAL_ARGS="--master-lcore 4 -l 4,5,6,7"
+GLB_DIRECTOR_CONFIG_FILE="/etc/glb/director.conf"
+GLB_DIRECTOR_FORWARDING_TABLE="/etc/glb/forwarding_table.bin"
