@@ -33,7 +33,7 @@ On each director server, using the Packet UI, enable BGP for the server and then
 Since GLB will be receiving the packets, but not locally handling them, the following changes will need to be made to the BIRD configuration:
 
  * Under `filter packet_bgp`, add a whitelist for the IPs you allocated above, e.g. `if net = 1.2.3.4/32 then accept;`
- * Create a new section, using the same allocated IP and the local machine's IP as the `via`:
+ * Create a new section, using the same allocated IP (in this example, `1.2.3.4`) and the local machine's IP as the `via` (in this example, `10.48.2.1`):
 ```
 protocol static {
   route 1.2.3.4/32 via 10.48.2.1;
@@ -82,7 +82,7 @@ dpdk-devbind --status # note the PCI address of the VF
 dpdk-devbind -b igb_uio 0000:03:02.0 # substitute the PCI address of the VF from above
 ```
 
-At this point, glb-director should be able to start up and access the VF as configured for DPDK, and Packet-provided IP space should be announced and arrive on that VF. At this point, glb-director can be configured with binds on those IPs.
+At this point, glb-director should be able to start up and access the VF as configured for DPDK, and Packet-provided IP space should be announced and arrive on that VF. glb-director can then be configured with binds on those IPs.
 
 ## Bare metal servers in GitHub datacenters, SR-IOV flow bifurcation on Intel X540-AT2 (ixgbe driver)
 
