@@ -1,6 +1,6 @@
 # License
 
-Except where otherwise specified, this project is licensed with the BSD 3-Clause License included below. Where work is a derivative of other BSD licensed works, the original license is also included in the source code.
+Except where otherwise specified, this project is licensed with the BSD 3-Clause License included below. Where work is a derivative of other BSD or MIT licensed works, the original license is also included in the source code.
 
 The Python test files, Scapy extension (`scapy-glb-gue`), Wireshark dissector (`glb-wireshark-dissector`) and `glb-redirect` module, are licensed separately under the GPL v2 to be license compatible with the Scapy, Wireshark and the Linux Kernel respectively. These files carry either explicit GPL v2 license headers or the license is explicitly specified in the module's parent directory `README`.
 
