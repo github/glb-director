@@ -10,7 +10,7 @@ GLB Director is designed to be used in datacenter environments where multiple se
 
 ![L4/L7 load balancer design](./docs/images/glb-component-overview.png)
 
-Traditional solutions such as [LVS](https://en.wikipedia.org/wiki/Linux_Virtual_Server) have stored flow state on each director node and then shared flow state between nodes. GLB Director instead receives these flows and uses a derivative of rendezvous hashing to hash flows to a pair of servers with a pre-determined order, and leverages the state already stored on those servers to allow flows to complete after a server begins draining.
+Traditional solutions such as [LVS](https://en.wikipedia.org/wiki/Linux_Virtual_Server) have stored flow state on each director node and then shared flow state between nodes. GLB Director instead receives these flows and uses a [derivative of rendezvous hashing](./docs/development/glb-hashing.md) to hash flows to a pair of servers with a pre-determined order, and [leverages the state already stored](./docs/development/second-chance-design.md) on those servers to allow flows to complete after a server begins draining.
 
 ![GLB "second chance" packet flow](./docs/images/second-chance-nolegend.png)
 
