@@ -4,7 +4,7 @@ GLB Director uses a variant of rendezvous hashing to create a static forwarding 
 
 Incoming packets are hashed on their source IP using siphash, using a shared secure key. The hash is used as an index into the director forwarding table (current of size `2^16`) which determines the proxy host(s) that will receive the packets. The packet is encapsulated inside another [GUE tunnel](./gue-header.md) packet (along with the IP of the secondary inside the GUE header), and forwarded to the primary proxy host.
 
-![GLB forwarding table - active](./docs/images/forwarding-table-active.png)
+![GLB forwarding table - active](../images/forwarding-table-active.png)
 
 The hash table is sized appropriately so that for each primary proxy node, there is a roughly even distribution of entries for each other secondary nodes, meaning that when a host drains, no one secondary receives all its traffic. Since we have 2^16 as the hash table size, at around 2^8 proxy hosts we would start to see biases as not all proxy hosts would have an entry as secondary for any other given primary proxy host. It seems reasonable that 256 proxy hosts for a single external IP+port combination would be enough for most use cases (though the table size can trivially be extended if this limit is reached). If these are assigned randomly, they will approximate even spread during draining.
 
@@ -14,23 +14,23 @@ We use rendezvous hashing and utilise the feature of decent hash functions to co
 
 In GLB's design, adding or removing proxy servers require some care. This is because a forwarding table entry only defines a primary/secondary proxy, so the draining/failover only works with at most 1 proxy host in draining. We define the following valid states and state transitions for a proxy server:
 
-![GLB proxy state machine](./docs/images/glb-proxy-state-machine.png)
+![GLB proxy state machine](../images/glb-proxy-state-machine.png)
 
 When a proxy server is `active`, `draining` or `filling`, it is included in the forwarding table entries. In a stable state, all proxy servers are `active`, and the rendezvous hashing described above will have an approximately even and random distribution of each proxy server in both the `primary` and `secondary` columns.
 
 As a proxy server transitions to `draining`, we adjust the entries in the forwarding table by swapping the `primary` and `secondary` entries we would have otherwise included:
 
-![GLB forwarding table - active](./docs/images/forwarding-table-draining.png)
+![GLB forwarding table - active](../images/forwarding-table-draining.png)
 
 This has the effect of sending packets to the server that was previously `secondary` first. Since it receives the packets first, it will accept SYN packets and therefore take any new connections. For any packet it doesn't understand as relating to a local flow, it forwards it to the other server (the previous `primary`), which allows existing connections to complete.
 
 This has the effect of draining the desired server of connections gracefully, after which point it can be removed completely, and proxies can shuffle in to fill the empty `secondary` slots:
 
-![GLB forwarding table - active](./docs/images/forwarding-table-removed.png)
+![GLB forwarding table - active](../images/forwarding-table-removed.png)
 
 A node in `filling` looks just like `active`, since the table inherently allows a second chance:
 
-![GLB forwarding table - active](./docs/images/forwarding-table-filling.png)
+![GLB forwarding table - active](../images/forwarding-table-filling.png)
 
 This implementation requires that no more than one proxy server at a time is in any state other than `active`, which in practise has worked well at GitHub. The state changes to proxy servers can happen as quickly as the longest connection duration that needs to be maintained.
 
