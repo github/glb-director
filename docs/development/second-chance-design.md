@@ -16,7 +16,7 @@ To start, it's worth reviewing the cases where ECMP, or other consistent hashing
 
 The image on the left shows a simplified scenario where 2 proxy servers are receiving flows from 6 sources, hashed equally amongst those servers using ECMP (or similar). Since the packet headers are used to hash flows (typically src/dst ip/port), as long as the set of servers doesn't change, existing TCP connections will continue to be hashed to the same proxy server until they terminate gracefully.
 
-On the right, we can see that in a situation where we add a new server while those connections are still in progress, 1/3 of all connections, including those original connections, must be rebalanced. In order to ensure that connections are hashed equally, it must start hashing packets in a way that balances packets across servers equally. However, if the router doesn't hold per-flow state for the flows that have been seen so far and which server they mapped to, it must by design break certain flows by redirecting them to the new server. In the worse case, more connections may rehash (to maintain an equal balance) or be unbalanced (to reduce rebalanacing).
+On the right, we can see that in a situation where we add a new server while those connections are still in progress, 1/3 of all connections, including those original connections, must be rebalanced. In order to ensure that connections are hashed equally, it must start hashing packets in a way that balances packets across servers equally. However, if the router doesn't hold per-flow state for the flows that have been seen so far and which server they mapped to, it must by design break certain flows by redirecting them to the new server. In the worst case, more connections may rehash (to maintain an equal balance) or be unbalanced (to reduce rehasing).
 
 ## Comparison to LVS and other director-state solutions
 
@@ -24,7 +24,7 @@ The traditional solution to this problem involves adding a "director" tier in be
 
 ![LVS packet flow](../images/ecmp-redist-lvs-no-state.png)
 
-There are still cases where flows can fall through the cracks when network paths change and servers are added or removed. To solve this, lvs director servers typically use multicast state syncing, where as new flows are seen the state is replicated to other director servers so this is less likely. However, the director nodes in this design require cross-communication and also need to store duplicate connection state which is already available on the proxy nodes, and there is still some latency on those flows being kept in sync.
+There are still cases where flows can fall through the cracks when network paths change and servers are added or removed. To solve this, LVS director servers typically use [multicast UDP state syncing](http://kb.linuxvirtualserver.org/wiki/LVS_Cluster_Management#Cluster_Monitoring), where as new flows are seen the state is replicated to other director servers so this is less likely. However, the director nodes in this design require cross-communication and also need to store duplicate connection state which is already available on the proxy nodes, and there is still some latency on those flows being kept in sync.
 
 At GitHub, we typically have very long lived connections (git push/clone) and so wish to store as little additional/duplicate state as possible, and also minimise inadvertant disruption as much as possible since it's not as convenient to simply retry requests.
 
