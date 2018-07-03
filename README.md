@@ -8,7 +8,9 @@ The GitHub Load Balancer (GLB) Director is a set of components that provide a sc
 
 GLB Director is designed to be used in datacenter environments where multiple servers can announce the same IP address via BGP and have network routers shard traffic amongst those servers using [ECMP routing](https://en.wikipedia.org/wiki/Equal-cost_multi-path_routing). While ECMP shards connections per-flow using consistent hashing, addition or removal of nodes will generally cause some disruption to traffic as state isn't stored for each flow. A split L4/L7 design is typically used to allow the L4 servers to redistribute these flows back to a consistent server in a flow-aware manner. GLB Director implements the L4 (director) tier of a split L4/L7 load balancer design.
 
+<p align="center">
 ![L4/L7 load balancer design](./docs/images/glb-component-overview.png)
+</p>
 
 Traditional solutions such as [LVS](https://en.wikipedia.org/wiki/Linux_Virtual_Server) have stored flow state on each director node and then shared flow state between nodes. GLB Director instead receives these flows and uses a derivative of rendezvous hashing to hash flows to a pair of servers with a pre-determined order, and leverages the state already stored on those servers to allow flows to complete after a server begins draining.
 
