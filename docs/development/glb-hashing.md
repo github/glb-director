@@ -22,7 +22,7 @@ As a proxy server transitions to `draining`, we adjust the entries in the forwar
 
 ![GLB forwarding table - active](../images/forwarding-table-draining.png)
 
-This has the effect of sending packets to the server that was previously `secondary` first. Since it receives the packets first, it will accept SYN packets and therefore take any new connections. For any packet it doesn't understand as relating to a local flow, it forwards it to the other server (the previous `primary`), which allows existing connections to complete.
+This has the effect of sending packets to the server that was previously `secondary` first. Since it receives the packets first, it will accept SYN packets and therefore take any new connections. For any packet it doesn't understand as relating to a local flow, it forwards it to the other server (the previous `primary`), which [allows existing connections to complete](./second-chance-design.md).
 
 This has the effect of draining the desired server of connections gracefully, after which point it can be removed completely, and proxies can shuffle in to fill the empty `secondary` slots:
 
