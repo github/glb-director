@@ -85,6 +85,8 @@ typedef struct {
 	glb_director_lcore_config lcore_configs[RTE_MAX_LCORE];
 
 	int forward_icmp_ping_responses;
+
+	int rx_drop_en;
 } glb_director_config;
 
 glb_director_config *
