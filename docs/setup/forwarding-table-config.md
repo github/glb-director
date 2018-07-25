@@ -109,7 +109,7 @@ This specifies the proxy servers (backends) that will handle packets on this tab
 
 `healthy` specifies whether the server is functioning normally. When unhealthy, the server will be deprioritised as if it was draining. This field does not need to be provided if `glb-healthcheck` is used, it will fill it in when generating the output table. If you are using alternative healthchecking, you should fill in this field.
 
-`healthchecks` - used only when the `glb-healthcheck` component is configured, defines how to check the health state of this backend. Typically this should always contain `"gue": 19523` to test that GUE decapsulation is supported on this backend. `"http": <port>` is also available to do application level healthchecking, for examply to test that a service like `haproxy` is running.
+`healthchecks` - used only when the `glb-healthcheck` component is configured, defines how to check the health state of this backend. Typically this should always contain `"gue": 19523` to test that GUE decapsulation is supported on this backend. `"http": <port>` is also available to do application level healthchecking, for example to test that a service like `haproxy` is running.
 
 If `glb-healthcheck` is used, a backend will be considered down if either the `gue` or `http` healthcheck fails.
 
