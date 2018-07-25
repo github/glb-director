@@ -71,7 +71,7 @@ _required_
 
 This is a secret seed that is used to create the rendezvous hash entries.
 
-This should be set to a 32 hex digit (16 decoded byte) string generated randomly. This should be unique for each table to ensure that entries are different in each table even if the original backend list is the same. For more details of how this is used, see [GLB Hashing](../development/glb-hashing.md).
+This should be set to a 32 hex digit (16 decoded byte) string generated randomly. The `seed` should be the same across all director nodes for the same table to ensure consistent hashing. This should be unique for each table to ensure that entries are different in each table even if the original backend list is the same. For more details of how this is used, see [GLB Hashing](../development/glb-hashing.md).
 
 ### `binds`
 
