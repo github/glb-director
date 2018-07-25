@@ -171,6 +171,13 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 		cfg->forward_icmp_ping_responses = 1;
 	}
 
+	item = json_object_get(root, "rx_drop_en");
+	if (item != NULL && json_is_false(item)) {
+		cfg->rx_drop_en = 0;
+	} else {
+		cfg->rx_drop_en = 1;
+	}
+
 	json_t *flow_paths = json_object_get(root, "flow_paths");
 	unsigned f;
 	if (flow_paths == NULL) {

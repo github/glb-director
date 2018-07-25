@@ -18,6 +18,8 @@ GLB Director only processes packets on ingress, and encapsulates them inside an 
 
 ## Getting started
 
+GLB Director has a number of components that work together with other infrastructure components to create a complete load balancer. We've created an [example Vagrant setup/guide](./docs/setup/example-setup-vagrant.md) which will create a local instance of GLB with all required components. The [docs](./docs/) directory also contains additional documentation on the design and constraints.
+
 ## Contributing
 
 Please check out our [contributing guidelines](CONTRIBUTING.md).

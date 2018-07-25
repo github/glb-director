@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 
 begin_fold "Testing GLB-REDIRECT iptables module"
 (
-  vagrant ssh director -- bash /dev/stdin <<'EOF'
+  vagrant ssh director-test -- bash /dev/stdin <<'EOF'
     cd /vagrant/src/glb-redirect
     sudo script/test
 EOF

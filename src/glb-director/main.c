@@ -142,7 +142,7 @@ static void init_port(uint8_t port, uint32_t num_queues, struct rte_mempool *pkt
 	struct rte_eth_dev_info nic_info;
 	rte_eth_dev_info_get(DEFAULT_ETH_DEV, &nic_info);
 	struct rte_eth_rxconf rxconf = nic_info.default_rxconf;
-	rxconf.rx_drop_en = 1;
+	rxconf.rx_drop_en = g_director_config->rx_drop_en;
 
 	for (i = 0; i < num_queues; i++) {
 		ret = rte_eth_rx_queue_setup(port, i, NB_RXD,
