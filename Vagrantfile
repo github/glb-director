@@ -19,6 +19,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "router" do |v|
     v.vm.network "private_network", ip: "192.168.40.3", virtualbox__intnet: "glb_user_network"
     v.vm.network "private_network", ip: "192.168.50.2", virtualbox__intnet: "glb_datacenter_network", :mac=> "001122334455"
+    v.vm.hostname = "router"
 
     v.vm.provision "shell", inline: <<-SHELL
       if ! grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf; then
@@ -32,6 +33,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "user" do |v|
     v.vm.network "private_network", ip: "192.168.40.2", virtualbox__intnet: "glb_user_network"
+    v.vm.hostname = "user"
 
     v.vm.provision "shell", inline: <<-SHELL
       /vagrant/script/helpers/configure-vagrant-user.sh
@@ -47,6 +49,8 @@ Vagrant.configure("2") do |config|
 
   def define_director(config, name, ipv4_addr, ipv6_addr, install_example_setup: false)
     config.vm.define name do |v|
+      v.vm.hostname = name
+
       if install_example_setup
         v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network", auto_config: false, nic_type: "82540EM"
       else
@@ -116,6 +120,8 @@ Vagrant.configure("2") do |config|
 
   def define_proxy(config, name, ipv4_addr, ipv6_addr)
     config.vm.define name do |v|
+      v.vm.hostname = name
+
       v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network"
 
       v.vm.provision "shell", inline: <<-SHELL
