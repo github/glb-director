@@ -4,6 +4,7 @@
 
  * [Example Vagrant Setup](./setup/example-setup-vagrant.md) - if you want to get all components up and running in a test environment and look around at how different GLB components work together.
  * [Known Compatible DPDK configurations](./setup/known-compatible-dpdk.md) - if you want to see examples of how GitHub configures DPDK in its datacenters, or how to use it on a public cloud provider that supports DPDK and BGP.
+ * [Forwarding table configuration & healthchecks](./setup/forwarding-table-config.md) - Configuring the GLB forwarding table, and the director->proxy healthcheck process.
  * [Backend proxy server setup](./setup/backend-proxy-setup.md) - Configuring the backend TCP/proxy tier servers.
 
 Some notable known limitations / design decisions of the current implementation:
