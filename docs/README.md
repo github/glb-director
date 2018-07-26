@@ -5,6 +5,8 @@
  * [Example Vagrant Setup](./setup/example-setup-vagrant.md) - if you want to get all components up and running in a test environment and look around at how different GLB components work together.
  * [Known Compatible DPDK configurations](./setup/known-compatible-dpdk.md) - if you want to see examples of how GitHub configures DPDK in its datacenters, or how to use it on a public cloud provider that supports DPDK and BGP.
  * [glb-director component configuration options](./setup/glb-director-configuration.md) - configuration options for the GLB Director and discussion of NIC/Port and CPU Core configuration.
+ * [Forwarding table configuration & healthchecks](./setup/forwarding-table-config.md) - Configuring the GLB forwarding table, and the director->proxy healthcheck process.
+ * [Backend proxy server setup](./setup/backend-proxy-setup.md) - Configuring the backend TCP/proxy tier servers.
 
 Some notable known limitations / design decisions of the current implementation:
  * The datacenter internal MTU is expected to be large enough to encapsulate any user packet inside a GUE header. We use jumbo frames (9000+ MTU) within the datacenter with a transit/internet MTU of 1500. GLB Director will not fragment packets if they are too large.
