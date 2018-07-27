@@ -30,3 +30,16 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
 - [Using Pull Requests](https://help.github.com/articles/about-pull-requests/)
 - [GitHub Help](https://help.github.com)
+
+## Releasing
+
+Currently each component in this repo is versioned and released separately as needed. The build and test process is automated requiring Docker (for building) and Vagrant (for multi-machine testing):
+```
+script/cibuild
+```
+
+Once this completes successfully, the `tmp/build` directory will contain a `.deb` file for each component and they can be released to the apt source by an authorised maintainer:
+```
+package_cloud push github/glb-director/debian/jessie glb-<component>_<version>.deb
+package_cloud push github/glb-director/debian/stretch glb-<component>_<version>.deb
+```

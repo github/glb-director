@@ -46,6 +46,8 @@ go build
 fpm -f -s dir -t deb \
 	-n glb-healthcheck \
 	-v ${GLB_HEALTHCHECK_VERSION} \
+	--license 'BSD 3-Clause' \
+	--maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/glb-healthcheck.service \
 	--config-files /etc/glb \
 	glb-healthcheck=/usr/sbin/ \

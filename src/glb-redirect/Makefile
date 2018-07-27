@@ -38,5 +38,6 @@ mkdeb:
 	# Works around this bug: https://ubuntuforums.org/showthread.php?t=2234906
 	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
 	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
+	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
 	dkms mkdeb --source-only
 	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_all.deb $(BUILDDIR)/
