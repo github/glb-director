@@ -47,7 +47,7 @@ make -C cli
 fpm -f -s dir -t deb \
 	-n glb-director \
 	-v ${GLB_DIRECTOR_VERSION} \
-	-d 'dpdk > 17.11' \
+	-d 'dpdk = 17.11.1-6' \
     -d 'libjansson4' \
 	--deb-systemd packaging/glb-director.service \
 	--config-files /etc \
