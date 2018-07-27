@@ -49,6 +49,8 @@ fpm -f -s dir -t deb \
 	-v ${GLB_DIRECTOR_VERSION} \
 	-d 'dpdk = 17.11.1-6' \
     -d 'libjansson4' \
+    --license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/glb-director.service \
 	--config-files /etc \
 	build/app/glb-director=/usr/sbin/ \
