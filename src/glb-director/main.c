@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 		glb_log_error_and_exit("No execution units found.");
 		return -1;
 	}
-	glb_log_info("Swithcing cores: %d", nb_switching_cores);
+	glb_log_info("Switching cores: %d", nb_switching_cores);
 
 	/* Create the mbuf pool */
 	struct rte_mempool *pktmbuf_pool =
