@@ -180,7 +180,7 @@ int main(int argc, char **argv)
 	int lcore_id, nb_switching_cores;
 	uint8_t physical_num_queues;
 
-	/* Associate signal_hanlder function with USR signals */
+	/* Associate signal_handler function with USR signals */
 	signal(SIGUSR1, signal_handler);
 	signal(SIGUSR2, signal_handler);
 	signal(SIGRTMIN, signal_handler);
