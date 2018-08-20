@@ -22,10 +22,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-// hacks for precise, because the system linux/asm includes don't match the trusty kernel
-#define _ASM_X86_POSIX_TYPES_64_H
-#include "asm-generic/posix_types.h"
-
 #include <xtables.h>
 #include "ipt_glbredirect.h"
 
