@@ -134,13 +134,16 @@ int main(int argc, char **argv)
 
 		fp = fopen(packet_filename, "rb");
 
-		ret = fread(buffer, sizeof(buffer), 1, fp);
+		ret = fread(buffer, 1, sizeof(buffer), fp);
 
-		if (ret != 0) {
+		if (ret <= 0) {
 			glb_log_error_and_exit("failed to read packet file");
 		}
 
-		ret = glb_encapsulate_packet_pcap(config_ctx, buffer, 0);
+		pcap_packet pkt;
+		pkt.data = buffer;
+		pkt.len = ret;
+		ret = glb_encapsulate_packet_pcap(config_ctx, &pkt, 0);
 
 		if (ret != 0) {
 			glb_log_error_and_exit("packet encap failed!");

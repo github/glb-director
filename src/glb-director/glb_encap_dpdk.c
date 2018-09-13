@@ -47,6 +47,12 @@
 #include "glb_fwd_config.h"
 #include "log.h"
 
+const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len, void *buf)
+{
+	struct rte_mbuf *mbuf = (struct rte_mbuf *)packet_data;
+	return rte_pktmbuf_read(mbuf, off, len, buf);
+}
+
 int glb_encapsulate_packet_dpdk(struct glb_fwd_config_ctx *ctx,
 				struct rte_mbuf *pkt, unsigned int table_id)
 {
@@ -55,27 +61,27 @@ int glb_encapsulate_packet_dpdk(struct glb_fwd_config_ctx *ctx,
 		return -1;
 	}
 
-	// incoming: Ethernet / IP(v4/v6) / ...
-	// outgoing: Ethernet / IPv4 / UDP / GRE(glb) / IP(v4/v6) / UDP
-
-	struct ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct ether_hdr *);
+	// incoming: Ethernet / IP(v4/v6) / TCP / ...
+	//           Ethernet / IP(v4/v6) / ICMP / IP(v4/v6) / TCP ...
+	// outgoing: Ethernet / IPv4 / UDP / GRE(glb) / IP(v4/v6) / ...
 
 #ifdef GLB_DUMP_FULL_PACKET
-	struct ipv4_hdr *orig_ipv4_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
-
 	char orig_src_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(orig_ipv4_hdr->src_addr), orig_src_ip,
-		  INET_ADDRSTRLEN);
-
 	char orig_dst_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(orig_ipv4_hdr->dst_addr), orig_dst_ip,
-		  INET_ADDRSTRLEN);
+
+	{
+		struct ipv4_hdr ipv4_hdr_buf;
+		struct ipv4_hdr *orig_ipv4_hdr = (struct ipv4_hdr *)rte_pktmbuf_read(pkt, sizeof(struct ether_hdr), sizeof(struct ipv4_hdr), &ipv4_hdr_buf);
+
+		inet_ntop(AF_INET, &(orig_ipv4_hdr->src_addr), orig_src_ip, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET, &(orig_ipv4_hdr->dst_addr), orig_dst_ip, INET_ADDRSTRLEN);
+	}
 #endif
 
-	primary_secondary p_s;
+	glb_route_context route_context;
 
 	int ret = 0;
-	ret = get_primary_secondary(ctx, table_id, eth_hdr, &p_s);
+	ret = glb_calculate_packet_route(ctx, table_id, pkt, &route_context);
 
 	if (ret != 0) {
 		glb_log_info(
@@ -83,22 +89,21 @@ int glb_encapsulate_packet_dpdk(struct glb_fwd_config_ctx *ctx,
 		return -1;
 	}
 
-	// remove the ethernet header, saving a copy
-	struct ether_hdr bak_eth_hdr = *eth_hdr;
+	// remove the ethernet header
 	rte_pktmbuf_adj(pkt, sizeof(struct ether_hdr));
 
 	uint32_t encap_size = sizeof(struct ether_hdr) +
 			      sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr) +
 			      sizeof(struct glb_gue_hdr) +
-			      (sizeof(uint32_t) * p_s.hop_count);
-	eth_hdr = (struct ether_hdr *)rte_pktmbuf_prepend(pkt, encap_size);
+			      (sizeof(uint32_t) * (route_context.hop_count - 1));
+	struct ether_hdr *eth_hdr = (struct ether_hdr *)rte_pktmbuf_prepend(pkt, encap_size);
 
 	if (eth_hdr == NULL) {
 		glb_log_info("lcore: -> no headroom for encapsulation");
 		return -1;
 	}
 
-	if (glb_encapsulate_packet(eth_hdr, bak_eth_hdr, &p_s) != 0) {
+	if (glb_encapsulate_packet(eth_hdr, &route_context) != 0) {
 		return -1;
 	}
 

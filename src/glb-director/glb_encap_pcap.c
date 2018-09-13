@@ -57,7 +57,17 @@
 	 sizeof(struct udp_hdr) + sizeof(struct glb_gue_hdr) +  \
 	 (sizeof(uint32_t) * num_chained_hops))
 
-int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, u_char *pkt,
+const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len, void *buf)
+{
+	pcap_packet *pkt = (pcap_packet *)packet_data;
+	// simulates rte_pktmbuf_read, except we don't need to linearize because our pkt is already contiguous memory.
+	// we only need to make sure we're not reading past the end of the packet.
+	if (pkt->len < off + len)
+		return NULL;
+	return &pkt->data[off];
+}
+
+int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, pcap_packet *pkt,
 				unsigned int table_id)
 {
 
@@ -66,23 +76,24 @@ int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, u_char *pkt,
 		return -1;
 	}
 
-	struct ether_hdr *eth_hdr;
-	eth_hdr = (struct ether_hdr *)pkt;
-
-	struct ipv4_hdr *orig_ipv4_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
-
 	char orig_src_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(orig_ipv4_hdr->src_addr), orig_src_ip,
-		  INET_ADDRSTRLEN);
-
 	char orig_dst_ip[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &(orig_ipv4_hdr->dst_addr), orig_dst_ip,
-		  INET_ADDRSTRLEN);
 
-	primary_secondary p_s;
+	{
+		struct ipv4_hdr ipv4_hdr_buf;
+		struct ipv4_hdr *orig_ipv4_hdr = (struct ipv4_hdr *)encap_packet_data_read(pkt, sizeof(struct ether_hdr), sizeof(struct ipv4_hdr), &ipv4_hdr_buf);
+
+		inet_ntop(AF_INET, &(orig_ipv4_hdr->src_addr), orig_src_ip,
+			  INET_ADDRSTRLEN);
+
+		inet_ntop(AF_INET, &(orig_ipv4_hdr->dst_addr), orig_dst_ip,
+			  INET_ADDRSTRLEN);
+	}
+
+	glb_route_context route_context;
 
 	int ret = 0;
-	ret = get_primary_secondary(ctx, table_id, eth_hdr, &p_s);
+	ret = glb_calculate_packet_route(ctx, table_id, pkt, &route_context);
 
 	if (ret != 0) {
 		glb_log_info(
@@ -90,18 +101,21 @@ int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, u_char *pkt,
 		return -1;
 	}
 
-	struct ether_hdr bak_eth_hdr = *eth_hdr;
-
 	/* simulate rte_pktmbuf_adj taking away the old ethernet header
 	 * and rte_pktmbuf_prepend adding in the new encapsulation headers.
 	 * essentially, take the inbound IP+TCP headers and put them after
 	 * space for ENCAP_HEADER_SIZE(..)
 	 */
-	u_char encap_copy[ENCAP_HEADER_SIZE(p_s.hop_count) + INBOUND_HEADER_SIZE_L3];
-	memcpy(&encap_copy[ENCAP_HEADER_SIZE(p_s.hop_count)], orig_ipv4_hdr, INBOUND_HEADER_SIZE_L3);
-	eth_hdr = (struct ether_hdr *)&encap_copy;
+	if (pkt->len < INBOUND_HEADER_SIZE_L3) {
+		glb_log_info(
+		    "lcore: -> glb_encap_pcap failed: packet smaller than L3 inbound header size");
+		return -1;
+	}
+	u_char encap_copy[ENCAP_HEADER_SIZE(route_context.hop_count) + INBOUND_HEADER_SIZE_L3];
+	memcpy(&encap_copy[ENCAP_HEADER_SIZE(route_context.hop_count)], pkt->data, INBOUND_HEADER_SIZE_L3);
+	struct ether_hdr *eth_hdr = (struct ether_hdr *)&encap_copy;
 
-	if (glb_encapsulate_packet(eth_hdr, bak_eth_hdr, &p_s) != 0) {
+	if (glb_encapsulate_packet(eth_hdr, &route_context) != 0) {
 		return -1;
 	}
 
@@ -118,7 +132,7 @@ int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, u_char *pkt,
 	glb_log_info(
 	    "[packet] src: %s, flow_hash:%d, dst: %s, hash:%016lx, via_ip: %s alt_ip: "
 	    "%s, fou_port:%d",
-	    orig_src_ip, p_s.flow_hash, orig_dst_ip, p_s.pkt_hash, via_ip,
+	    orig_src_ip, route_context.flow_hash_hint, orig_dst_ip, route_context.pkt_hash, via_ip,
 	    alt_ip, udp_hdr->dst_port);
 
 	return 0;
@@ -147,7 +161,10 @@ void glb_pcap_handler(configuration args[], const struct pcap_pkthdr *pkthdr,
 		memcpy(copy_pkt, pkt, INBOUND_HEADER_SIZE_L2);
 
 		glb_log_info("[glb-pcap-mode] encap");
-		ret = glb_encapsulate_packet_pcap(ctx, copy_pkt, table_id);
+		pcap_packet pkt;
+		pkt.data = copy_pkt;
+		pkt.len = pkthdr->caplen;
+		ret = glb_encapsulate_packet_pcap(ctx, &pkt, table_id);
 
 		if (ret != 0) {
 			glb_log_info("packet encap failed! (ts: %ld.%06ld)",

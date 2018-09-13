@@ -35,7 +35,6 @@ CHECK_SRCS = config_check.c \
 	../glb_fwd_config.c \
 	../bind_classifier.c \
 	../glb_director_config.c \
-	../glb_encap.c \
 	../siphash24.c \
 	../shared_opt.c
 

@@ -37,8 +37,13 @@ typedef struct {
 	struct glb_fwd_config_ctx *ctx;
 } configuration;
 
+typedef struct {
+	u_char *data;
+	size_t len;
+} pcap_packet;
+
 void glb_pcap_handler(configuration args[], const struct pcap_pkthdr *pkthdr,
 		      const u_char *pkt);
 
-int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, u_char *pkt,
+int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, pcap_packet *pkt,
 				unsigned int table_id);
