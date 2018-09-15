@@ -108,8 +108,9 @@ void signal_handler(int signum)
 int main(int argc, char **argv)
 {
 	int socket_opts = 0;
-	unsigned char pkt[MAX_BUFFER];
+	unsigned char pkt_buf[MAX_BUFFER];
 	char src_ip[INET_ADDRSTRLEN];
+	ssize_t bytes_read;
 
 	/* Associate signal_hanlder function with USR signals */
 	signal(SIGUSR1, signal_handler);
@@ -174,16 +175,22 @@ int main(int argc, char **argv)
 	fflush(stdout);
 
 repeat:
-	recvfrom(socket_fd, pkt, MAX_BUFFER, 0, NULL, NULL);
+	bytes_read = recvfrom(socket_fd, pkt_buf, MAX_BUFFER, 0, NULL, NULL);
+	if (bytes_read <= 0) {
+		glb_log_error_and_exit("failed to read bytes from socket");
+	}
 
-	struct ether_hdr *eth_hdr = (struct ether_hdr *)pkt;
+	struct ether_hdr *eth_hdr = (struct ether_hdr *)pkt_buf;
 	struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
 
 	inet_ntop(AF_INET, &(ipv4_hdr->src_addr), src_ip, INET_ADDRSTRLEN);
 
 	if (strncmp(src_ip, DEFAULT_SRC_IP_PREFIX,
 		    strlen(DEFAULT_SRC_IP_PREFIX)) == 0) {
-		if (glb_encapsulate_packet_pcap(config_ctx, pkt, 0) != 0) {
+		pcap_packet pkt;
+		pkt.data = pkt_buf;
+		pkt.len = bytes_read;
+		if (glb_encapsulate_packet_pcap(config_ctx, &pkt, 0) != 0) {
 			glb_log_error_and_exit("packet encap failed!");
 		}
 	}

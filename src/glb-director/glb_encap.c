@@ -57,95 +57,224 @@
 #define IPV4_ICMP_DESTINATION_UNREACHABLE 3
 #define IPV6_ICMP_PACKET_TOO_BIG 2
 
-int get_primary_secondary(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
-			  struct ether_hdr *eth_hdr, primary_secondary *p_s)
+#define safely_get_next_header(route_context, type) ( (const type *)_safely_get_next_header(route_context, sizeof(type)) )
+static inline const void *_safely_get_next_header(glb_route_context *route_context, int len)
+{
+	// get some safe space that we can linearlise packet data into in case it's segmented
+	uint8_t *safe_space = &route_context->linearisation_space[route_context->linearisation_space_offset];
+	route_context->linearisation_space_offset += len;
+	if (unlikely(route_context->linearisation_space_offset > MAX_PARSED_HEADER_SIZE)) {
+		return NULL;
+	}
+
+	const void *hdr = encap_packet_data_read(route_context->packet_data,
+		route_context->offset, // skip headers pulled so far
+		len, // pull as many bytes as requested
+		safe_space // provide some safe space to linearise data to if required
+	);
+
+	route_context->offset += len;
+
+	return hdr;
+}
+
+/* Extracts IPv4 src/dst IP and TCP/UDP src/dst port.
+ * Also handles returning ICMP fragmentation packets and reads the inner IP/TCP header.
+ */
+static int extract_packet_fields_ipv4(glb_route_context *route_context)
+{
+	// extract the IPv4 header
+	const struct ipv4_hdr *ipv4_hdr = safely_get_next_header(route_context, struct ipv4_hdr);
+	if (ipv4_hdr == NULL) {
+		glb_log_info("lcore: -> unexpected: could not retrieve IPv4 header, but expected it to exist");
+		return -1;
+	}
+
+	route_context->ip_total_length = ntohs(ipv4_hdr->total_length);
+
+	// special case ICMP, where we need to handle frag and echo
+	if (unlikely(ipv4_hdr->next_proto_id == IPPROTO_ICMP)) {
+		const struct icmp_hdr *icmp_hdr = safely_get_next_header(route_context, struct icmp_hdr);
+		if (icmp_hdr == NULL) {
+			glb_log_info("lcore: -> unexpected: could not retrieve ICMP header, but expected it to exist");
+			return -1;
+		}
+
+		if (icmp_hdr->icmp_type == IPV4_ICMP_DESTINATION_UNREACHABLE) {
+			// handle ICMP fragmentation responses
+			const struct ipv4_hdr *orig_ipv4_hdr = safely_get_next_header(route_context, struct ipv4_hdr);
+			const struct l4_ports_hdr *orig_l4_hdr = safely_get_next_header(route_context, struct l4_ports_hdr);
+			if (orig_ipv4_hdr == NULL || orig_l4_hdr == NULL) {
+				glb_log_info("lcore: -> unexpected: could not retrieve inner IPv4/L4 header, but expected it to exist");
+				return -1;
+			}
+
+			// both port and IP are reversed, since we're looking at
+			// a packet _we_ sent being returned back to us inside an ICMP response.
+			// we reverse them all here so we match the same.
+			route_context->src_addr.ipv4 = orig_ipv4_hdr->dst_addr;
+			route_context->dst_addr.ipv4 = orig_ipv4_hdr->src_addr;
+			route_context->src_port = ntohs(orig_l4_hdr->dst_port);
+			route_context->dst_port = ntohs(orig_l4_hdr->src_port);
+
+			// re-use the client's source port to spread across queues
+			route_context->flow_hash_hint = route_context->src_port;
+		} else {
+			// ICMP echo requests don't have ports, but otherwise the IP header is correct.
+			route_context->src_addr.ipv4 = ipv4_hdr->src_addr;
+			route_context->dst_addr.ipv4 = ipv4_hdr->dst_addr;
+			route_context->src_port = 0;
+			route_context->dst_port = 0;
+
+			// ICMP echo requests are stateless, so spread using the packet ID
+			route_context->flow_hash_hint = ntohs(ipv4_hdr->packet_id);
+		}
+	} else {
+		const struct l4_ports_hdr *orig_l4_hdr = safely_get_next_header(route_context, struct l4_ports_hdr);
+		if (orig_l4_hdr == NULL) {
+			glb_log_info("lcore: -> unexpected: could not retrieve L4 header, but expected it to exist");
+			return -1;
+		}
+
+		// the simple case: pull all the fields
+		route_context->src_addr.ipv4 = ipv4_hdr->src_addr;
+		route_context->dst_addr.ipv4 = ipv4_hdr->dst_addr;
+		route_context->src_port = ntohs(orig_l4_hdr->src_port);
+		route_context->dst_port = ntohs(orig_l4_hdr->dst_port);
+
+		// re-use the client's source port to spread across queues
+		route_context->flow_hash_hint = route_context->src_port;
+	}
+
+	// GUE uses IP protocols, so IPv4 is "IPIP" (in this case, IP/GUE/IP)
+	route_context->gue_ipproto = IPPROTO_IPIP;
+
+	return 0;
+}
+
+/* Extracts IPv6 src/dst IP and TCP/UDP src/dst port.
+ * Also handles returning ICMP fragmentation packets and reads the inner IP/TCP header.
+ */
+static int extract_packet_fields_ipv6(glb_route_context *route_context)
+{
+	// extract the IPv6 header
+	const struct ipv6_hdr *ipv6_hdr = safely_get_next_header(route_context, struct ipv6_hdr);
+	if (ipv6_hdr == NULL) {
+		glb_log_info("lcore: -> unexpected: could not retrieve IPv6 header, but expected it to exist");
+		return -1;
+	}
+
+	route_context->ip_total_length = sizeof(struct ipv6_hdr) + ntohs(ipv6_hdr->payload_len);
+
+	// special case ICMP, where we need to handle frag and echo
+	if (unlikely(ipv6_hdr->proto == IPPROTO_ICMPV6)) {
+		const struct icmpv6_hdr *icmp_hdr = safely_get_next_header(route_context, struct icmpv6_hdr);
+		if (icmp_hdr == NULL) {
+			glb_log_info("lcore: -> unexpected: could not retrieve ICMPv6 header, but expected it to exist");
+			return -1;
+		}
+
+		if (icmp_hdr->type == IPV6_ICMP_PACKET_TOO_BIG) {
+			// handle ICMP fragmentation responses
+			safely_get_next_header(route_context, struct icmpv6_too_big_hdr);
+			const struct ipv6_hdr *orig_ipv6_hdr = safely_get_next_header(route_context, struct ipv6_hdr);
+			const struct l4_ports_hdr *orig_l4_hdr = safely_get_next_header(route_context, struct l4_ports_hdr);
+			if (orig_ipv6_hdr == NULL || orig_l4_hdr == NULL) {
+				glb_log_info("lcore: -> unexpected: could not retrieve inner IPv6/L4 header, but expected it to exist");
+				return -1;
+			}
+
+			// both port and IP are reversed, since we're looking at
+			// a packet _we_ sent being returned back to us inside an ICMP response.
+			// we reverse them all here so we match the same.
+			memcpy(route_context->src_addr.ipv6, orig_ipv6_hdr->dst_addr, IPV6_ADDR_SIZE);
+			memcpy(route_context->dst_addr.ipv6, orig_ipv6_hdr->src_addr, IPV6_ADDR_SIZE);
+			route_context->src_port = ntohs(orig_l4_hdr->dst_port);
+			route_context->dst_port = ntohs(orig_l4_hdr->src_port);
+
+			// re-use the client's source port to spread across queues
+			route_context->flow_hash_hint = route_context->src_port;
+		} else {
+			// ICMP echo requests don't have ports, but otherwise the IP header is correct.
+			memcpy(route_context->src_addr.ipv6, ipv6_hdr->src_addr, IPV6_ADDR_SIZE);
+			memcpy(route_context->dst_addr.ipv6, ipv6_hdr->dst_addr, IPV6_ADDR_SIZE);
+			route_context->src_port = 0;
+			route_context->dst_port = 0;
+
+			// ICMP echo requests are stateless, so spread using the packet ID
+			route_context->flow_hash_hint = ntohs(ipv6_hdr->vtc_flow);
+		}
+	} else {
+		const struct l4_ports_hdr *orig_l4_hdr = safely_get_next_header(route_context, struct l4_ports_hdr);
+		if (orig_l4_hdr == NULL) {
+			glb_log_info("lcore: -> unexpected: could not retrieve L4 header, but expected it to exist");
+			return -1;
+		}
+
+		// the simple case: pull all the fields
+		memcpy(route_context->src_addr.ipv6, ipv6_hdr->src_addr, IPV6_ADDR_SIZE);
+		memcpy(route_context->dst_addr.ipv6, ipv6_hdr->dst_addr, IPV6_ADDR_SIZE);
+		route_context->src_port = ntohs(orig_l4_hdr->src_port);
+		route_context->dst_port = ntohs(orig_l4_hdr->dst_port);
+
+		// re-use the client's source port to spread across queues
+		route_context->flow_hash_hint = route_context->src_port;
+	}
+
+	route_context->gue_ipproto = IPPROTO_IPV6;
+
+	return 0;
+}
+
+/* Extracts ethernet proto, then passes on to the appropriate _ipv4/_ipv6 function to process
+ * the inner headers.
+ */
+static int extract_packet_fields(glb_route_context *route_context)
+{
+	// extract the ethernet header to retrieve the ether_type
+	const struct ether_hdr *eth_hdr = safely_get_next_header(route_context, struct ether_hdr);
+	if (eth_hdr == NULL) {
+		glb_log_info("lcore: -> unexpected: could not retrieve ethernet header");
+		return -1;
+	}
+
+	route_context->ether_type = ntohs(eth_hdr->ether_type);
+
+	if (route_context->ether_type == ETHER_TYPE_IPv4) {
+		return extract_packet_fields_ipv4(route_context);
+	} else if (route_context->ether_type == ETHER_TYPE_IPv6) {
+		return extract_packet_fields_ipv6(route_context);
+	} else {
+		glb_log_info("lcore: -> unexpected: unknown ethertype (%04x), should not have matched", eth_hdr->ether_type);
+		return -1;
+	}
+}
+
+int glb_calculate_packet_route(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
+			  void *packet_data, glb_route_context *route_context)
 {
 
 	struct glb_fwd_config_content_table *table =
 	    &ctx->raw_config->tables[table_id];
 
-	int ether_type = ntohs(eth_hdr->ether_type);
-	int gue_ipproto = 0;
+	// prepare the context for reading data
+	route_context->packet_data = packet_data;
+	route_context->offset = 0;
+	route_context->linearisation_space_offset = 0;
+
+	// do the thing
+	if (extract_packet_fields(route_context) != 0) {
+		return -1;
+	}
 
 	uint64_t pkt_hash = 0;
-	uint16_t ip_total_length = 0;
-	uint16_t flow_hash = 0;
 
-	if (ether_type == ETHER_TYPE_IPv4) {
-		struct ipv4_hdr *inner_ipv4_hdr =
-		    (struct ipv4_hdr *)(eth_hdr + 1);
-		ip_total_length = ntohs(inner_ipv4_hdr->total_length);
-
-		// default the 'hash' ptr to the location of the IP source port
-		uint16_t *hash_ptr = (uint16_t *)(inner_ipv4_hdr + 1);
-		uint32_t _ip = inner_ipv4_hdr->src_addr;
-
-		if (inner_ipv4_hdr->next_proto_id == IPPROTO_ICMP) {
-			struct icmp_hdr *inner_icmp_hdr =
-			    (struct icmp_hdr *)(inner_ipv4_hdr + 1);
-
-			if (inner_icmp_hdr->icmp_type == IPV4_ICMP_DESTINATION_UNREACHABLE) {
-				// handle ICMP fragmentation responses
-				struct ipv4_hdr *orig_ipv4_hdr =
-				    (struct ipv4_hdr *)(inner_icmp_hdr + 1);
-
-				// both port and IP are reversed, since we're looking at
-				// a packet we sent inside an ICMP response.
-				// use the original source port as the 'hash' to match.
-				hash_ptr = ((uint16_t *)(orig_ipv4_hdr + 1)) + 1;
-				_ip = orig_ipv4_hdr->dst_addr;
-			} else {
-				// handle ICMP echo requests.
-				// _ip is already fine, but use the packet id as 'hash'
-				hash_ptr = &inner_ipv4_hdr->packet_id;
-			}
-		}
-
-		flow_hash = htons(*hash_ptr);
-		siphash((uint8_t *)&pkt_hash, (uint8_t *)&_ip, sizeof(_ip),
-			table->secure_key);
-
-		gue_ipproto = IPPROTO_IPIP;
-	} else if (ether_type == ETHER_TYPE_IPv6) {
-		struct ipv6_hdr *inner_ipv6_hdr =
-		    (struct ipv6_hdr *)(eth_hdr + 1);
-		ip_total_length = sizeof(struct ipv6_hdr) +
-				  ntohs(inner_ipv6_hdr->payload_len);
-
-		uint16_t *hash_ptr = (uint16_t *)(inner_ipv6_hdr + 1);
-		uint8_t *saddr = (uint8_t *)&inner_ipv6_hdr->src_addr;
-
-		if (inner_ipv6_hdr->proto == IPPROTO_ICMPV6) {
-			struct icmpv6_hdr *inner_icmp_hdr =
-			    (struct icmpv6_hdr *)(inner_ipv6_hdr + 1);
-
-			if (inner_icmp_hdr->type == IPV6_ICMP_PACKET_TOO_BIG) {
-				// handle ICMP fragmentation responses
-				struct icmpv6_too_big_hdr *too_big_hdr =
-					(struct icmpv6_too_big_hdr *)(inner_icmp_hdr + 1);
-				struct ipv6_hdr *orig_ipv6_hdr =
-			   		(struct ipv6_hdr *)(too_big_hdr + 1);
-
-				// both port and IP are reversed, since we're looking at
-				// a packet we sent inside an ICMP response.
-			   	// use the original source port as the 'hash' to match.
-				hash_ptr = ((uint16_t *)(orig_ipv6_hdr + 1)) + 1;
-				saddr = (uint8_t *)&orig_ipv6_hdr->dst_addr;
-			} else {
-				// handle ICMP echo requests.
-				// _ip is already fine, but use the flow label as 'hash'
-				hash_ptr = (uint16_t *)&inner_ipv6_hdr->vtc_flow;
-			}
-		}
-
-		flow_hash = htons(*hash_ptr);
-		siphash((uint8_t *)&pkt_hash, saddr,
-			sizeof(inner_ipv6_hdr->src_addr), table->secure_key);
-
-		gue_ipproto = IPPROTO_IPV6;
+	if (route_context->ether_type == ETHER_TYPE_IPv4) {
+		siphash((uint8_t *)&pkt_hash, (uint8_t *)&route_context->src_addr.ipv4, sizeof(route_context->src_addr.ipv4), table->secure_key);
+	} else if (route_context->ether_type == ETHER_TYPE_IPv6) {
+		siphash((uint8_t *)&pkt_hash, (uint8_t *)&route_context->src_addr.ipv6, sizeof(route_context->src_addr.ipv6), table->secure_key);
 	} else {
-		glb_log_info("lcore: -> packet wasn't IPv4 or IPv6, not "
-			     "forwarding.");
+		glb_log_info("lcore: -> packet wasn't IPv4 or IPv6, not forwarding.");
 		return -1;
 	}
 
@@ -159,42 +288,40 @@ int get_primary_secondary(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
 	    &table->backends[primary_idx];
 	struct glb_fwd_config_content_table_backend *secondary =
 	    &table->backends[secondary_idx];
-	uint32_t via_i, alt_i;
 
-	via_i = primary->ipv4_addr;
-	alt_i = secondary->ipv4_addr;
-
-	// glb_log_info("lcore: -> classified p=%d,s=%d
-	// via=%08x,alt=%08x", primary_idx, secondary_idx, via_i,
-	// alt_i);
-	p_s->hop_count = 1; // we only have one chained routing hop, 'alt'
-	p_s->via_i = via_i;
-	p_s->alt_i = alt_i;
-	p_s->flow_hash = flow_hash;
-	p_s->ip_total_length = ip_total_length;
-	p_s->pkt_hash = pkt_hash;
-	p_s->gue_ipproto = gue_ipproto;
+	// include both hops as viable servers, in order.
+	route_context->hop_count = 2;
+	route_context->ipv4_hops[0] = primary->ipv4_addr;
+	route_context->ipv4_hops[1] = secondary->ipv4_addr;
+	
+	route_context->pkt_hash = pkt_hash;
 
 	return 0;
 }
 
 int glb_encapsulate_packet(struct ether_hdr *eth_hdr,
-			   struct ether_hdr orig_eth_hdr,
-			   primary_secondary *p_s)
+			   glb_route_context *route_context)
 {
 
-	uint32_t via_i = p_s->via_i;
-	uint32_t alt_i = p_s->alt_i;
-	uint16_t flow_hash = p_s->flow_hash;
-	uint16_t ip_total_length = p_s->ip_total_length;
-	uint64_t pkt_hash = p_s->pkt_hash;
-	int gue_ipproto = p_s->gue_ipproto;
+	uint16_t flow_hash = route_context->flow_hash_hint;
+	uint16_t ip_total_length = route_context->ip_total_length;
+	uint64_t pkt_hash = route_context->pkt_hash;
+	int gue_ipproto = route_context->gue_ipproto;
 
 	struct ipv4_hdr *ipv4_hdr = (struct ipv4_hdr *)(eth_hdr + 1);
 	struct udp_hdr *udp_hdr = (struct udp_hdr *)(ipv4_hdr + 1);
 	struct glb_gue_hdr *gue_hdr = (struct glb_gue_hdr *)(udp_hdr + 1);
 
-	*eth_hdr = orig_eth_hdr;
+	// pull the first hop as the place we first forward to
+	uint32_t first_hop_ip = route_context->ipv4_hops[0];
+	// ignore the first hop, since we're using it as the ip dst_addr
+	uint32_t remaining_hop_count = route_context->hop_count - 1;
+
+	// limit maximum number of hops to what we allow in the packet
+	if (remaining_hop_count > 1) {
+		remaining_hop_count = 1;
+	}
+
 	eth_hdr->d_addr = g_director_config->gateway_ether_addr;
 	eth_hdr->s_addr = g_director_config->local_ether_addr;
 	eth_hdr->ether_type = htons(ETHER_TYPE_IPv4);
@@ -204,7 +331,7 @@ int glb_encapsulate_packet(struct ether_hdr *eth_hdr,
 	ipv4_hdr->total_length =
 	    htons(sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr) +
 		  sizeof(struct glb_gue_hdr) + 
-		  (sizeof(uint32_t) * p_s->hop_count) +
+		  (sizeof(uint32_t) * remaining_hop_count) +
 		  ip_total_length);
 	ipv4_hdr->packet_id = 0;
 	ipv4_hdr->fragment_offset = IP_DN_FRAGMENT_FLAG;
@@ -212,7 +339,7 @@ int glb_encapsulate_packet(struct ether_hdr *eth_hdr,
 	ipv4_hdr->next_proto_id = IPPROTO_UDP;
 	ipv4_hdr->hdr_checksum = 0;
 	ipv4_hdr->src_addr = g_director_config->local_ip_addr;
-	ipv4_hdr->dst_addr = via_i;
+	ipv4_hdr->dst_addr = first_hop_ip;
 
 	// glb_log_info("lcore: -> XXX pkt_hash=%016lx, flow_hash=%d",
 	// pkt_hash, flow_hash);
@@ -227,19 +354,19 @@ int glb_encapsulate_packet(struct ether_hdr *eth_hdr,
 	udp_hdr->dgram_len =
 	    htons(sizeof(struct udp_hdr) +
 	      sizeof(struct glb_gue_hdr) + 
-		  (sizeof(uint32_t) * p_s->hop_count) +
+		  (sizeof(uint32_t) * remaining_hop_count) +
 		  ip_total_length);
 	udp_hdr->dgram_cksum = 0;
 
 	gue_hdr->private_type = 0;
 	gue_hdr->next_hop = 0;
-	gue_hdr->hop_count = p_s->hop_count;
+	gue_hdr->hop_count = remaining_hop_count;
 	/* hlen is essentially just private data, which is 1x 32 bits, plus the number of hops */
-	gue_hdr->version_control_hlen = 1 + p_s->hop_count;
+	gue_hdr->version_control_hlen = 1 + remaining_hop_count;
 	gue_hdr->protocol = gue_ipproto;
 	gue_hdr->flags  = 0;
-	/* alt_i is already encoded in network byte order (same as via_i above) */
-	gue_hdr->hops[0] = alt_i;
+	/* hops are already encoded in network byte order (same as first_hop_ip above) */
+	memcpy(&gue_hdr->hops[0], &route_context->ipv4_hops[1], sizeof(uint32_t) * remaining_hop_count);
 
 	return 0;
 }
