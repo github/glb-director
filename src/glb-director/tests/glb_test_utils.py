@@ -31,6 +31,7 @@ import os, sys
 import signal
 from netaddr import IPNetwork
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
+from rendezvous_table import GLBRendezvousTable
 
 class TimeoutException(BaseException): pass
 
@@ -161,7 +162,7 @@ class GLBDirectorTestBase():
 
 		# launch the glb director, mocking an eth device with the dpdk end of our veth
 		with open('tests/director-config.json', 'wb') as f:
-			f.write(json.dumps(GLBDirectorTestBase.get_initial_director_config(), indent=4))
+			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
 		GLBDirectorTestBase.director = subprocess.Popen(
 			[
 				'./build/glb-director',
@@ -242,28 +243,68 @@ class GLBDirectorTestBase():
 				sys.stdout.write('-' * 50 + '\n')
 			raise
 
-	def pkt_hash(self, key, src_ip):
+	def _encode_addr(self, addr):
 		family = socket.AF_INET
-		if ':' in src_ip:
+		if ':' in addr:
 			family = socket.AF_INET6
-		hash_bytes = siphash.SipHash_2_4(key, socket.inet_pton(family, src_ip)).digest()
+		return socket.inet_pton(family, addr)
+
+	def _encode_port(self, port):
+		return struct.pack('!H', port)
+
+	def pkt_hash(self, key, src_addr=None, dst_addr=None, src_port=None, dst_port=None, fields=('src_addr',)):
+		hash_parts = []
+		if 'src_addr' in fields:
+			hash_parts.append(self._encode_addr(src_addr))
+		if 'dst_addr' in fields:
+			hash_parts.append(self._encode_addr(dst_addr))
+		if 'src_port' in fields:
+			hash_parts.append(self._encode_port(src_port))
+		if 'dst_port' in fields:
+			hash_parts.append(self._encode_port(dst_port))
+		
+		assert len(hash_parts) > 0
+		hash_data = ''.join(hash_parts)
+
+		hash_bytes = siphash.SipHash_2_4(key, hash_data).digest()
 		hash_num, = struct.unpack('<Q', hash_bytes)
 		return hash_num
 
-	def pkt_sport(self, key, src_ip, src_port):
-		return 0x8000 | ((self.pkt_hash(key, src_ip) ^ src_port) & 0x7fff)
+	def pkt_sport(self, key, src_addr=None, dst_addr=None, src_port=None, dst_port=None, fields=('src_addr',)):
+		return 0x8000 | ((self.pkt_hash(key, src_addr=src_addr, dst_addr=dst_addr, src_port=src_port, dst_port=dst_port, fields=fields) ^ src_port) & 0x7fff)
 
-	def key_for_bind(self, dest_ip, dest_port):
+	def route_for_packet(self, test_packet, fields):
+		field_data = self._fields_for_packet(test_packet)
+		table = self._table_for_bind(field_data['dst_addr'], field_data['dst_port'])
+		rt = GLBRendezvousTable(table['seed'].decode('hex'))
+		hosts = self._hosts_for_table(table)
+
+		hash_key_bytes = self._key_for_bind(field_data['dst_addr'], field_data['dst_port'])
+		hash_row = self.pkt_hash(hash_key_bytes, fields=fields, **field_data) & 0xffff
+
+		return rt.forwarding_table_entry(hash_row, hosts)[:2]
+
+	def _hosts_for_table(self, table):
+		return map(lambda b: b['ip'], table['backends'])
+
+	def _table_for_bind(self, dest_ip, dest_port):
 		config = GLBDirectorTestBase.running_forwarding_config
 		for table in config['tables']:
 			for bind in table['binds']:
 				port_start = bind.get('port_start', bind.get('port', 0))
 				port_end = bind.get('port_end', bind.get('port', 0xffff))
 				if IPNetwork(dest_ip) in IPNetwork(bind['ip']) and port_start <= dest_port <= port_end:
-					return table['hash_key'].decode('hex').rjust(16, '\x00')
+					return table
 		return None
 
-	def sport_for_packet(self, packet):
+	def _key_for_bind(self, dest_ip, dest_port):
+		table = self._table_for_bind(dest_ip, dest_port)
+		if table is None:
+			return None
+		else:
+			return table['hash_key'].decode('hex').rjust(16, '\x00')
+
+	def _fields_for_packet(self, packet):
 		ether = packet
 		assert isinstance(ether, Ether)
 		ip = packet.payload
@@ -271,6 +312,7 @@ class GLBDirectorTestBase():
 		np = ip.payload
 
 		client_ip = ip.src
+		server_ip = ip.dst
 		client_port = np.sport
 		server_port = np.dport
 		if isinstance(np, ICMP) or isinstance(np, ICMPv6PacketTooBig):
@@ -279,9 +321,20 @@ class GLBDirectorTestBase():
 			icmp = np
 			orig_ip = icmp.payload
 			client_ip = orig_ip.dst # the packet was us -> client, and got returned
+			server_ip = orig_ip.src
 			np = orig_ip.payload
 			client_port = np.dport
 			server_port = np.sport
 
-		hash_key_bytes = self.key_for_bind(ip.dst, server_port)
-		return self.pkt_sport(hash_key_bytes, client_ip, client_port)
+		return {
+			'src_addr': client_ip,
+			'dst_addr': server_ip,
+			'src_port': client_port,
+			'dst_port': server_port,
+		}
+
+	def sport_for_packet(self, packet, fields=('src_addr',)):
+		field_data = self._fields_for_packet(packet)
+
+		hash_key_bytes = self._key_for_bind(field_data['dst_addr'], field_data['dst_port'])
+		return self.pkt_sport(hash_key_bytes, fields=fields, **field_data)

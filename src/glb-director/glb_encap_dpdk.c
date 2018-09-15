@@ -92,10 +92,7 @@ int glb_encapsulate_packet_dpdk(struct glb_fwd_config_ctx *ctx,
 	// remove the ethernet header
 	rte_pktmbuf_adj(pkt, sizeof(struct ether_hdr));
 
-	uint32_t encap_size = sizeof(struct ether_hdr) +
-			      sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr) +
-			      sizeof(struct glb_gue_hdr) +
-			      (sizeof(uint32_t) * (route_context.hop_count - 1));
+	uint32_t encap_size = ROUTE_CONTEXT_ENCAP_SIZE(&route_context);
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)rte_pktmbuf_prepend(pkt, encap_size);
 
 	if (eth_hdr == NULL) {

@@ -30,6 +30,31 @@ _required_
 
 Similarly, this specifies the source IP to use for outbound forwarded packets. Typically, this will be the same IP as the machine itself, and Linux will usually be responding to all requests on that IP.
 
+### `hash_fields`
+
+_optional_
+
+GLB Director hashes based on src/dst fields in L3/L4 packet headers. This field is a hash configuring which header fields to use as part of hash calculation:
+ * `src_addr` (bool) - The source IP address of the packet
+ * `dst_addr` (bool) - The destination IP address of the packet
+ * `src_port` (bool) - The source port of the inner TCP/UDP packet
+ * `dst_port` (bool) - The destination port of the inner TCP/UDP packet
+
+If `hash_fields` is not specified, it defaults to just source IP. If the field is specified, any values not included default to false. At least one field must be included (set to true).
+
+Changing this value will cause any existing connections to re-hash to new servers. To perform this gracefully, see `alt_hash_fields`.
+
+Example:
+```
+{ "src_addr": true, "src_port": true }
+```
+
+### `alt_hash_fields`
+
+_optional_
+
+To allow safe migration between 2 selections of hash fields without breaking running connections. `hash_fields` can be sets to a new value and `alt_hash_fields` can temporarily specify the previously configured value of `hash_fields`. The hops that would have previously been used will be appended as a 3rd/4th hop, essentially gracefully draining those nodes of connections that matched them using the previous hash configuration. Once migration is complete, the field can be removed.
+
 ### `forward_icmp_ping_responses`
 
 _optional_

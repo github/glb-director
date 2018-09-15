@@ -49,6 +49,8 @@
 #include "config.h"
 #include "glb_director_config.h"
 
+static int parse_hash_fields(glb_director_hash_fields *out, json_t *cfg);
+
 glb_director_config *g_director_config = NULL;
 
 /* Convert a json_t *array containing a list of JSON integers to a C array.
@@ -321,6 +323,53 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 		}
 	}
 
+	/* Hash field specification.
+	 * By default, we include a single hash of source IP.
+	 */
+	cfg->hash_fields.src_addr = 1;
+	cfg->hash_fields.dst_addr = 0;
+	cfg->hash_fields.src_port = 0;
+	cfg->hash_fields.dst_port = 0;
+	cfg->use_alt_hash_fields = 0;
+
+	json_t *hash_fields = json_object_get(root, "hash_fields");
+	if (hash_fields != NULL) {
+		if (parse_hash_fields(&cfg->hash_fields, hash_fields) != 0) {
+			glb_log_error(
+			    "hash_fields must contain at least 1 field if specified");
+			json_decref(root);
+			free(cfg);
+			return NULL;
+		}
+	}
+
+	json_t *alt_hash_fields = json_object_get(root, "alt_hash_fields");
+	if (alt_hash_fields != NULL) {
+		cfg->use_alt_hash_fields = 1;
+
+		if (parse_hash_fields(&cfg->alt_hash_fields, alt_hash_fields) != 0) {
+			glb_log_error(
+			    "alt_hash_fields must contain at least 1 field if specified");
+			json_decref(root);
+			free(cfg);
+			return NULL;
+		}
+	}
+
 	json_decref(root);
 	return cfg;
+}
+
+static int parse_hash_fields(glb_director_hash_fields *out, json_t *cfg)
+{
+	out->src_addr = json_is_true(json_object_get(cfg, "src_addr"));
+	out->dst_addr = json_is_true(json_object_get(cfg, "dst_addr"));
+	out->src_port = json_is_true(json_object_get(cfg, "src_port"));
+	out->dst_port = json_is_true(json_object_get(cfg, "dst_port"));
+
+	/* succeed if we have at least one field configured */
+	if (out->src_addr || out->dst_addr || out->src_port || out->dst_port)
+		return 0;
+	else
+		return -1;
 }
