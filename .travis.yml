@@ -3,7 +3,8 @@ sudo: required
 install: true
 script: script/cibuild
 before_install:
-  - sudo apt-get install -y vagrant
+  - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
+  - sudo dpkg -i vagrant_2.1.5_x86_64.deb
 addons:
   apt:
     update: true
