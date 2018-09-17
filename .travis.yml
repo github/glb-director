@@ -1,12 +1,12 @@
 dist: trusty
 sudo: required
 install: true
-script: script/cibuild
-before_install:
-  - sudo apt-get install -y linux-headers-$(uname -r)
-  - sudo apt-get install -y virtualbox
-  - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
-  - sudo dpkg -i vagrant_2.1.5_x86_64.deb
-addons:
-  apt:
-    update: true
+script: script/cibuild-create-packages
+# before_install:
+#   - sudo apt-get install -y linux-headers-$(uname -r)
+#   - sudo apt-get install -y virtualbox
+#   - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
+#   - sudo dpkg -i vagrant_2.1.5_x86_64.deb
+# addons:
+#   apt:
+#     update: true
