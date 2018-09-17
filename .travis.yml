@@ -3,6 +3,9 @@ sudo: required
 install: true
 script: script/cibuild
 before_install:
+  - sudo apt-get install -y virtualbox ruby2.0
+  - sudo update-alternatives --set /usr/bin/ruby ruby /usr/bin/ruby2.0 10
+  - sudo update-alternatives --set /usr/bin/gem gem /usr/bin/gem2.0 10
   - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
   - sudo dpkg -i vagrant_2.1.5_x86_64.deb
 addons:
