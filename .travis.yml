@@ -2,3 +2,8 @@ dist: trusty
 sudo: required
 install: true
 script: script/cibuild
+before_install:
+  - sudo apt-get install -y vagrant
+addons:
+  apt:
+    update: true
