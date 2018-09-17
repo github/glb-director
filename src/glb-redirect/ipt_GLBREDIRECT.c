@@ -293,7 +293,9 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 	int udp_ofs, gue_ofs, gue_cr_ofs, inner_ip_ofs;
 	int cr_len_bytes;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+	struct net *net = xt_net(par);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
 	struct net *net = par->net;
 #else
 	struct net *net = dev_net(skb->dev);
@@ -387,7 +389,11 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			nsk = __inet6_lookup_established(net, &tcp_hashinfo,
 						&iph_v6->saddr, th->source,
 						&iph_v6->daddr, ntohs(th->dest),
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+						inet_iif(skb), 0);
+#else
 						inet_iif(skb));
+#endif
 		} else {
 			return 0; /* no IPv4 or IPv6 header provided */
 		}
@@ -467,7 +473,11 @@ no_ct_entry:
 				iph_v4->saddr, th->source,
 #endif
 				iph_v4->daddr, th->dest,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+				inet_iif(skb), 0);
+#else
 				inet_iif(skb));
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 			if (listen_sk && !refcount_inc_not_zero(&listen_sk->sk_refcnt))
@@ -505,7 +515,11 @@ no_ct_entry:
 				&iph_v6->saddr, th->source,
 #endif
 				&iph_v6->daddr, th->dest,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
+				inet_iif(skb), 0);
+#else
 				inet_iif(skb));
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)
 			if (listen_sk && !refcount_inc_not_zero(&listen_sk->sk_refcnt))

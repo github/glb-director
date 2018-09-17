@@ -122,7 +122,7 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 	}
 #endif
 
-	goto done;
+	return glb_fwd_config_ctx_incref(ctx);
 
 cleanup:
 	free(ctx);
@@ -131,8 +131,6 @@ fail:
 	close(fd);
 	exit(1);
 
-done:
-	return glb_fwd_config_ctx_incref(ctx);
 }
 
 struct glb_fwd_config_ctx *
