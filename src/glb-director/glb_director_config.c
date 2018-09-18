@@ -334,9 +334,7 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 
 	json_t *hash_fields = json_object_get(root, "hash_fields");
 	if (hash_fields != NULL) {
-		if (parse_hash_fields(&cfg->hash_fields, hash_fields) != 0) {
-			glb_log_error(
-			    "hash_fields must contain at least 1 field if specified");
+		if (parse_hash_fields("hash_fields", &cfg->hash_fields, hash_fields) != 0) {
 			json_decref(root);
 			free(cfg);
 			return NULL;
@@ -347,9 +345,7 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 	if (alt_hash_fields != NULL) {
 		cfg->use_alt_hash_fields = 1;
 
-		if (parse_hash_fields(&cfg->alt_hash_fields, alt_hash_fields) != 0) {
-			glb_log_error(
-			    "alt_hash_fields must contain at least 1 field if specified");
+		if (parse_hash_fields("alt_hash_fields", &cfg->alt_hash_fields, alt_hash_fields) != 0) {
 			json_decref(root);
 			free(cfg);
 			return NULL;
@@ -360,7 +356,7 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 	return cfg;
 }
 
-static int parse_hash_fields(glb_director_hash_fields *out, json_t *cfg)
+static int parse_hash_fields(const char *field_name, glb_director_hash_fields *out, json_t *cfg)
 {
 	out->src_addr = json_is_true(json_object_get(cfg, "src_addr"));
 	out->dst_addr = json_is_true(json_object_get(cfg, "dst_addr"));
@@ -368,8 +364,11 @@ static int parse_hash_fields(glb_director_hash_fields *out, json_t *cfg)
 	out->dst_port = json_is_true(json_object_get(cfg, "dst_port"));
 
 	/* succeed if we have at least one field configured */
-	if (out->src_addr || out->dst_addr || out->src_port || out->dst_port)
+	if (out->src_addr || out->dst_addr || out->src_port || out->dst_port) {
 		return 0;
-	else
+	} else {
+		glb_log_error(
+			    "%s must contain at least 1 field if specified", field_name);
 		return -1;
+	}
 }
