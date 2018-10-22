@@ -559,7 +559,7 @@ static int glbredirect_tg4_check(const struct xt_tgchk_param *par)
 	const struct ipt_entry *e = par->entryinfo;
 	int valid_proto = 1;
 
-	printk(KERN_ERR "Validating GLBREDIRECT with proto=%d %d\n",
+	PRINT_DEBUG(KERN_ERR "Validating GLBREDIRECT with proto=%d %d\n",
 		e->ip.proto, e->ip.invflags & XT_INV_PROTO
 	);
 
