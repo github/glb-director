@@ -178,7 +178,7 @@ static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buf
 	DROP_ON(skb == NULL);
 	DROP_ON(outer_ip == NULL);
 	DROP_ON(glb_routing == NULL);
-	
+
 	inner_ip_v6 = skb_header_pointer(skb, inner_ip_ofs, sizeof(_inner_ip_v6), &_inner_ip_v6);
 	if (inner_ip_v6 == NULL)
 		return NF_DROP;
@@ -269,7 +269,7 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 
 /* Our skb here contains a FOU packet:
  * <IP>  director -> local proxy
- * <UDP> 
+ * <UDP>
  * <GUE> hop list
  * <IP>  src_addr -> dst_addr
  * <TCP> src_port -> dst_port
@@ -345,7 +345,7 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 	/* Finally, jump over the GUE private data to get our inner data packet. */
 	inner_ip_ofs = gue_cr_ofs + cr_len_bytes;
-	
+
 	/* GUE expects an IANA IP protocol number.
 	 * GLB only supports encapsulating IPv4 and IPv6 packets:
 	 *  - IPv4 is encapsulated as IPPROTO_IPIP
@@ -506,7 +506,7 @@ no_ct_entry:
 			}
 		} else if (likely(iph_v6 != NULL)) {
 			/* IPv6 */
-			
+
 			listen_sk = inet6_lookup_listener(net, &tcp_hashinfo,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 				skb, ip_hdrlen(skb) + __tcp_hdrlen(th),
