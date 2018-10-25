@@ -564,13 +564,19 @@ static int glbredirect_tg4_check(const struct xt_tgchk_param *par)
 	);
 
 	/* Invalid to match "anything except" a protocol. */
-	if (e->ip.invflags & XT_INV_PROTO)
+	if (e->ip.invflags & XT_INV_PROTO) {
+		printk(KERN_ERR "GLBREDIRECT can only match on proto\n");
 		return -EINVAL;
+	}
 
 	valid_proto = (e->ip.proto == IPPROTO_UDP);
 
-	if (!valid_proto)
+	if (!valid_proto) {
+		printk(KERN_ERR "GLBREDIRECT is incompatible with proto=%d\n",
+			e->ip.proto
+		);
 		return -EINVAL;
+	}
 
 	return nf_ct_l3proto_try_module_get(par->family);
 }
