@@ -437,11 +437,11 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 #endif
 			&tuple);
 		if (thash == NULL)
-			goto no_ct_entry;
+			goto no_ct_entry_unlock;
 
 		ct = nf_ct_tuplehash_to_ctrack(thash);
 		if (ct == NULL)
-			goto no_ct_entry;
+			goto no_ct_entry_unlock;
 
 		if (!nf_ct_is_dying(ct) && nf_ct_tuple_equal(&tuple, &thash->tuple)) {
 			nf_ct_put(ct);
@@ -450,6 +450,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 		}
 
 		nf_ct_put(ct);
+no_ct_entry_unlock:
 		rcu_read_unlock();
 	}
 
