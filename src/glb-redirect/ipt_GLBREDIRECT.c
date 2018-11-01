@@ -428,6 +428,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			goto no_ct_entry;
 
 		rcu_read_lock();
+		/* from now on no_ct_entry_unlock should be used to ensure we release this lock */
 
 		thash = nf_conntrack_find_get(net,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
