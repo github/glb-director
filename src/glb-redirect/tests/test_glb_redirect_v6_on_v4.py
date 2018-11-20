@@ -16,7 +16,7 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from nose.tools import assert_equals
-from scapy.all import IP, IPv6, UDP, TCP, ICMPv6EchoRequest, ICMPv6EchoReply, sniff, send, conf, L3RawSocket6
+from scapy.all import IP, IPv6, UDP, TCP, ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6PacketTooBig, sniff, send, conf, L3RawSocket6
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from glb_test_utils import GLBTestHelpers
 import random
@@ -52,7 +52,7 @@ class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 
 			resp_icmp = resp_ip.payload
 			assert isinstance(resp_icmp, ICMPv6EchoReply)
-		
+
 
 	def test_01_syn_accepted(self):
 		pkt = \
@@ -73,7 +73,7 @@ class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 		assert_equals(resp_tcp.sport, 22)
 		assert_equals(resp_tcp.dport, 123)
 		assert_equals(resp_tcp.flags, 'SA')
-	
+
 	def test_02_unknown_redirected_through_chain(self):
 		pkt = \
 			IP(dst=self.PROXY_HOST) / \
@@ -106,7 +106,7 @@ class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 		assert isinstance(resp_inner_tcp, TCP)
 		assert_equals(resp_inner_tcp.sport, 9999)
 		assert_equals(resp_inner_tcp.dport, 22)
-	
+
 	def test_03_accepted_on_secondary_chain_host(self):
 		eph_port = random.randint(30000, 60000)
 
@@ -161,3 +161,41 @@ class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 		assert_equals(resp_tcp.sport, 22)
 		assert_equals(resp_tcp.dport, eph_port)
 		assert_equals(resp_tcp.flags, 'PA')
+
+	def test_04_icmp_packet_too_big(self):
+		eph_port = random.randint(30000, 60000)
+
+		# force RST for this tuple
+		rst = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IPv6(src=self.SELF_HOST_V6, dst=self.VIP) / \
+			TCP(sport=eph_port, dport=22, flags='R', seq=1234)
+		send(rst)
+
+		# create connection to the VIP on the alt host, which will accept the SYN
+		syn = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IPv6(src=self.SELF_HOST_V6, dst=self.VIP) / \
+			TCP(sport=eph_port, dport=22, flags='S', seq=1234)
+
+		# retrieve the SYN-ACK
+		resp_ip = self._sendrecv6(syn, filter='ip6 host {} and port 22'.format(self.VIP))
+		assert isinstance(resp_ip, IPv6)
+		assert_equals(resp_ip.src, self.VIP)
+		assert_equals(resp_ip.dst, self.SELF_HOST_V6)
+
+		# send a Packet Too Big message via PROXY, which
+		# should end up on the alt host
+		pkt = \
+			IP(dst=self.PROXY_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[self.ALT_HOST, self.PROXY_HOST])) / \
+			IPv6(src=self.SELF_HOST_V6, dst=self.VIP) / \
+			ICMPv6PacketTooBig(mtu=1400) / \
+			IPv6(src=self.VIP, dst=self.SELF_HOST_V6) / \
+			TCP(sport=22, dport=eph_port)
+		send(pkt)

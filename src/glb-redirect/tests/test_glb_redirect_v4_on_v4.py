@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
-from nose.tools import assert_equals
+from nose.tools import assert_equals, assert_true
 from scapy.all import IP, UDP, TCP, ICMP, sniff, send, conf
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from glb_test_utils import GLBTestHelpers
@@ -26,6 +26,7 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 	ALT_HOST = '192.168.50.11'
 	SELF_HOST = '192.168.50.5'
 	VIP = '10.10.10.10'
+	ROUTER = '192.168.50.2'
 
 	def test_00_icmp_accepted(self):
 		for dst in [self.PROXY_HOST, self.ALT_HOST]:
@@ -47,7 +48,7 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 			assert isinstance(resp_icmp, ICMP)
 			assert_equals(resp_icmp.type, 0) # echo reply
 			assert_equals(resp_icmp.code, 0)
-		
+
 
 	def test_01_syn_accepted(self):
 		pkt = \
@@ -68,7 +69,7 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 		assert_equals(resp_tcp.sport, 22)
 		assert_equals(resp_tcp.dport, 123)
 		assert_equals(resp_tcp.flags, 'SA')
-	
+
 	def test_02_unknown_redirected_through_chain(self):
 		pkt = \
 			IP(dst=self.PROXY_HOST) / \
@@ -101,7 +102,7 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 		assert isinstance(resp_inner_tcp, TCP)
 		assert_equals(resp_inner_tcp.sport, 9999)
 		assert_equals(resp_inner_tcp.dport, 22)
-	
+
 	def test_03_accepted_on_secondary_chain_host(self):
 		eph_port = random.randint(30000, 60000)
 
@@ -156,3 +157,80 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 		assert_equals(resp_tcp.sport, 22)
 		assert_equals(resp_tcp.dport, eph_port)
 		assert_equals(resp_tcp.flags, 'PA')
+
+	def test_04_icmp_packet_too_big(self):
+		# Establish full connection, since ICMP is handled differently for
+		# sockets which haven't completed the full 3-way handshake (aka TCP_NEW_SYN_RECV).
+		(eph_port, seq, ack) = self._establish_conn(dport=80)
+
+		# send a Packet Too Big message via PROXY from ROUTER, which
+		# should end up on the alt host
+		pkt = \
+			IP(dst=self.PROXY_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[self.ALT_HOST, self.PROXY_HOST])) / \
+			IP(src=self.ROUTER, dst=self.VIP) / \
+			ICMP(type=3, code=4, nexthopmtu=800) / \
+			IP(src=self.VIP, dst=self.SELF_HOST) / \
+			TCP(sport=80, dport=eph_port, seq=ack, ack=seq)
+		send(pkt)
+
+		http_req = "GET /test.bin HTTP/1.0\r\n\r\n"
+
+		req = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IP(src=self.SELF_HOST, dst=self.VIP) / \
+			TCP(sport=eph_port, dport=80, flags='PA', seq=seq, ack=ack) / \
+			http_req
+
+		seq += len(http_req)
+
+		print("sending request")
+		resp = self._sendrecvmany4(req, count=3, lfilter=self._match_tuple(self.VIP, self.SELF_HOST, 80, eph_port))
+
+		self._reset_conn(eph_port, 80, seq)
+
+		assert_equals(resp[0].payload.flags, 'A')
+		# TODO: Strange flags=RA packet
+		assert_equals(resp[2].payload.flags, 'FPA')
+		assert_true(len(resp[2].payload) > 800)
+
+
+	def _establish_conn(self, dport):
+		seq_no = random.randint(0, 2**32-1)
+		eph_port = random.randint(30000, 60000)
+
+		# create connection to the VIP on the alt host, which will accept the SYN
+		syn = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IP(src=self.SELF_HOST, dst=self.VIP) / \
+			TCP(sport=eph_port, dport=dport, flags='S', seq=seq_no)
+
+		# retrieve the SYN-ACK
+		syn_ack = self._sendrecv4(syn, lfilter=self._match_tuple(self.VIP, self.SELF_HOST, dport, eph_port))
+
+		seq_no = syn_ack.ack
+		ack_no = syn_ack.seq+1
+
+		ack = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IP(src=self.SELF_HOST, dst=self.VIP) / \
+			TCP(sport=eph_port, dport=dport, flags='A', seq=seq_no, ack=ack_no)
+		send(ack)
+
+		return (eph_port, seq_no, ack_no)
+
+	def _reset_conn(self, sport, dport, seq):
+		rst = \
+			IP(dst=self.ALT_HOST) / \
+			UDP(sport=12345, dport=19523) / \
+			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+			IP(src=self.SELF_HOST, dst=self.VIP) / \
+			TCP(sport=sport, dport=dport, flags='R', seq=seq)
+		send(rst)

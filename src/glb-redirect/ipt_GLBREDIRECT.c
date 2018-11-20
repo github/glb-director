@@ -20,6 +20,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
 #include <linux/skbuff.h>
 #include <linux/version.h>
 #include <linux/proc_fs.h>
@@ -206,11 +208,40 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	return glbredirect_send_forwarded_skb(net, skb);
 }
 
+/* Build a fake TCP header from the payload of an ICMP Packet Too Big
+ * message. This is required since ICMPv4 only carries the first 64bit
+ * of the TCP / UDP header.
+ */
+static bool fill_tcp_from_icmp(const struct sk_buff *skb, int icmp_payload_ofs, struct tcphdr *th)
+{
+	uint32_t tmp;
+
+	memset(th, 0, sizeof(*th));
+	if (skb_copy_bits(skb, icmp_payload_ofs, th, offsetofend(struct tcphdr, dest)))
+		return 0;
+
+	/* Reverse ports from the usual order, since Packet Too Big messages
+	 * contain packets from the return direction of the flow.
+	 */
+	tmp = th->source;
+	th->source = th->dest;
+	th->dest = tmp;
+	return 1;
+}
+
+static void copy_v6(struct in6_addr *dst, const struct in6_addr *src)
+{
+	memcpy(dst->s6_addr32, src->s6_addr32, sizeof(dst->s6_addr32));
+}
+
 static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buff *skb, struct iphdr *outer_ip, struct glbgue_chained_routing *glb_routing, int gue_cr_ofs, int inner_ip_ofs)
 {
 	struct ipv6hdr *inner_ip_v6, _inner_ip_v6;
+	struct icmp6hdr *icmp6h, _icmp6h;
 	struct tcphdr *th, _th;
-	int tcp_ofs;
+	struct in6_addr tmp_addr;
+	bool is_icmp_pkt_too_big = 0;
+	int ofs;
 
 	DROP_ON(net == NULL);
 	DROP_ON(skb == NULL);
@@ -221,25 +252,63 @@ static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buf
 	if (inner_ip_v6 == NULL)
 		return NF_DROP;
 
-	/* We only need to process TCP packets - they have flow state.
-	 * ICMP and UDP (the only others forwarded by glb-director) are
+	/* We need to process TCP packets and ICMP messages used in
+	 * path MTU discovery, since they have flow state.
+	 * Other ICMP and UDP (the only others forwarded by glb-director) are
 	 * always handled by the first host since they have no socket.
 	 * Other protocols are an error.
 	 */
-	if (inner_ip_v6->nexthdr != IPPROTO_TCP) {
-		if (inner_ip_v6->nexthdr == IPPROTO_UDP || inner_ip_v6->nexthdr == IPPROTO_ICMPV6)
-			return XT_CONTINUE;
-		else
+	ofs = inner_ip_ofs + sizeof(struct ipv6hdr);
+
+	switch (inner_ip_v6->nexthdr) {
+	case IPPROTO_ICMPV6:
+		icmp6h = skb_header_pointer(skb, ofs, sizeof(_icmp6h), &_icmp6h);
+		if (icmp6h == NULL)
 			return NF_DROP;
+
+		if (icmp6h->icmp6_type != ICMPV6_PKT_TOOBIG)
+			return XT_CONTINUE;
+
+		is_icmp_pkt_too_big = 1;
+
+		inner_ip_v6 = &_inner_ip_v6;
+		inner_ip_ofs = ofs + sizeof(struct icmp6hdr);
+		if (skb_copy_bits(skb, inner_ip_ofs, inner_ip_v6, sizeof(*inner_ip_v6)))
+			return NF_DROP;
+
+		/* Same deal as with ports: this is a packet from the
+		 * return flow, adjust accordingly.
+		 */
+		copy_v6(&tmp_addr, &inner_ip_v6->saddr);
+		copy_v6(&inner_ip_v6->saddr, &inner_ip_v6->daddr);
+		copy_v6(&inner_ip_v6->daddr, &tmp_addr);
+
+		/* NB: We don't check the IPv6 nexthdr here. */
+
+		th = &_th;
+		ofs = inner_ip_ofs + sizeof(struct ipv6hdr);
+		if (!fill_tcp_from_icmp(skb, ofs, th))
+			return NF_DROP;
+
+		break;
+
+	case IPPROTO_TCP:
+		th = skb_header_pointer(skb, ofs, sizeof(_th), &_th);
+		if (th == NULL)
+			return NF_DROP;
+
+		break;
+
+	case IPPROTO_UDP:
+		return XT_CONTINUE;
+
+	default:
+		return NF_DROP;
 	}
 
-	tcp_ofs = inner_ip_ofs + sizeof(struct ipv6hdr);
-	th = skb_header_pointer(skb, tcp_ofs, sizeof(_th), &_th);
-	if (th == NULL)
-		return NF_DROP;
-
-	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> IPv6<%08x %08x %08x %08x,%08x %08x %08x %08x> TCP<%d,%d flags %c%c%c%c%c>\n",
+	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> %sIPv6<%08x %08x %08x %08x,%08x %08x %08x %08x> TCP<%d,%d flags %c%c%c%c%c>\n",
 		outer_ip->saddr, outer_ip->daddr,
+		is_icmp_pkt_too_big ? "IPv6<> ICMPv6<PacketTooBig> " : "",
 		ntohl(inner_ip_v6->saddr.in6_u.u6_addr32[0]),
 		ntohl(inner_ip_v6->saddr.in6_u.u6_addr32[1]),
 		ntohl(inner_ip_v6->saddr.in6_u.u6_addr32[2]),
@@ -256,14 +325,17 @@ static unsigned int glbredirect_handle_inner_ipv6(struct net *net, struct sk_buf
 		th->fin ? 'F' : '.'
 	);
 
-	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, inner_ip_ofs, NULL, inner_ip_v6, th);
+	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, is_icmp_pkt_too_big ? 0 : inner_ip_ofs, NULL, inner_ip_v6, th);
 }
 
 static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buff *skb, struct iphdr *outer_ip, struct glbgue_chained_routing *glb_routing, int gue_cr_ofs, int inner_ip_ofs)
 {
 	struct iphdr *inner_ip_v4, _inner_ip_v4;
+	struct icmphdr *icmph, _icmph;
 	struct tcphdr *th, _th;
-	int tcp_ofs;
+	uint32_t tmp_addr;
+	bool is_icmp_pkt_too_big = 0;
+	int ofs;
 
 	DROP_ON(net == NULL);
 	DROP_ON(skb == NULL);
@@ -274,25 +346,63 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 	if (inner_ip_v4 == NULL)
 		return NF_DROP;
 
-	/* We only need to process TCP packets - they have flow state.
-	 * ICMP and UDP (the only others forwarded by glb-director) are
+	/* We need to process TCP packets and ICMP messages used in
+	 * path MTU discovery, since they have flow state.
+	 * Other ICMP and UDP (the only others forwarded by glb-director) are
 	 * always handled by the first host since they have no socket.
 	 * Other protocols are an error.
 	 */
-	if (inner_ip_v4->protocol != IPPROTO_TCP) {
-		if (inner_ip_v4->protocol == IPPROTO_UDP || inner_ip_v4->protocol == IPPROTO_ICMP)
-			return XT_CONTINUE;
-		else
+	ofs = inner_ip_ofs + (inner_ip_v4->ihl * 4);
+
+	switch (inner_ip_v4->protocol) {
+	case IPPROTO_ICMP:
+		icmph = skb_header_pointer(skb, ofs, sizeof(_icmph), &_icmph);
+		if (icmph == NULL)
 			return NF_DROP;
+
+		if (icmph->type != ICMP_DEST_UNREACH || icmph->code != ICMP_FRAG_NEEDED)
+			return XT_CONTINUE;
+
+		is_icmp_pkt_too_big = 1;
+
+		inner_ip_v4 = &_inner_ip_v4;
+		inner_ip_ofs = ofs + sizeof(struct icmphdr);
+		if (skb_copy_bits(skb, inner_ip_ofs, inner_ip_v4, sizeof(*inner_ip_v4)))
+			return NF_DROP;
+
+		/* Same deal as with ports: this is a packet from the
+		 * return flow, adjust accordingly.
+		 */
+		tmp_addr = inner_ip_v4->saddr;
+		inner_ip_v4->saddr = inner_ip_v4->daddr;
+		inner_ip_v4->daddr = tmp_addr;
+
+		/* NB: We don't check protocol here */
+
+		th = &_th;
+		ofs = inner_ip_ofs + (inner_ip_v4->ihl * 4);
+		if (!fill_tcp_from_icmp(skb, ofs, th))
+			return NF_DROP;
+
+		break;
+
+	case IPPROTO_TCP:
+		th = skb_header_pointer(skb, ofs, sizeof(_th), &_th);
+		if (th == NULL)
+			return NF_DROP;
+
+		break;
+
+	case IPPROTO_UDP:
+		return XT_CONTINUE;
+
+	default:
+		return NF_DROP;
 	}
 
-	tcp_ofs = inner_ip_ofs + (inner_ip_v4->ihl * 4);
-	th = skb_header_pointer(skb, tcp_ofs, sizeof(_th), &_th);
-	if (th == NULL)
-		return NF_DROP;
-
-	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> IPv4<%08x,%08x> TCP<%d,%d flags %c%c%c%c%c>\n",
+	PRINT_DEBUG(KERN_ERR "IP<%08x,%08x> GUE<> %sIPv4<%08x,%08x> TCP<%d,%d flags %c%c%c%c%c>\n",
 		outer_ip->saddr, outer_ip->daddr,
+		is_icmp_pkt_too_big ? "IPv4<> ICMPv4<PacketTooBig> " : "",
 		inner_ip_v4->saddr, inner_ip_v4->daddr,
 		ntohs(th->source), ntohs(th->dest),
 		th->syn ? 'S' : '.',
@@ -302,7 +412,7 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 		th->fin ? 'F' : '.'
 	);
 
-	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, inner_ip_ofs, inner_ip_v4, NULL, th);
+	return glbredirect_handle_inner_tcp_generic(net, skb, outer_ip, glb_routing, gue_cr_ofs, is_icmp_pkt_too_big ? 0 : inner_ip_ofs, inner_ip_v4, NULL, th);
 }
 
 /* Our skb here contains a FOU packet:
@@ -457,8 +567,10 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 	/* If we're not ESTABLISHED yet, check conntrack for a SYN_RECV.
 	 * When syncookies aren't enabled, this will let ACKs come in to complete
 	 * a connection.
+	 * Only do this if we know the offset of the inner IP header (so don't
+	 * check ICMP Packet Too Big).
 	 */
-	{
+	if (likely(inner_ip_ofs > 0)) {
 		const struct nf_conntrack_tuple_hash *thash;
 		struct nf_conntrack_tuple tuple;
 		struct nf_conn *ct;
