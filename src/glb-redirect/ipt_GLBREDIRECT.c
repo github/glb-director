@@ -580,12 +580,18 @@ static int glbredirect_tg4_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
 	return nf_ct_l3proto_try_module_get(par->family);
+#else
+	return 0;
+#endif
 }
 
 static void glbredirect_tg4_destroy(const struct xt_tgdtor_param *par)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
 	nf_ct_l3proto_module_put(par->family);
+#endif
 }
 
 static struct xt_target glbredirect_tg4_reg __read_mostly = {
