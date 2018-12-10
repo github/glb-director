@@ -13,6 +13,9 @@ before_install:
   - vagrant box add debian/stretch64 --provider libvirt
   - sudo adduser $(whoami) libvirtd
   - lsmod
+  - ls -la /dev
+  - cat /proc/cpuinfo
+  - modprobe kvm
   - virsh capabilities
   - exit 1
 addons:
