@@ -14,3 +14,4 @@ begin_fold "Testing glb-healthcheck daemon"
     sudo script/test
 EOF
 )
+end_fold
