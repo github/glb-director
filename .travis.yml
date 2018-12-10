@@ -12,6 +12,8 @@ before_install:
   - vagrant plugin install vagrant-mutate
   - vagrant box add debian/stretch64 --provider libvirt
   - sudo adduser $(whoami) libvirtd
+  - virsh capabilities
+  - exit 1
 addons:
   apt:
     update: true
