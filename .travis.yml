@@ -10,8 +10,7 @@ before_install:
   - vagrant plugin install vagrant-libvirt
   - sudo chmod a+rwx /var/run/libvirt/libvirt-sock
   - vagrant plugin install vagrant-mutate
-  - vagrant box add debian/stretch64
-  - vagrant mutate debian/stretch64 libvirt
+  - vagrant box add debian/stretch64 --provider libvirt
 addons:
   apt:
     update: true
