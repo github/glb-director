@@ -4,7 +4,7 @@ install: true
 script: script/cibuild
 before_install:
   - sudo apt-get install -y linux-headers-$(uname -r)
-  - sudo apt-get install -y libvirt-dev libvirt-daemon
+  - sudo apt-get install -y libvirt-dev libvirt-bin
   - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
   - sudo dpkg -i vagrant_2.1.5_x86_64.deb
   - vagrant plugin install vagrant-libvirt
