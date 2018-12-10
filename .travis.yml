@@ -9,6 +9,8 @@ before_install:
   - sudo dpkg -i vagrant_2.1.5_x86_64.deb
   - vagrant plugin install vagrant-libvirt
   - sudo chmod a+rwx /var/run/libvirt/libvirt-sock
+  - vagrant plugin install vagrant-mutate
+  - vagrant mutate debian/stretch64 libvirt
 addons:
   apt:
     update: true
