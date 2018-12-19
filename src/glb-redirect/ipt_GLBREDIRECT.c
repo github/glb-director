@@ -141,18 +141,6 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 		return XT_CONTINUE;
 	}
 
-	/* If we've exhausted alternate hops, don't bother looking.
-	 * The local IP stack is the best option, and it can handle responses.
-	 */
-	if (glb_routing->next_hop >= glb_routing->hop_count) {
-		u64_stats_update_begin(&s->syncp);
-		s->accepted_last_resort_packets++;
-		u64_stats_update_end(&s->syncp);
-
-		PRINT_DEBUG(KERN_ERR " -> no more alternative hops available, accept here regardless\n");
-		return XT_CONTINUE;
-	}
-
 	PRINT_DEBUG(KERN_ERR " -> checking for local matching connection\n");
 
 	/* Do we know about this flow? Handle through local IP stack too */
@@ -162,6 +150,19 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	}
 
 	PRINT_DEBUG(KERN_ERR " -> unknown locally\n");
+
+	/* We've exhausted alternate hops and the packet is not known locally.
+	 * The local IP stack is the best option, and it can handle responses.
+	 * This is a symptom of an incorrectly constructed forwarding table.
+	 */
+	if (glb_routing->next_hop >= glb_routing->hop_count) {
+		u64_stats_update_begin(&s->syncp);
+		s->accepted_last_resort_packets++;
+		u64_stats_update_end(&s->syncp);
+
+		PRINT_DEBUG(KERN_ERR " -> no more alternative hops available, accept here regardless\n");
+		return XT_CONTINUE;
+	}
 
 	/* Extract our next alternate server. */
 	alt = glb_routing->hops[glb_routing->next_hop];
