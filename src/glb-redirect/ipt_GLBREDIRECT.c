@@ -22,6 +22,8 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/version.h>
+#include <linux/proc_fs.h>
+#include <linux/u64_stats_sync.h>
 #include <net/tcp.h>
 #include <net/gue.h>
 #include <net/udp.h>
@@ -33,11 +35,13 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/inet6_hashtables.h>
+#include <net/net_namespace.h>
 #include "ipt_glbredirect.h"
 
 // #define DEBUG
 
 #define MAX_HOPS 256
+#define PROCFS_NAME "glb_redirect_stats"
 
 #ifdef DEBUG
 #define PRINT_DEBUG(...) printk(__VA_ARGS__)
@@ -66,10 +70,25 @@ struct glbgue_chained_routing {
 	__be32 hops[MAX_HOPS];
 } __attribute__((packed));
 
+struct glbgue_stats {
+	__u64 total_packets;
+	__u64 accepted_syn_packets;
+	__u64 accepted_last_resort_packets;
+	__u64 accepted_established_packets;
+	__u64 accepted_conntracked_packets;
+	__u64 accepted_syn_cookie_packets;
+	__u64 forwarded_to_self_packets;
+	__u64 forwarded_to_alternate_packets;
+	struct u64_stats_sync syncp;
+};
+
+struct glbgue_stats __percpu *percpu_stats;
+
 static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int inner_ip_ofs, struct iphdr *iph_v4, struct ipv6hdr *iph_v6, struct tcphdr *th);
 
 static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_buff *skb)
 {
+	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
 	nf_reset(skb);
 	skb_forward_csum(skb);
 
@@ -90,11 +109,16 @@ static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_bu
 #endif
 		skb);
 
+	u64_stats_update_begin(&s->syncp);
+	s->forwarded_to_alternate_packets++;
+	u64_stats_update_end(&s->syncp);
+
 	return NF_STOLEN;
 }
 
 static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct sk_buff *skb, struct iphdr *outer_ip, struct glbgue_chained_routing *glb_routing, int gue_cr_ofs, int inner_ip_ofs, struct iphdr *inner_ip_v4, struct ipv6hdr *inner_ip_v6, struct tcphdr *th)
 {
+	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
 	struct udphdr *uh = udp_hdr(skb);
 	struct glbgue_chained_routing *raw_cr;
 	__be32 alt;
@@ -109,6 +133,10 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 
 	/* SYN packets are always taken locally. */
 	if (th->syn) {
+		u64_stats_update_begin(&s->syncp);
+		s->accepted_syn_packets++;
+		u64_stats_update_end(&s->syncp);
+
 		PRINT_DEBUG(KERN_ERR " -> SYN packet, accepting locally\n");
 		return XT_CONTINUE;
 	}
@@ -117,6 +145,10 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	 * The local IP stack is the best option, and it can handle responses.
 	 */
 	if (glb_routing->next_hop >= glb_routing->hop_count) {
+		u64_stats_update_begin(&s->syncp);
+		s->accepted_last_resort_packets++;
+		u64_stats_update_end(&s->syncp);
+
 		PRINT_DEBUG(KERN_ERR " -> no more alternative hops available, accept here regardless\n");
 		return XT_CONTINUE;
 	}
@@ -138,8 +170,13 @@ static unsigned int glbredirect_handle_inner_tcp_generic(struct net *net, struct
 	 * next hop index, be defensive and force the packet to be taken locally.
 	 * Avoids any potential loops if something goes wrong.
 	 */
-	if (alt == outer_ip->daddr)
+	if (alt == outer_ip->daddr) {
+		u64_stats_update_begin(&s->syncp);
+		s->forwarded_to_self_packets++;
+		u64_stats_update_end(&s->syncp);
+
 		return XT_CONTINUE;
+	}
 
 	PRINT_DEBUG(KERN_ERR " -> got an alternate: %08x\n", alt);
 
@@ -286,6 +323,7 @@ static unsigned int glbredirect_handle_inner_ipv4(struct net *net, struct sk_buf
 static unsigned int
 glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
+	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
 	struct iphdr *outer_ip;
 	struct udphdr *uh, _uh;
 	struct guehdr *gh, _gh;
@@ -300,6 +338,10 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 #else
 	struct net *net = dev_net(skb->dev);
 #endif
+
+	u64_stats_update_begin(&s->syncp);
+	s->total_packets++;
+	u64_stats_update_end(&s->syncp);
 
 	/* Extract outer IP, inner IP and TCP headers */
 	outer_ip = ip_hdr(skb);
@@ -365,6 +407,8 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int inner_ip_ofs, struct iphdr *iph_v4, struct ipv6hdr *iph_v6, struct tcphdr *th)
 {
+	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
+
 #ifdef DEBUG
 	WARN_ON(net == NULL);
 	WARN_ON(skb == NULL);
@@ -399,6 +443,9 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 		}
 
 		if (nsk) {
+			u64_stats_update_begin(&s->syncp);
+			s->accepted_established_packets++;
+			u64_stats_update_end(&s->syncp);
 			sock_put(nsk);
 			return 1;
 		}
@@ -445,6 +492,10 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			goto no_ct_entry_unlock;
 
 		if (!nf_ct_is_dying(ct) && nf_ct_tuple_equal(&tuple, &thash->tuple)) {
+			u64_stats_update_begin(&s->syncp);
+			s->accepted_conntracked_packets++;
+			u64_stats_update_end(&s->syncp);
+
 			nf_ct_put(ct);
 			rcu_read_unlock();
 			return 1;
@@ -550,6 +601,12 @@ no_ct_entry:
 			}
 		}
 
+		if (ret == 1) {
+			u64_stats_update_begin(&s->syncp);
+			s->accepted_syn_cookie_packets++;
+			u64_stats_update_end(&s->syncp);
+		}
+
 		return ret;
 	}
 
@@ -605,23 +662,94 @@ static struct xt_target glbredirect_tg4_reg __read_mostly = {
 	.me		    = THIS_MODULE,
 };
 
+static int proc_show(struct seq_file *m, void *v)
+{
+	unsigned int cpu, start;
+	struct glbgue_stats sum = {0};
+
+	for_each_possible_cpu(cpu) {
+		struct glbgue_stats *s = per_cpu_ptr(percpu_stats, cpu);
+		struct glbgue_stats tmp = {0};
+
+		do {
+			start = u64_stats_fetch_begin(&s->syncp);
+			tmp.total_packets = s->total_packets;
+			tmp.accepted_syn_packets = s->accepted_syn_packets;
+			tmp.accepted_last_resort_packets = s->accepted_last_resort_packets;
+			tmp.accepted_established_packets = s->accepted_established_packets;
+			tmp.accepted_conntracked_packets = s->accepted_conntracked_packets;
+			tmp.accepted_syn_cookie_packets = s->accepted_syn_cookie_packets;
+			tmp.forwarded_to_self_packets = s->forwarded_to_self_packets;
+			tmp.forwarded_to_alternate_packets = s->forwarded_to_alternate_packets;
+		} while (u64_stats_fetch_retry(&s->syncp, start));
+
+		sum.total_packets += tmp.total_packets;
+		sum.accepted_syn_packets += tmp.accepted_syn_packets;
+		sum.accepted_last_resort_packets += tmp.accepted_last_resort_packets;
+		sum.accepted_established_packets += tmp.accepted_established_packets;
+		sum.accepted_conntracked_packets += tmp.accepted_conntracked_packets;
+		sum.accepted_syn_cookie_packets += tmp.accepted_syn_cookie_packets;
+		sum.forwarded_to_self_packets += tmp.forwarded_to_self_packets;
+		sum.forwarded_to_alternate_packets += tmp.forwarded_to_alternate_packets;
+	}
+
+	seq_printf(m, "total_packets: %llu\n", sum.total_packets);
+	seq_printf(m, "accepted_syn_packets: %llu\n", sum.accepted_syn_packets);
+	seq_printf(m, "accepted_last_resort_packets: %llu\n", sum.accepted_last_resort_packets);
+	seq_printf(m, "accepted_established_packets: %llu\n", sum.accepted_established_packets);
+	seq_printf(m, "accepted_conntracked_packets: %llu\n", sum.accepted_conntracked_packets);
+	seq_printf(m, "accepted_syn_cookie_packets: %llu\n", sum.accepted_syn_cookie_packets);
+	seq_printf(m, "forwarded_to_self_packets: %llu\n", sum.forwarded_to_self_packets);
+	seq_printf(m, "forwarded_to_alternate_packets: %llu\n", sum.forwarded_to_alternate_packets);
+
+	return 0;
+}
+
+static int proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_show, NULL);
+}
+
+static const struct file_operations proc_operations = {
+	.owner		= THIS_MODULE,
+	.open		= proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int __init glbredirect_tg4_init(void)
 {
+	unsigned int cpu;
 	int err;
+
+	percpu_stats = alloc_percpu(struct glbgue_stats);
+	if (!percpu_stats)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		struct glbgue_stats *s = per_cpu_ptr(percpu_stats, cpu);
+		u64_stats_init(&s->syncp);
+	}
 
 	err = xt_register_target(&glbredirect_tg4_reg);
 	if (err < 0)
 		goto err1;
 
+	proc_create(PROCFS_NAME, 0, NULL, &proc_operations);
 	return 0;
 
 err1:
+	free_percpu(percpu_stats);
 	return err;
 }
 
 static void __exit glbredirect_tg4_exit(void)
 {
+	remove_proc_subtree(PROCFS_NAME, NULL);
+
 	xt_unregister_target(&glbredirect_tg4_reg);
+	free_percpu(percpu_stats);
 }
 
 module_init(glbredirect_tg4_init);
