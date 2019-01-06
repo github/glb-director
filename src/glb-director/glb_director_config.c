@@ -49,7 +49,7 @@
 #include "config.h"
 #include "glb_director_config.h"
 
-static int parse_hash_fields(glb_director_hash_fields *out, json_t *cfg);
+static int parse_hash_fields(const char *field_name, glb_director_hash_fields *out, json_t *cfg);
 
 glb_director_config *g_director_config = NULL;
 
