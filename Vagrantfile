@@ -4,7 +4,7 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "debian/stretch64"
 
-  config.vm.synced_folder "src/glb-wireshark-dissector/", "/home/vagrant/.wireshark", type: 'rsync'
+  config.vm.synced_folder "src/glb-wireshark-dissector/", "/home/vagrant/.config/wireshark/plugins/glb-wireshark-dissector", type: 'rsync'
 
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
