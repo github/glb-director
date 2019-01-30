@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y golang golang-glide
 
 # fpm for packaging
 RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
-RUN gem install --no-ri --no-rdoc fpm
+RUN gem install --no-ri --no-rdoc rake fpm
 
 # patch DKMS for source package generation https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=832558
 ADD helpers/dkms.diff /root/dkms.diff
