@@ -52,11 +52,6 @@
 #define INBOUND_HEADER_SIZE_L2 \
 	(sizeof(struct ether_hdr) + INBOUND_HEADER_SIZE_L3)
 
-#define ENCAP_HEADER_SIZE(num_chained_hops)                 \
-	(sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +   \
-	 sizeof(struct udp_hdr) + sizeof(struct glb_gue_hdr) +  \
-	 (sizeof(uint32_t) * num_chained_hops))
-
 const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len, void *buf)
 {
 	pcap_packet *pkt = (pcap_packet *)packet_data;
@@ -104,15 +99,15 @@ int glb_encapsulate_packet_pcap(struct glb_fwd_config_ctx *ctx, pcap_packet *pkt
 	/* simulate rte_pktmbuf_adj taking away the old ethernet header
 	 * and rte_pktmbuf_prepend adding in the new encapsulation headers.
 	 * essentially, take the inbound IP+TCP headers and put them after
-	 * space for ENCAP_HEADER_SIZE(..)
+	 * space for ROUTE_CONTEXT_ENCAP_SIZE(..)
 	 */
 	if (pkt->len < INBOUND_HEADER_SIZE_L3) {
 		glb_log_info(
 		    "lcore: -> glb_encap_pcap failed: packet smaller than L3 inbound header size");
 		return -1;
 	}
-	u_char encap_copy[ENCAP_HEADER_SIZE(route_context.hop_count) + INBOUND_HEADER_SIZE_L3];
-	memcpy(&encap_copy[ENCAP_HEADER_SIZE(route_context.hop_count)], pkt->data, INBOUND_HEADER_SIZE_L3);
+	u_char encap_copy[ROUTE_CONTEXT_ENCAP_SIZE(&route_context) + INBOUND_HEADER_SIZE_L3];
+	memcpy(&encap_copy[ROUTE_CONTEXT_ENCAP_SIZE(&route_context)], pkt->data, INBOUND_HEADER_SIZE_L3);
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)&encap_copy;
 
 	if (glb_encapsulate_packet(eth_hdr, &route_context) != 0) {

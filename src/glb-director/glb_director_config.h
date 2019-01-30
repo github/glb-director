@@ -67,6 +67,13 @@ typedef struct {
 } glb_director_lcore_config;
 
 typedef struct {
+	int src_addr;
+	int dst_addr;
+	int src_port;
+	int dst_port;
+} glb_director_hash_fields;
+
+typedef struct {
 	struct ether_addr local_ether_addr;
 
 	struct ether_addr gateway_ether_addr;
@@ -87,6 +94,14 @@ typedef struct {
 	int forward_icmp_ping_responses;
 
 	int rx_drop_en;
+
+	/* Specify the fields to use as part of the hash calculation,
+	 * and optionally another set of fields to use (to allow safely
+	 * changing hash fields).
+	 */
+	glb_director_hash_fields hash_fields;
+	int use_alt_hash_fields;
+	glb_director_hash_fields alt_hash_fields;
 } glb_director_config;
 
 glb_director_config *

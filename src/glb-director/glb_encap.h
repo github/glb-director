@@ -68,6 +68,16 @@ struct l4_ports_hdr {
 	sizeof(struct l4_ports_hdr) \
 )
 
+/* The maximum amount of data we can hash on.
+ * IPv6 addresses are biggest, so we use those, plus src/dst port.
+ */
+#define MAX_HASH_DATA_SIZE ( \
+	IPV6_ADDR_SIZE + \
+	IPV6_ADDR_SIZE + \
+	sizeof(uint16_t) + \
+	sizeof(uint16_t) \
+)
+
 #define MAX_HOPS 4
 
 typedef struct {
@@ -113,8 +123,15 @@ const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len
 int glb_calculate_packet_route(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
 			  void *packet_data, glb_route_context *route_context);
 
-int glb_encapsulate_packet(struct ether_hdr *eth_hdr,
-			   glb_route_context *route_context);
+/* Returns the size required to encapsulate a packet for the given route context.
+ * Note that space is included for N-1 hops because the first hop is used as dst_addr.
+ */
+#define ROUTE_CONTEXT_ENCAP_SIZE(route_context)                 \
+	(sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) +   \
+	 sizeof(struct udp_hdr) + sizeof(struct glb_gue_hdr) +  \
+	 (sizeof(uint32_t) * ((route_context)->hop_count - 1)))
+
+int glb_encapsulate_packet(struct ether_hdr *eth_hdr, glb_route_context *route_context);
 
 struct glb_gue_hdr {
 	uint8_t version_control_hlen;
