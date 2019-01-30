@@ -1,0 +1,11 @@
+[Unit]
+Description=Test Snoop Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/vagrant/script/helpers/test-snoop.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

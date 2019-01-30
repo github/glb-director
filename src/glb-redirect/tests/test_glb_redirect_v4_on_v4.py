@@ -21,6 +21,35 @@ from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from glb_test_utils import GLBTestHelpers
 import random
 
+
+import socket, time, struct
+class RemoteSnoop(object):
+	def __init__(self, remote_host, remote_port=9999):
+		self.remote_host = remote_host
+		# connect now so we start receiving our packets
+		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.s.connect((remote_host, remote_port))
+		# receive some bytes, so we know we're in sync and listening on the remote end
+		assert self.s.recv(4) == 'SYNC'
+
+	def recv(self, recv_filter, timeout=10):
+		self.s.settimeout(timeout)
+		start = time.time()
+		while time.time() < start + timeout:
+			# TODO: we don't actually timeout here, need to break out of here as well
+			pkt_len_raw = self.s.recv(4)
+			pkt_len, = struct.unpack('!I', pkt_len_raw)
+			pkt_raw = self.s.recv(pkt_len)
+			pkt = IP(pkt_raw)
+			print("got packet from {}: {}".format(self.remote_host, repr(pkt)))
+			if recv_filter(pkt):
+				print(" -> match!")
+				return pkt
+			else:
+				print(" -> not a match.")
+		return None
+
+
 class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 	PROXY_HOST = '192.168.50.10'
 	ALT_HOST = '192.168.50.11'
@@ -173,29 +202,50 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 			ICMP(type=3, code=4, nexthopmtu=800) / \
 			IP(src=self.VIP, dst=self.SELF_HOST) / \
 			TCP(sport=80, dport=eph_port, seq=ack, ack=seq)
+
+		alt_host_stream = RemoteSnoop(self.ALT_HOST)
 		send(pkt)
+		rem_ip = alt_host_stream.recv(lambda pkt: pkt.src == self.ROUTER)
 
-		http_req = "GET /test.bin HTTP/1.0\r\n\r\n"
+		print("got: {}".format(repr(rem_ip)))
 
-		req = \
-			IP(dst=self.ALT_HOST) / \
-			UDP(sport=12345, dport=19523) / \
-			GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
-			IP(src=self.SELF_HOST, dst=self.VIP) / \
-			TCP(sport=eph_port, dport=80, flags='PA', seq=seq, ack=ack) / \
-			http_req
+		# ensure the remote host (ALT_HOST) received the inner packet through the first (failed) hop
+		assert isinstance(rem_ip, IP)
+		assert_equals(rem_ip.src, self.ROUTER)
+		assert_equals(rem_ip.dst, self.VIP)
+		rem_icmp = rem_ip.payload
+		assert isinstance(rem_icmp, ICMP)
+		assert_equals(rem_icmp.type, 3)
+		assert_equals(rem_icmp.code, 4)
+		assert_equals(rem_icmp.nexthopmtu, 800)
+		rem_ipip = rem_icmp.payload
+		assert isinstance(rem_ipip, IP)
+		assert_equals(rem_ipip.src, self.VIP)
+		assert_equals(rem_ipip.dst, self.SELF_HOST)
+		assert_equals(rem_ipip.sport, 80)
+		assert_equals(rem_ipip.dport, eph_port)
 
-		seq += len(http_req)
+		# http_req = "GET /test.bin HTTP/1.0\r\n\r\n"
 
-		print("sending request")
-		resp = self._sendrecvmany4(req, count=3, lfilter=self._match_tuple(self.VIP, self.SELF_HOST, 80, eph_port))
+		# req = \
+		# 	IP(dst=self.ALT_HOST) / \
+		# 	UDP(sport=12345, dport=19523) / \
+		# 	GLBGUE(private_data=GLBGUEChainedRouting(hops=[])) / \
+		# 	IP(src=self.SELF_HOST, dst=self.VIP) / \
+		# 	TCP(sport=eph_port, dport=80, flags='PA', seq=seq, ack=ack) / \
+		# 	http_req
 
-		self._reset_conn(eph_port, 80, seq)
+		# seq += len(http_req)
 
-		assert_equals(resp[0].payload.flags, 'A')
-		# TODO: Strange flags=RA packet
-		assert_equals(resp[2].payload.flags, 'FPA')
-		assert_true(len(resp[2].payload) > 800)
+		# print("sending request")
+		# resp = self._sendrecvmany4(req, count=3, lfilter=self._match_tuple(self.VIP, self.SELF_HOST, 80, eph_port))
+
+		# self._reset_conn(eph_port, 80, seq)
+
+		# assert_equals(resp[0].payload.flags, 'A')
+		# # TODO: Strange flags=RA packet
+		# assert_equals(resp[2].payload.flags, 'FPA')
+		# assert_true(len(resp[2].payload) > 800)
 
 
 	def _establish_conn(self, dport):
