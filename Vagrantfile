@@ -127,7 +127,6 @@ Vagrant.configure("2") do |config|
       v.vm.provision "shell", inline: <<-SHELL
         DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
         echo "hello world from #{name} via GLB" >/var/www/html/index.html
-        dd if=/dev/zero of=/var/www/html/test.bin bs=1000 count=1
       SHELL
 
       v.vm.provision "shell", run: "always", inline: <<-SHELL

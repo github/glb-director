@@ -11,7 +11,9 @@ class SnoopHandler(SocketServer.BaseRequestHandler):
 	def forward_packet(self, packet):
 		print('Forwarding packet: {}'.format(repr(packet)))
 		sys.stdout.flush()
-		raw_data = str(packet)
+		# encapsulate the packet in an empty ethernet frame so the other side can decode more easily
+		encap_packet = Ether(src='00:11:22:33:44:55', dst='00:11:22:33:44:55')/packet
+		raw_data = str(encap_packet)
 		try:
 			self.request.sendall(struct.pack('!I', len(raw_data)))
 			self.request.sendall(raw_data)
@@ -24,7 +26,15 @@ class SnoopHandler(SocketServer.BaseRequestHandler):
 	def handle(self):
 		print('handling new client')
 		sys.stdout.flush()
-		s = L3RawSocket(iface='tunl0')
+
+		# read the interface name from the remote side (prefixed by size)
+		iface_len_raw = self.request.recv(6)
+		ethertype, iface_len, = struct.unpack('!HI', iface_len_raw)
+		iface = self.request.recv(iface_len).decode('ascii')
+		print('listening on interface {} with ethertype 0x{:x}'.format(iface, ethertype))
+		sys.stdout.flush()
+
+		s = L3RawSocket(iface=iface, type=ethertype)
 		self.request.sendall('SYNC') # let the other side know we're ready (listening)
 		while True:
 			pkt = s.recv()
