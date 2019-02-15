@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
-from scapy.all import sniff, send, conf, L3RawSocket6
+from scapy.all import sniff, send, L3RawSocket, L3RawSocket6
 
 class GLBTestHelpers(object):
 	def _sendrecv6(self, pkt, **kwargs):
@@ -28,12 +28,20 @@ class GLBTestHelpers(object):
 		print "Received packet:", repr(ret[0])
 		return ret[0]
 
-	def _sendrecv4(self, pkt, **kwargs):
-		s = conf.L3socket(**kwargs)
+	def _sendrecvmany4(self, pkt, **kwargs):
+		s = L3RawSocket()
 		s.send(pkt)
-		ret = sniff(opened_socket=s, timeout=1, **kwargs)
+		ret = s.sniff(timeout=1, **kwargs)
 		s.close()
 		if len(ret) == 0:
 			assert False, "Expected to receive a response packet, but none received."
-		print "Received packet:", repr(ret[0])
-		return ret[0]
+		for pkt in ret:
+			print "Received packet:", repr(pkt)
+		return ret
+
+	def _sendrecv4(self, pkt, **kwargs):
+		return self._sendrecvmany4(pkt, count=1, **kwargs)[0]
+
+	@staticmethod
+	def _match_tuple(saddr, daddr, sport, dport):
+		return lambda p: p.src == saddr and p.dst == daddr and p.payload.sport == sport and p.payload.dport == dport

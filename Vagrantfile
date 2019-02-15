@@ -141,6 +141,11 @@ Vagrant.configure("2") do |config|
         ip addr add #{ipv6_addr} dev eth1 || true
 
         ip route add 192.168.40.0/24 via 192.168.50.2 dev eth1 || true
+        
+        cp /vagrant/script/helpers/test-snoop.service /etc/systemd/system/test-snoop.service
+        systemctl daemon-reload
+        systemctl enable test-snoop.service
+        systemctl restart test-snoop.service
       SHELL
     end
   end
