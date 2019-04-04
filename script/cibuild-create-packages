@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 
 begin_fold "Preparing Docker build environment"
 (
-  docker build -t glb-director-build-jessie -f script/Dockerfile.jessie script
+  docker build -t glb-director-build-stretch -f script/Dockerfile.stretch script
 )
 end_fold
 
@@ -21,8 +21,8 @@ begin_fold "Building packages"
 
   docker run --rm \
     --volume "$HOSTPATH":/glb-director \
-    "glb-director-build-jessie" \
+    "glb-director-build-stretch" \
     bash -c "cd /glb-director &&
-      make BUILDDIR=/glb-director/tmp/build"
+      make BUILDDIR=/glb-director/tmp/build clean mkdeb"
 )
 end_fold

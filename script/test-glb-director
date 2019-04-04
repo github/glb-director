@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+. script/helpers/folding.sh
+
+vagrant ssh director-test -- bash /dev/stdin <<'EOF'
+  cd /vagrant/src/glb-director
+  sudo script/test
+EOF

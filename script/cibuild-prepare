@@ -13,7 +13,7 @@ begin_fold "Bringing up and syncing vagrant test environment"
 (
   vagrant up
 
-  script/helpers/prepare-vagrant director
+  script/helpers/prepare-vagrant director-test
   script/helpers/prepare-vagrant proxy1
   script/helpers/prepare-vagrant proxy2
 )

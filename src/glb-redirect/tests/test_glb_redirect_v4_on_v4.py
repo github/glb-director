@@ -1,20 +1,31 @@
+# Copyright (c) 2018 GitHub.
+#
+# This file is part of the `glb-redirect` test suite.
+#
+# This file is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This file is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this project.  If not, see <https://www.gnu.org/licenses/>.
+
 from nose.tools import assert_equals
 from scapy.all import IP, UDP, TCP, ICMP, sniff, send, conf
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
+from glb_test_utils import GLBTestHelpers
 import random
 
-class TestGLBRedirectModuleV4OnV4():
+class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 	PROXY_HOST = '192.168.50.10'
 	ALT_HOST = '192.168.50.11'
 	SELF_HOST = '192.168.50.5'
 	VIP = '10.10.10.10'
-
-	def _sendrecv(self, pkt, **kwargs):
-		s = conf.L3socket(**kwargs)
-		s.send(pkt)
-		ret = sniff(opened_socket=s, timeout=1, **kwargs)
-		s.close()
-		return ret[0]
 
 	def test_00_icmp_accepted(self):
 		for dst in [self.PROXY_HOST, self.ALT_HOST]:
@@ -26,7 +37,7 @@ class TestGLBRedirectModuleV4OnV4():
 				ICMP(type=8, code=0) # echo request
 
 			# expect a ICMP echo response back from self.PROXY_HOST (decapsulated)
-			resp_ip = self._sendrecv(pkt, filter='host {} and icmp'.format(dst))
+			resp_ip = self._sendrecv4(pkt, filter='host {} and icmp'.format(dst))
 			print repr(resp_ip)
 			assert isinstance(resp_ip, IP)
 			assert_equals(resp_ip.src, dst)
@@ -47,7 +58,7 @@ class TestGLBRedirectModuleV4OnV4():
 			TCP(sport=123, dport=22, flags='S')
 
 		# expect a SYN-ACK back from self.PROXY_HOST (decapsulated)
-		resp_ip = self._sendrecv(pkt, filter='host {} and port 22'.format(self.PROXY_HOST))
+		resp_ip = self._sendrecv4(pkt, filter='host {} and port 22'.format(self.PROXY_HOST))
 		assert isinstance(resp_ip, IP)
 		assert_equals(resp_ip.src, self.PROXY_HOST)
 		assert_equals(resp_ip.dst, self.SELF_HOST)
@@ -68,7 +79,7 @@ class TestGLBRedirectModuleV4OnV4():
 
 		# expect the packet to arrive back to us as a FOU packet since nobody knew about the connection
 		# should arrive from the last host in the chain that wasn't us.
-		resp_ip = self._sendrecv(pkt, filter='host {} and udp and port 19523'.format(self.ALT_HOST))
+		resp_ip = self._sendrecv4(pkt, filter='host {} and udp and port 19523'.format(self.ALT_HOST))
 		assert isinstance(resp_ip, IP)
 		assert_equals(resp_ip.src, self.ALT_HOST) # outer FOU will come from penultimate hop
 		assert_equals(resp_ip.dst, self.SELF_HOST)
@@ -112,7 +123,7 @@ class TestGLBRedirectModuleV4OnV4():
 			TCP(sport=eph_port, dport=22, flags='S', seq=1234)
 
 		# retrieve the SYN-ACK
-		resp_ip = self._sendrecv(syn, filter='host {} and port 22'.format(self.VIP))
+		resp_ip = self._sendrecv4(syn, filter='host {} and port 22'.format(self.VIP))
 		assert isinstance(resp_ip, IP)
 		assert_equals(resp_ip.src, self.VIP)
 		assert_equals(resp_ip.dst, self.SELF_HOST)
@@ -135,7 +146,7 @@ class TestGLBRedirectModuleV4OnV4():
 			TCP(sport=eph_port, dport=22, flags='A', seq=syn_ack.ack, ack=syn_ack.seq + 1)
 
 		# ensure we get a PSH from the host, since SSH should send us the banner
-		resp_ip = self._sendrecv(ack, filter='host {} and port 22'.format(self.VIP))
+		resp_ip = self._sendrecv4(ack, filter='host {} and port 22'.format(self.VIP))
 		assert isinstance(resp_ip, IP)
 		assert_equals(resp_ip.src, self.VIP)
 		assert_equals(resp_ip.dst, self.SELF_HOST)

@@ -1,0 +1,6 @@
+*.cmd
+*.o.d
+_*
+*.map
+/glb-director
+*.deb

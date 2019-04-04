@@ -3,3 +3,13 @@ tmp
 src/glb-redirect/glb-redirect-iptables-dkms-mkdeb
 *.so
 *.o
+build
+.DS_Store
+*.pyc
+*.mk
+*.cmd
+*.mod
+*.ko
+*.mod.c
+*.symvers
+*.order
