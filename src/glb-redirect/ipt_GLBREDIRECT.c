@@ -83,6 +83,10 @@ struct glbgue_stats {
 	struct u64_stats_sync syncp;
 };
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0)
+#	error glb-redirect requires at least v4.4
+#endif
+
 struct glbgue_stats __percpu *percpu_stats;
 
 static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int inner_ip_ofs, struct iphdr *iph_v4, struct ipv6hdr *iph_v6, struct tcphdr *th);
@@ -93,22 +97,13 @@ static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_bu
 	nf_reset(skb);
 	skb_forward_csum(skb);
 
-	if (ip_route_me_harder(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-	        net,
-#endif
-	        skb, RTN_UNSPEC)) {
+	if (ip_route_me_harder(net, skb, RTN_UNSPEC)) {
 		kfree_skb(skb);
 		return NF_STOLEN;
 	}
 
 	PRINT_DEBUG(KERN_ERR " -> forwarded to alternate\n");
-	ip_local_out(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-		net,
-		skb->sk,
-#endif
-		skb);
+	ip_local_out(net, skb->sk, skb);
 
 	u64_stats_update_begin(&s->syncp);
 	s->forwarded_to_alternate_packets++;
@@ -443,10 +438,8 @@ glbredirect_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
 	struct net *net = xt_net(par);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-	struct net *net = par->net;
 #else
-	struct net *net = dev_net(skb->dev);
+	struct net *net = par->net;
 #endif
 
 	u64_stats_update_begin(&s->syncp);
@@ -575,9 +568,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 				skb, ip_hdrlen(skb) + __tcp_hdrlen(th),
 #endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,9,0)
 				iph_v4->saddr, th->source,
-#endif
 				iph_v4->daddr, th->dest,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
 				inet_iif(skb), 0);
@@ -617,9 +608,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 				skb, ip_hdrlen(skb) + __tcp_hdrlen(th),
 #endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,9,0)
 				&iph_v6->saddr, th->source,
-#endif
 				&iph_v6->daddr, th->dest,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0)
 				inet_iif(skb), 0);
