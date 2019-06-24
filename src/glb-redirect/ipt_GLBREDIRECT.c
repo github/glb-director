@@ -77,7 +77,6 @@ struct glbgue_stats {
 	__u64 accepted_syn_packets;
 	__u64 accepted_last_resort_packets;
 	__u64 accepted_established_packets;
-	__u64 accepted_conntracked_packets;
 	__u64 accepted_syn_cookie_packets;
 	__u64 forwarded_to_self_packets;
 	__u64 forwarded_to_alternate_packets;
@@ -562,68 +561,9 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 		}
 	}
 
-	PRINT_DEBUG(KERN_ERR " -> checking conntrack for SYN_RECV\n");
-
-	/* If we're not ESTABLISHED yet, check conntrack for a SYN_RECV.
-	 * When syncookies aren't enabled, this will let ACKs come in to complete
-	 * a connection.
-	 * Only do this if we know the offset of the inner IP header (so don't
-	 * check ICMP Packet Too Big).
-	 */
-	if (likely(inner_ip_ofs > 0)) {
-		const struct nf_conntrack_tuple_hash *thash;
-		struct nf_conntrack_tuple tuple;
-		struct nf_conn *ct;
-
-		int ip_proto_ver = NFPROTO_IPV4;
-		if (iph_v6 != NULL) {
-			ip_proto_ver = NFPROTO_IPV6;
-		}
-
-		if (!nf_ct_get_tuplepr(skb, skb_network_offset(skb) + inner_ip_ofs, ip_proto_ver,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-			net,
-#endif
-			&tuple))
-			goto no_ct_entry;
-
-		rcu_read_lock();
-		/* from now on no_ct_entry_unlock should be used to ensure we release this lock */
-
-		thash = nf_conntrack_find_get(net,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-			&nf_ct_zone_dflt,
-#else
-			NF_CT_DEFAULT_ZONE,
-#endif
-			&tuple);
-		if (thash == NULL)
-			goto no_ct_entry_unlock;
-
-		ct = nf_ct_tuplehash_to_ctrack(thash);
-		if (ct == NULL)
-			goto no_ct_entry_unlock;
-
-		if (!nf_ct_is_dying(ct) && nf_ct_tuple_equal(&tuple, &thash->tuple)) {
-			u64_stats_update_begin(&s->syncp);
-			s->accepted_conntracked_packets++;
-			u64_stats_update_end(&s->syncp);
-
-			nf_ct_put(ct);
-			rcu_read_unlock();
-			return 1;
-		}
-
-		nf_ct_put(ct);
-no_ct_entry_unlock:
-		rcu_read_unlock();
-	}
-
-no_ct_entry:
-
 	PRINT_DEBUG(KERN_ERR " -> checking for syncookie\n");
 
-	/* Last chance, if syncookies are enabled, then a valid syncookie ACK is also acceptable */
+	/* If syncookies are enabled, then a valid syncookie ACK is also acceptable */
 	if (th->ack && !th->fin && !th->rst && !th->syn) {
 		struct sock *listen_sk;
 		int ret = 0;
@@ -723,6 +663,26 @@ no_ct_entry:
 		return ret;
 	}
 
+	/* There is a false-negative here, which we can't avoid.
+	 * If a TCP socket with non-empty receive buffers is close()'d
+	 * by user space, the kernel sends a RST and immediately transitions
+	 * the sk to TCP_CLOSE state. This leads to the sk being unhashed,
+	 * at which point it's impossible for us to find the original sk.
+	 *
+	 * https://elixir.bootlin.com/linux/v4.19.50/source/net/ipv4/tcp.c#L2365
+	 * https://elixir.bootlin.com/linux/v4.19.50/source/net/ipv4/tcp.c#L2232
+	 *
+	 * This means that subsequent packets from the client will be accepted
+	 * on the last hop instead of on the machine that held the original
+	 * connection. The last hop then responds with RST, since it doesn't
+	 * know the connection. Luckily for us, these RST are identical to
+	 * the ones this machine would end up generating, since they are
+	 * entirely based on the incoming packet. The behaviour from the POV
+	 * of the client is therefore consistent, even though the wrong
+	 * machine ends up generating the RST.
+	 *
+	 * https://elixir.bootlin.com/linux/v4.19.50/source/net/ipv4/tcp_ipv4.c#L1844
+	 */
 	return 0;
 }
 
@@ -790,7 +750,6 @@ static int proc_show(struct seq_file *m, void *v)
 			tmp.accepted_syn_packets = s->accepted_syn_packets;
 			tmp.accepted_last_resort_packets = s->accepted_last_resort_packets;
 			tmp.accepted_established_packets = s->accepted_established_packets;
-			tmp.accepted_conntracked_packets = s->accepted_conntracked_packets;
 			tmp.accepted_syn_cookie_packets = s->accepted_syn_cookie_packets;
 			tmp.forwarded_to_self_packets = s->forwarded_to_self_packets;
 			tmp.forwarded_to_alternate_packets = s->forwarded_to_alternate_packets;
@@ -800,7 +759,6 @@ static int proc_show(struct seq_file *m, void *v)
 		sum.accepted_syn_packets += tmp.accepted_syn_packets;
 		sum.accepted_last_resort_packets += tmp.accepted_last_resort_packets;
 		sum.accepted_established_packets += tmp.accepted_established_packets;
-		sum.accepted_conntracked_packets += tmp.accepted_conntracked_packets;
 		sum.accepted_syn_cookie_packets += tmp.accepted_syn_cookie_packets;
 		sum.forwarded_to_self_packets += tmp.forwarded_to_self_packets;
 		sum.forwarded_to_alternate_packets += tmp.forwarded_to_alternate_packets;
@@ -810,7 +768,6 @@ static int proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "accepted_syn_packets: %llu\n", sum.accepted_syn_packets);
 	seq_printf(m, "accepted_last_resort_packets: %llu\n", sum.accepted_last_resort_packets);
 	seq_printf(m, "accepted_established_packets: %llu\n", sum.accepted_established_packets);
-	seq_printf(m, "accepted_conntracked_packets: %llu\n", sum.accepted_conntracked_packets);
 	seq_printf(m, "accepted_syn_cookie_packets: %llu\n", sum.accepted_syn_cookie_packets);
 	seq_printf(m, "forwarded_to_self_packets: %llu\n", sum.forwarded_to_self_packets);
 	seq_printf(m, "forwarded_to_alternate_packets: %llu\n", sum.forwarded_to_alternate_packets);
