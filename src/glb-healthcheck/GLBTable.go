@@ -99,6 +99,14 @@ func (cfg *GLBTableConfig) WriteToFile(filename string) error {
 func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 	targets := make([]HealthCheckTarget, 0, 2)
 
+	// when a backend is listed as inactive, it also shouldn't be healthchecked.
+	// part of the forwarding table state design allows inactive backends to be
+	// listed anyway, so we should respect that:
+	//  > * `inactive` - the backend is completely ignored
+	if backend.State == "inactive" {
+		return targets
+	}
+
 	if backend.HealthcheckConfig.Http != nil {
 		var uri string = "/"
 		if backend.HealthcheckConfig.HttpUri != nil {
