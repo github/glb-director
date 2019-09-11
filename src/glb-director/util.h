@@ -34,17 +34,16 @@
 #include <rte_branch_prediction.h>
 #include <rte_mbuf.h>
 
-
 #ifdef RTE_EXEC_ENV_BSDAPP
 
 #ifdef __BSD_VISIBLE
 #include "strlcpy.h"
 #endif
-#else
-#ifdef RTE_USE_LIBBSD
-#include "strlcpy.h"
+
 #else
 
+#ifdef RTE_USE_LIBBSD
+#include "strlcpy.h"
 #endif
 
 #endif
