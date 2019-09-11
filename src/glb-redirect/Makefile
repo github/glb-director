@@ -40,4 +40,4 @@ mkdeb:
 	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
 	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
 	dkms mkdeb --source-only
-	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_all.deb $(BUILDDIR)/
+	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/
