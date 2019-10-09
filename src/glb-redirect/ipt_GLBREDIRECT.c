@@ -91,7 +91,11 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_buff *skb)
 {
 	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+	nf_reset_ct(skb);
+#else
 	nf_reset(skb);
+#endif
 	skb_forward_csum(skb);
 
 	if (ip_route_me_harder(
