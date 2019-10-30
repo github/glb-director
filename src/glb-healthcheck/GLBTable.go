@@ -42,6 +42,7 @@ type GLBHealthcheckConfig struct {
 	HttpUri *string `json:"http_uri,omitempty"`
 	GUE     *int    `json:"gue,omitempty"`
 	FOU     *int    `json:"fou,omitempty"`
+	TCP     *int    `json:"tcp,omitempty"`
 }
 
 type GLBBind struct {
@@ -125,6 +126,14 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 			CheckType: "fou",
 			Ip:        backend.Ip,
 			Port:      *backend.HealthcheckConfig.FOU,
+		})
+	}
+
+	if backend.HealthcheckConfig.TCP != nil {
+		targets = append(targets, HealthCheckTarget{
+			CheckType: "tcp",
+			Ip:        backend.Ip,
+			Port:      *backend.HealthcheckConfig.TCP,
 		})
 	}
 
