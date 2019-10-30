@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "siphash24.h"
-#include "shared_opt.h"
 
 /* default: SipHash-2-4 */
 #define cROUNDS 2
@@ -115,22 +114,16 @@ int siphash(uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8_t *k)
 	switch (left) {
 	case 7:
 		b |= ((uint64_t)in[6]) << 48;
-		GLB_FALL_THROUGH;
 	case 6:
 		b |= ((uint64_t)in[5]) << 40;
-		GLB_FALL_THROUGH;
 	case 5:
 		b |= ((uint64_t)in[4]) << 32;
-		GLB_FALL_THROUGH;
 	case 4:
 		b |= ((uint64_t)in[3]) << 24;
-		GLB_FALL_THROUGH;
 	case 3:
 		b |= ((uint64_t)in[2]) << 16;
-		GLB_FALL_THROUGH;
 	case 2:
 		b |= ((uint64_t)in[1]) << 8;
-		GLB_FALL_THROUGH;
 	case 1:
 		b |= ((uint64_t)in[0]);
 		break;

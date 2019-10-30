@@ -64,11 +64,9 @@ void get_options(char *config_file, char *forwarding_table, int argc,
 			/* missing option argument */
 			glb_log_error("%s: option '-%c' requires an argument",
 				      argv[0], optopt);
-			GLB_FALL_THROUGH;
 		case '?':
 			/* invalid option */
 			glb_log_error("Invalid option(s) in command");
-			GLB_FALL_THROUGH;
 		default:
 			abort();
 		}

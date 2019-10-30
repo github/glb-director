@@ -43,10 +43,4 @@ extern bool debug;
 void get_options(char *config_file, char *forwarding_table, int argc,
 		 char *const *argv);
 
-#if defined(__GNUC__) && __GNUC__ >= 7
- #define GLB_FALL_THROUGH __attribute__ ((fallthrough))
-#else
- #define GLB_FALL_THROUGH ((void)0)
-#endif /* __GNUC__ >= 7 */
-
 #endif

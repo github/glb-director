@@ -51,7 +51,6 @@
 #include "glb_fwd_config.h"
 #include "shared_opt.h"
 #include "util.h"
-#include "strlcpy.h"
 
 #define DEFAULT_IFACE "lo"
 #define MAX_BUFFER 10240
