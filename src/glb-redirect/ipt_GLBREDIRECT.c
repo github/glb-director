@@ -108,7 +108,7 @@ static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_bu
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
 	/* Clear out timestamp to make forwarding work with fq on Linux 5.4:
-	 * - https://github.com/torvalds/linux/commit/9669fffc1415bb0c
+	 * - https://github.com/torvalds/linux/commit/8203e2d844d34af2
 	 */
 	skb->tstamp = 0;
 #endif
