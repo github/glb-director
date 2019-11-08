@@ -18,5 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Install prerequisites
+      run: |
+        sudo apt install -y virtualbox vagrant
     - name: Run test suite
       run: script/cibuild
