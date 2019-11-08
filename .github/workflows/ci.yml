@@ -1,4 +1,4 @@
-name: CI
+name: package-build
 
 on: [push]
 
