@@ -11,3 +11,12 @@ jobs:
     - uses: actions/checkout@v1
     - name: Run package build
       run: script/cibuild-create-packages
+  
+  full-test-suite:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run test suite
+      run: script/cibuild
