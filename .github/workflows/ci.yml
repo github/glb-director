@@ -1,9 +1,9 @@
-name: package-build
+name: ci
 
 on: [push]
 
 jobs:
-  build:
+  package-build:
 
     runs-on: ubuntu-latest
 
