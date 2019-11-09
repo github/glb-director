@@ -1,0 +1,13 @@
+name: ci
+
+on: [push]
+
+jobs:
+  package-build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Run package build
+      run: script/cibuild-create-packages
