@@ -23,7 +23,6 @@ func OpenConnection(resultChannel HealthResultStream, ip_port string) HealthResu
 	 	 if err != nil {
 		 	fmt.Println(err)
 			ch <- HealthResult{Healthy: false, Failure: err.Error()}
-			//return ch
 	 	 } else {
 			ch <- HealthResult{Healthy: true, Failure: ""}
 	        c.Close()
