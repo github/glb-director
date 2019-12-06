@@ -56,8 +56,10 @@ func OpenConnection(resultChannel HealthResultStream, ip_port string) HealthResu
 		c, err := net.Dial("tcp", ip_port)
 		if err != nil {
 			ch <- HealthResult{Healthy: false, Failure: err.Error()}
+			tcpCounters.Add("CheckFailedStatus", 1)
 		} else {
 			ch <- HealthResult{Healthy: true, Failure: ""}
+			tcpCounters.Add("CheckOK", 1)
 			c.Close()
 		}
 		close(ch)
@@ -95,6 +97,7 @@ func (t *TcpHealthChecker) CheckTarget(resultChannel HealthResultStream,
 			result = r
 		case <-time.After(t.checkTimeout):
 			result = HealthResult{Healthy: false, Failure: fmt.Sprintf("No response received within TCP check timeout of %d", t.checkTimeout)}
+			tcpCounters.Add("CheckTimeout", 1)
 		}
 
 		logContext.WithFields(log.Fields{
