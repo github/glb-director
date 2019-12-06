@@ -55,12 +55,12 @@ func OpenConnection(resultChannel HealthResultStream, ip_port string) HealthResu
 	go func() {
 		c, err := net.Dial("tcp", ip_port)
 		if err != nil {
-			fmt.Println(err)
 			ch <- HealthResult{Healthy: false, Failure: err.Error()}
 		} else {
 			ch <- HealthResult{Healthy: true, Failure: ""}
 			c.Close()
 		}
+		close(ch)
 	}()
 
 	return ch
@@ -70,7 +70,6 @@ func OpenConnection(resultChannel HealthResultStream, ip_port string) HealthResu
 // Attempt to open a TCP connection to the specified ip:port.
 // If the connection can be opened, the remote endpoint is considered healthy
 //
-
 func (t *TcpHealthChecker) Initialize(checkTimeout time.Duration) error {
 	t.checkTimeout = checkTimeout
 
@@ -105,6 +104,5 @@ func (t *TcpHealthChecker) CheckTarget(resultChannel HealthResultStream,
 
 		// pass on the result directly to the caller's channel
 		resultChannel <- result
-
 	}()
 }
