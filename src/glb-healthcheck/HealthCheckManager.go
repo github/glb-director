@@ -72,11 +72,15 @@ func NewHealthCheckManager(checkTimeout time.Duration, checkInterval time.Durati
 	httpChecker := &HttpHealthChecker{}
 	httpChecker.Initialize(checkTimeout)
 
+	tcpChecker := &TcpHealthChecker{}
+	tcpChecker.Initialize(checkTimeout)
+
 	m := &HealthCheckManager{
 		checkTimeout:  checkTimeout,
 		checkInterval: checkInterval,
 		checkers: map[string]HealthChecker{
 			"http": httpChecker,
+			"tcp":  tcpChecker,
 			"gue":  tunnelChecker,
 			"fou":  tunnelChecker,
 		},
