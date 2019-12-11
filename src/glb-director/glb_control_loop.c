@@ -50,10 +50,6 @@
 #include "log.h"
 #include "statsd-client.h"
 
-#define STATSD_IP "127.0.0.1"
-#define STATSD_PORT 28125
-#define STATSD_NS "glb_director_ng"
-
 int reload_count = 0;
 rte_atomic32_t director_stop = RTE_ATOMIC32_INIT(0);
 rte_atomic32_t reload_requested = RTE_ATOMIC32_INIT(0);
@@ -300,7 +296,8 @@ int main_loop_control(void *arg)
 	statsd_link *link;
 
 	glb_log_info("starting statsd ...");
-	link = statsd_init_with_namespace(STATSD_IP, STATSD_PORT, STATSD_NS);
+	link = statsd_init_with_namespace(STATSD_IP, g_director_config->statsd_port,
+									  STATSD_NS);
 #endif
 
 	while (1) {
