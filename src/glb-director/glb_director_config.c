@@ -109,9 +109,9 @@ glb_director_config *glb_director_config_load_file(const char *config_file,
 	int ret;
 
 	item = json_object_get(root, "statsd_port");
-	if (item != NULL && json_is_string(item)) {
+	if (item != NULL && json_is_integer(item)) {
 		uint16_t port;
-		port = atoi(json_string_value(item));
+		port = json_integer_value(item);
 		cfg->statsd_port = port;
 	} else {
 		cfg->statsd_port = STATSD_PORT_DEFAULT;
