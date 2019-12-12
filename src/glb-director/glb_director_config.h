@@ -44,6 +44,10 @@
 #define CORE_WORKLOAD_WORK (1 << 3)
 #define CORE_WORKLOAD_KNI  (1 << 4)
 
+#define STATSD_PORT_DEFAULT 28125
+#define STATSD_IP "127.0.0.1"
+#define STATSD_NS "glb_director_ng"
+
 typedef struct {
 	int rx_port_id;
 	int rx_queue_id;
@@ -102,6 +106,7 @@ typedef struct {
 	glb_director_hash_fields hash_fields;
 	int use_alt_hash_fields;
 	glb_director_hash_fields alt_hash_fields;
+	uint16_t statsd_port;
 } glb_director_config;
 
 glb_director_config *
