@@ -138,3 +138,10 @@ A distributor lcore performs at minimum `rx` work (receiving from a NIC queue), 
 Worker lcores take packets received by the distributor, hash them, encapsulate them, then send them back to the distributor to be sent to the NIC. For more details of the technical implementation of this and why it's used, see [DPDK Packet Distributor Library](https://doc.dpdk.org/guides/prog_guide/packet_distrib_lib.html).
 
 `work_source` configures the lcore index of the distributor core that work will be sourced from. The number of cores that reference any given distributor should match that distributor core's `num_dist_workers`.
+
+### `statsd_port`
+
+_optional_
+
+By default, GLB Director uses UDP port 28125 to send messages to statsd.
+This configuration option, makes the port number configurable.
