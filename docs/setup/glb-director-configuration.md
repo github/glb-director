@@ -144,4 +144,4 @@ Worker lcores take packets received by the distributor, hash them, encapsulate t
 _optional_
 
 By default, GLB Director uses UDP port 28125 to send messages to statsd.
-This configuration option, makes the port number configurable.
+This configuration option allows selecting a different port as the target for statsd messages.
