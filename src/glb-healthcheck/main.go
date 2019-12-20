@@ -77,6 +77,16 @@ Options:
 		return
 	}
 
+	// instantiate BGP integration
+	hca, err := NewHealthCheckerAnnounce(&ctx.config.BGPConfig, log.WithFields(log.Fields{
+		"app": "glb-healthcheck",
+		"module": "announce",
+	}))
+	if err != nil {
+		hca.logContext.Fatalf("Unable to configure health announcing checker: %s\n", err)
+		return
+	}
+
 	// the check manager will run the HC loop and manage most of the HC part of the work
 	ctx.checkManager = NewHealthCheckManager(HealthCheckTimeout, HealthCheckInterval)
 
@@ -116,6 +126,17 @@ Options:
 		for range healthRoundComplete {
 			ctx.logContext.Debug("Health check round completed")
 			ctx.SyncAndMaybeReload()
+
+			// run route updates if the announce feature is enabled
+			if hca.enabled {
+				// fetch forwarding table for bind map validation
+				ctx.Lock()
+				ft := ctx.forwardingTableConfig
+				ctx.Unlock()
+
+				// process the current health results and manage paths in GoBGP
+				go hca.Announce(ft, ctx.checkManager.GetResults())
+			}
 		}
 	}()
 

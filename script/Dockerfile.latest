@@ -1,0 +1,10 @@
+FROM debian:latest
+
+RUN apt-get update && apt-get install -y build-essential debhelper wget pkg-config
+
+# golang
+RUN apt-get update && apt-get install -y golang golang-glide
+
+# fpm for packaging
+RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
+RUN gem install --no-ri --no-rdoc rake fpm

@@ -1,6 +1,4 @@
 KDIR?=/usr/src/linux-headers-$(shell uname -r)
-BUILDDIR?=.
-
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 DKMS_MOD_VER:=$(shell grep 'PACKAGE_VERSION' dkms.conf | cut -d'=' -f2)
@@ -15,7 +13,9 @@ kmod:
 clean:
 	# we allow the following to fail since in our Docker build env we don't have a valid KDIR
 	$(BUILD_VARS) make -C $(KDIR) M=$(ROOT_DIR) clean || true
-	rm -rf libxt_GLBREDIRECT.so $(BUILDDIR)/glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb
+	rm -rf libxt_GLBREDIRECT.so
+	rm -rf glb-redirect-iptables-dkms-mkdeb
+	rm -rf ${BUILDDIR}/glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb
 
 .PHONY: lib
 lib: libxt_GLBREDIRECT.so
@@ -37,10 +37,12 @@ IPT_LDFLAGS=-lxtables -shared
 mkdeb:
 	rm -rf glb-redirect-iptables-dkms-mkdeb
 	cp -R /etc/dkms/template-dkms-mkdeb/ glb-redirect-iptables-dkms-mkdeb
-	chown : -R glb-redirect-iptables-dkms-mkdeb
 	# Works around this bug: https://ubuntuforums.org/showthread.php?t=2234906
 	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
 	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
 	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
 	dkms mkdeb --source-only
+
+ifneq "$(BUILDDIR)" ""
 	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/
+endif

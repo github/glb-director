@@ -9,7 +9,12 @@ cd "$(dirname "$0")/.."
 
 begin_fold "Preparing Docker build environment"
 (
-  docker build -t glb-director-build-stretch -f script/Dockerfile.stretch script
+  # Container for glb-healthcheck
+  docker build -t glb-healthcheck -f script/Dockerfile.latest script
+
+  # Container for glb-director and glb-redirect
+  docker build -t glb-director-redirect -f script/Dockerfile.stretch script
+
 )
 end_fold
 
@@ -20,9 +25,18 @@ begin_fold "Building packages"
   mkdir -p tmp/build/
 
   docker run --rm \
-    --volume "$HOSTPATH":/glb-director \
-    "glb-director-build-stretch" \
-    bash -c "cd /glb-director &&
-      make BUILDDIR=/glb-director/tmp/build clean mkdeb"
+    --volume "$HOSTPATH":/glb \
+    "glb-healthcheck" \
+    bash -c "cd /glb/src/glb-healthcheck && \
+		make BUILDDIR=/glb/tmp/build clean mkdeb"
+
+  docker run --rm \
+    --volume "$HOSTPATH":/glb \
+    "glb-director-redirect" \
+    bash -c "cd /glb/tmp/build && \
+		 /glb/src/glb-director/script/cibuild /glb/tmp/build  && \
+		 cd /glb/src/glb-redirect && \
+		 make BUILDDIR=/glb/tmp/build clean mkdeb"
+
 )
 end_fold
