@@ -55,6 +55,7 @@ type HealthCheckConfigFile struct {
 	} `json:"forwarding_table"`
 
 	ReloadCommand *string `json:"reload_command"`
+	BGPConfig GoBGPConfig `json:"gobgp_config"`
 }
 
 type HealthCheckerAppContext struct {

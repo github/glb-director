@@ -32,4 +32,4 @@ mkdeb:
 	script/cibuild
 
 clean:
-	rm -rf glb-healthcheck_*.deb glb-healthcheck
+	rm -rf ${BUILDDIR}/glb-healthcheck_*.deb glb-healthcheck

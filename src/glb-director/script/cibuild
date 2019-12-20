@@ -33,6 +33,7 @@
 set -e
 ROOTDIR=$(dirname $0)/..
 cd $ROOTDIR
+BUILDDIR=$1
 
 . packaging/version.sh
 
@@ -60,8 +61,8 @@ fpm -f -s dir -t deb \
 	packaging/forwarding_table.bin=/etc/glb/ \
 	packaging/glb-director=/etc/default/
 
-if [ -d "$BUILDDIR" ]; then
-  cp glb-director_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
+if [ -d "${BUILDDIR}" ]; then
+  mv glb-director_${GLB_DIRECTOR_VERSION}_amd64.deb ${BUILDDIR}/
 fi
 
 make clean

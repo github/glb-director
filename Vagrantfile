@@ -6,9 +6,10 @@ Vagrant.configure("2") do |config|
 
   config.vm.synced_folder "src/glb-wireshark-dissector/", "/home/vagrant/.config/wireshark/plugins/glb-wireshark-dissector", type: 'rsync'
 
-  config.vm.provision "shell", inline: <<-SHELL
+  config.vm.provision "shell", name: "Base Host Tool Installation", inline: <<-SHELL
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev linux-headers-$(uname -r) python-pip jq bird curl
+    DEBIAN_FRONTEND=noninteractive apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev python-pip jq bird curl
+    DEBIAN_FRONTEND=noninteractive apt-get install -y linux-headers-$(uname -r)
     groupadd wireshark || true
     usermod -a -G wireshark vagrant || true
     chgrp wireshark /usr/bin/dumpcap
@@ -21,7 +22,7 @@ Vagrant.configure("2") do |config|
     v.vm.network "private_network", ip: "192.168.50.2", virtualbox__intnet: "glb_datacenter_network", :mac=> "001122334455"
     v.vm.hostname = "router"
 
-    v.vm.provision "shell", inline: <<-SHELL
+    v.vm.provision "shell", name: "Enable IPv4 forwarding", inline: <<-SHELL
       if ! grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf; then
         echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
         sysctl -w net.ipv4.ip_forward=1
@@ -35,7 +36,7 @@ Vagrant.configure("2") do |config|
     v.vm.network "private_network", ip: "192.168.40.2", virtualbox__intnet: "glb_user_network"
     v.vm.hostname = "user"
 
-    v.vm.provision "shell", inline: <<-SHELL
+    v.vm.provision "shell", name: "Configure routes", inline: <<-SHELL
       /vagrant/script/helpers/configure-vagrant-user.sh
 
       ip addr add 192.168.40.50/24 dev eth1 || true
@@ -66,7 +67,7 @@ Vagrant.configure("2") do |config|
         vb.customize ["setextradata", :id, "VBoxInternal/CPUM/SSE4.2", "1"]
       end
 
-      v.vm.provision "shell", inline: <<-SHELL
+      v.vm.provision "shell", name: "Huge pages configuration", inline: <<-SHELL
         mkdir -p /mnt/huge
         if ! grep -q 'hugetlbfs' /etc/fstab; then
           echo 'hugetlbfs /mnt/huge hugetlbfs mode=1770 0 0' >>/etc/fstab
@@ -78,40 +79,57 @@ Vagrant.configure("2") do |config|
         fi
       SHELL
 
+      v.vm.provision "shell", name: "Update Kernel", inline: <<-SHELL
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y linux-image-amd64
+        DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl
+      SHELL
+
+      # reload VM to pick up the new kernel so the correct header files can be installed
+      v.vm.provision :reload
+      v.vm.synced_folder ".", "/vagrant", type: "rsync"
+
       # install DPDK et al.
-      v.vm.provision "shell", inline: <<-SHELL
-        apt-get install -y apt-transport-https curl
+      v.vm.provision "shell", run: "always", name: "Install DPDK and enable DPDK modules", inline: <<-SHELL
         echo 'deb http://ftp.debian.org/debian stretch-backports main' >/etc/apt/sources.list.d/backports.list
         apt-get update
         curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | sudo bash
-        apt-get install -y linux-headers-`(uname -r)` # dpdk requires this for the current kernel, but won't block if not installed
-        apt-get install -y python-pip dpdk-dev=17.11.1-6 dpdk=17.11.1-6 dpdk-rte-kni-dkms dpdk-igb-uio-dkms libjansson-dev
-        apt-get install -y valgrind vim tcpdump clang golang
+        DEBIAN_FRONTEND=noninteractive apt-get install -y linux-headers-`(uname -r)` # dpdk requires this for the current kernel, but won't block if not installed
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip dpdk-dev=17.11.1-6 dpdk=17.11.1-6 dpdk-rte-kni-dkms dpdk-igb-uio-dkms libjansson-dev
+        DEBIAN_FRONTEND=noninteractive apt-get install -y valgrind vim tcpdump clang
 
+        #Install an updated version of Golang that matches Debian Latest
+        curl -s https://dl.google.com/go/go1.11.6.linux-amd64.tar.gz -o /tmp/go1.11.6.linux-amd64.tar.gz
+        tar -C /usr/local -xzf /tmp/go1.11.6.linux-amd64.tar.gz
+        ln -s /usr/local/go/bin/go /usr/bin/
+        ln -s /usr/local/go/bin/godoc /usr/bin/
+        ln -s /usr/local/go/bin/gofmt /usr/bin/
+
+        echo "Setting modules to load"
         echo 'rte_kni' >/etc/modules-load.d/dpdk
         echo 'igb_uio' >>/etc/modules-load.d/dpdk
       SHELL
 
-      v.vm.provision "shell", run: "always", inline: <<-SHELL
+      v.vm.provision "shell", run: "always", name: "Modprobe DPDK modules", inline: <<-SHELL
         modprobe rte_kni
         modprobe igb_uio
       SHELL
 
       if install_example_setup
         # example setup
-        v.vm.provision "shell", run: "always", inline: <<-SHELL
+        v.vm.provision "shell", run: "always", name: "Install and configure GLB director", inline: <<-SHELL
           ifdown eth1
           dpdk-devbind --bind=igb_uio eth1
           dpdk-devbind --status
 
-          apt install /vagrant/tmp/build/glb-director_*.deb
-          apt install /vagrant/tmp/build/glb-healthcheck_*.deb
+          DEBIAN_FRONTEND=noninteractive apt install /vagrant/tmp/build/glb-director_*.deb
+          DEBIAN_FRONTEND=noninteractive apt install /vagrant/tmp/build/glb-healthcheck_*.deb
 
           /vagrant/script/helpers/configure-vagrant-director.sh "#{ipv4_addr}"
         SHELL
       else
         # test setup
-        v.vm.provision "shell", run: "always", inline: <<-SHELL
+        v.vm.provision "shell", run: "always", name: "Configure IPv6", inline: <<-SHELL
           ip addr add #{ipv6_addr} dev eth1 || true
         SHELL
       end
@@ -124,12 +142,22 @@ Vagrant.configure("2") do |config|
 
       v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network"
 
-      v.vm.provision "shell", inline: <<-SHELL
+      v.vm.provision "shell", name: "Update Kernel", inline: <<-SHELL
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y linux-image-amd64
+        DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https curl
+      SHELL
+
+      # reload VM to pick up the new kernel so the correct header files can be installed
+      v.vm.provision :reload
+      v.vm.synced_folder ".", "/vagrant", type: "rsync"
+
+      v.vm.provision "shell", name: "Install hello world HTML", inline: <<-SHELL
         DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
         echo "hello world from #{name} via GLB" >/var/www/html/index.html
       SHELL
 
-      v.vm.provision "shell", run: "always", inline: <<-SHELL
+      v.vm.provision "shell", run: "always", name: "Configure Tunnel Interfaces", inline: <<-SHELL
         modprobe fou
         modprobe sit
         ip link set up dev tunl0 || true

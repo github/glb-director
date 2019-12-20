@@ -1,23 +1,93 @@
-hash: 243fb52be80990666d4d5c7a9e475596305c221146d2840e7b07d8845ba960a3
-updated: 2018-05-16T09:42:23.036243129+10:00
+hash: 75c007b7dd40769ea416110d459960788b6905c0f615e90f41000a084a44bdc4
+updated: 2019-07-25T14:21:19.853185-07:00
 imports:
 - name: github.com/docopt/docopt-go
   version: 784ddc588536785e7299f7272f39101f7faccc3f
+- name: github.com/golang/protobuf
+  version: e91709a02e0e8ff8b86b7aa913fdc9ae9498e825
+  subpackages:
+  - proto
+  - ptypes
+  - ptypes/any
+  - ptypes/duration
+  - ptypes/empty
+  - ptypes/timestamp
 - name: github.com/google/gopacket
-  version: 11c65f1ca9081dfea43b4f9643f5c155583b73ba
+  version: 6d3e2615da4ed2ed2a349918fe74e7e6d03482fa
   subpackages:
   - layers
+- name: github.com/osrg/gobgp
+  version: 07f0fd48d5ac2e83378222762cd0a98e01d3bf5e
+  subpackages:
+  - api
+  - pkg/packet/bgp
 - name: github.com/rs/xid
   version: 02dd45c33376f85d1064355dc790dcc4850596b1
 - name: github.com/sirupsen/logrus
-  version: c155da19408a8799da419ed3eeb0cb5db0ad5dbc
+  version: 3e01752db0189b9157070a0e1668a620f9a85da2
 - name: golang.org/x/crypto
   version: 1a580b3eff7814fc9b40602fd35256c63b50f491
   subpackages:
   - ssh/terminal
+- name: golang.org/x/net
+  version: f4e77d36d62c17c2336347bb2670ddbd02d092b7
+  subpackages:
+  - context
+  - http/httpguts
+  - http2
+  - http2/hpack
+  - idna
+  - internal/timeseries
+  - trace
 - name: golang.org/x/sys
   version: 7c87d13f8e835d2fb3a70a2912c811ed0c1d241b
   subpackages:
   - unix
   - windows
+- name: golang.org/x/text
+  version: 342b2e1fbaa52c93f31447ad2c6abc048c63e475
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
+- name: google.golang.org/genproto
+  version: 54afdca5d873f7b529e2ce3def1a99df16feda90
+  subpackages:
+  - googleapis/rpc/status
+- name: google.golang.org/grpc
+  version: 045159ad57f3781d409358e3ade910a018c16b30
+  subpackages:
+  - balancer
+  - balancer/base
+  - balancer/roundrobin
+  - binarylog/grpc_binarylog_v1
+  - codes
+  - connectivity
+  - credentials
+  - credentials/internal
+  - encoding
+  - encoding/proto
+  - grpclog
+  - internal
+  - internal/backoff
+  - internal/balancerload
+  - internal/binarylog
+  - internal/channelz
+  - internal/envconfig
+  - internal/grpcrand
+  - internal/grpcsync
+  - internal/syscall
+  - internal/transport
+  - keepalive
+  - metadata
+  - naming
+  - peer
+  - resolver
+  - resolver/dns
+  - resolver/passthrough
+  - serviceconfig
+  - stats
+  - status
+  - tap
 testImports: []
