@@ -4,7 +4,8 @@ After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
 Restart=always
 EnvironmentFile=/etc/default/glb-director
 ExecStart=/usr/sbin/glb-director $GLB_DIRECTOR_EAL_ARGS -- --config-file ${GLB_DIRECTOR_CONFIG_FILE} --forwarding-table ${GLB_DIRECTOR_FORWARDING_TABLE}
