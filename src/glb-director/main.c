@@ -79,6 +79,10 @@
 #include <rte_string_fns.h>
 #include <rte_udp.h>
 
+#ifdef SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+
 #include "bind_classifier.h"
 #include "config.h"
 #include "glb_control_loop.h"
@@ -422,6 +426,16 @@ int main(int argc, char **argv)
 	{
 		rte_eal_remote_launch(main_loop_processor, glb_lcore_contexts[i], i);
 	}
+
+#ifdef SYSTEMD
+	/* Now that all processing workers are running, we can notify systemd
+	 * we're ready. We follow the systemd doc suggestion of ignoring the 
+	 * return value so we can call this even if we're not being run under
+	 * systemd, or without the socket.
+	 */
+	sd_notify(0, "READY=1");
+#endif
+
 	main_loop_control(NULL);
 	RTE_LCORE_FOREACH_SLAVE(i)
 	{

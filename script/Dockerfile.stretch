@@ -5,7 +5,7 @@ RUN apt-get update && apt-get -y install curl
 
 # DPDK 
 RUN curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | bash
-RUN apt-get update && apt-get install -y build-essential dpdk dpdk-dev wget pkg-config libjansson-dev
+RUN apt-get update && apt-get install -y build-essential dpdk dpdk-dev wget pkg-config libjansson-dev libsystemd-dev
 
 # iptables / DKMS
 RUN apt-get update && apt-get install -y iptables-dev dkms debhelper libxtables-dev

@@ -8,7 +8,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell", inline: <<-SHELL
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev linux-headers-$(uname -r) python-pip jq bird curl
+    DEBIAN_FRONTEND=noninteractive apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev linux-headers-$(uname -r) python-pip jq bird curl libsystemd-dev
     groupadd wireshark || true
     usermod -a -G wireshark vagrant || true
     chgrp wireshark /usr/bin/dumpcap
