@@ -35,45 +35,20 @@ set -e
 export BASEDIR=$(cd $(dirname "$0") && cd .. && pwd)
 cd "$(dirname "$0")/.."
 
+export GOPATH=/go
+export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
+
 . ../../script/helpers/folding.sh
 
-begin_fold "Building glb-director for testing"
+begin_fold "Building glb-director-xdp for testing"
 (
-  make clean
-  make -C cli clean
-
-  scan-build make
-  scan-build make -C cli
+  make -j4 -C ../glb-director/cli
+  make # scan-build bricks go
 )
 end_fold
 
-begin_fold "Running scapy packet tests against glb-director"
+begin_fold "Running scapy packet tests against glb-director XDP"
 (
-  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
-)
-end_fold
-
-begin_fold "Running glb-director config tests"
-(
-  bash tests/config_check.sh
-)
-end_fold
-
-begin_fold "Running pcap tests"
-(
-  # needs hugepages run after other tests since its already set up
-  bash tests/pcap_tests.sh
-)
-end_fold
-
-begin_fold "valgrind tests"
-(
-  bash tests/valgrind_check.sh
-)
-end_fold
-
-begin_fold "stub server tests"
-(
-  bash tests/stub_server_tests.sh
+  GLB_DIRECTOR_TYPE="xdp" PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -w ../glb-director -a '!director_type' -a 'director_type=xdp'
 )
 end_fold

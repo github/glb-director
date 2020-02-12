@@ -51,6 +51,7 @@ CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-str
 CFLAGS += -DSTATSD
 CFLAGS += -DSYSTEMD
 #CFLAGS += -DGLB_DUMP_FULL_PACKET
+CFLAGS += -I$(SRCDIR)/../ # for <glb-hashing/...>
 
 LDFLAGS += -z relro -z now
 LDFLAGS += -ljansson

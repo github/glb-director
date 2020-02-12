@@ -1,0 +1,1 @@
+BPFFS_INTERFACE_PREFIX='/sys/fs/bpf/xdp_root_array@'

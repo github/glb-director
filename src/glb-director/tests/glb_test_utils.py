@@ -29,6 +29,7 @@ import json
 import siphash
 import os, sys
 import signal
+import tempfile
 from netaddr import IPNetwork
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from rendezvous_table import GLBRendezvousTable
@@ -48,15 +49,186 @@ def timeout(seconds):
 		signal.alarm(0)
 		signal.signal(signal.SIGALRM, old_handler)
 
+class DirectorControlBase(object):
+	# only implemented if the backend supports KNI (so is DPDK), others ignore this bit
+	def kni(self):
+		return None
+	
+	def setup_pyside(self, iface):
+		pass
+
+class DPDKDirectorControl(DirectorControlBase):
+	IFACE_NAME_KNI = 'vglb_kni0'
+
+	def __init__(self):
+		assert os.path.exists('/dev/kni'), "KNI kernel module not loaded"
+
+		self.director = None
+	
+	def setup(self, iface):
+		# launch the glb director, mocking an eth device with the dpdk end of our veth
+		self.director = subprocess.Popen(
+			[
+				'./build/glb-director',
+				'--vdev=eth_pcap0,iface=' + iface,
+				'--',
+				'--debug',
+				'--config-file', './tests/director-config.json',
+				'--forwarding-table', './tests/test-tables.bin'
+			],
+			stdout=open('director-output.txt', 'wba'),
+			stderr=subprocess.STDOUT,
+		)
+
+		print 'launched as pid', self.director.pid
+
+		# wait for the kni interface to come up, indicating the app is ready
+		try:
+			with timeout(10):
+				while len(ip.link_lookup(ifname=cls.IFACE_NAME_KNI)) == 0:
+					time.sleep(0.1)
+		except TimeoutException:
+			self.director.kill()
+			self.director.wait()
+			self.director = None
+			raise
+
+		# bring up the KNI interface
+		try:
+			idx = ip.link_lookup(ifname=cls.IFACE_NAME_KNI)[0]
+			ip.link('set', index=idx, state='up')
+		except NetlinkError:
+			self.director.kill()
+			self.director.wait()
+			self.director = None
+			raise
+	
+	def cleanup(self):
+		self.director.terminate()
+		time.sleep(0.5)
+		self.director.kill()
+		self.director.wait()
+		self.director = None
+	
+	def reload(self):
+		if self.director is not None:
+			self.director.send_signal(signal.SIGUSR1)
+	
+	def kni(self):
+		return L2ListenSocket(iface=cls.IFACE_NAME_KNI, promisc=True)
+
+class SystemdNotify(object):
+	def __init__(self, unix_path):
+		self.unix_path = unix_path
+		if os.path.exists(unix_path):
+			os.unlink(unix_path)
+		
+		notify_sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+		notify_sock.bind(unix_path)
+		self.notify_sock = notify_sock
+
+	def updated_env(self):
+		updated_env = os.environ.copy()
+		updated_env['NOTIFY_SOCKET'] = self.unix_path
+		return updated_env
+	
+	def wait(self):
+		# wait for it to notify that it's actually bound to the iface.
+		self.notify_sock.settimeout(2)
+		try:
+			data, addr = self.notify_sock.recvfrom(32)
+			assert data == 'READY=1' # only thing it will send
+		except socket.timeout:
+			print 'notify ready timed out'
+			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read())
+		
+		self.notify_sock.close()
+
+		os.unlink(self.unix_path)
+
+class XDPDirectorControl(DirectorControlBase):
+	def __init__(self):
+		self.director = None
+	
+	# veth pair implementation of XDP_TX silently drops packets unless the other side of the veth
+	# pair also has xdp enabled. to work around this limitation, we add an XDP program that always
+	# passes every packet.
+	def setup_pyside(self, iface):
+		subprocess.call(['ip', 'link', 'set', 'dev', iface, 'xdp', 'off'])
+		subprocess.check_call(['ip', 'link', 'set', 'dev', iface, 'xdp', 'obj', '../glb-director-xdp/bpf/passer.o'])
+
+	def setup(self, iface):
+		notify_shim = SystemdNotify('/tmp/glb-notify-shim.sock')
+		self.xdp_root = subprocess.Popen(
+			[
+				'../glb-director-xdp/xdp-root-shim/xdp-root-shim',
+				os.path.abspath('../glb-director-xdp/bpf/tailcall.o'),
+				'/sys/fs/bpf/root_array@' + iface,
+				iface,
+			],
+			stdout=open('director-output.txt', 'wba'),
+			stderr=subprocess.STDOUT,
+			env=notify_shim.updated_env(),
+		)
+		notify_shim.wait()
+
+		self.director_iface = iface
+		self.launch_director()
+	
+	def launch_director(self):
+		notify_director = SystemdNotify('/tmp/glb-notify.sock')
+		self.director = subprocess.Popen(
+			[
+				# 'strace',
+				'../glb-director-xdp/glb-director-xdp',
+				'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
+				'--debug',
+				'--config-file', os.path.abspath('./tests/director-config.json'),
+				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
+				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
+			],
+			stdout=open('director-output.txt', 'wba'),
+			stderr=subprocess.STDOUT,
+			env=notify_director.updated_env(),
+		)
+
+		print 'launched as pid', self.director.pid
+
+		notify_director.wait()
+
+	def cleanup(self):
+		for proc in [self.director, self.xdp_root]:
+			proc.terminate()
+			time.sleep(0.5)
+			proc.kill()
+			proc.wait()
+		self.director = None
+		self.xdp_root = None
+
+	def reload(self):
+		if self.director is not None:
+			old_director = self.director
+			self.director = None
+			self.launch_director()
+			old_director.terminate()
+
 class GLBDirectorTestBase():
 	DIRECTOR_GUE_PORT = 19523
 
 	IFACE_NAME_PY = 'vglbtest_py'
-	IFACE_NAME_DPDK = 'vglbtest_dpdk'
-	IFACE_NAME_KNI = 'vglb_kni0'
+	IFACE_NAME_DIRECTOR = 'vglbtest_dpdk'
 
 	eth_tx = None
 	kni_tx = None
+
+	@classmethod
+	def make_director_backend(cls):
+		director_type = os.getenv('GLB_DIRECTOR_TYPE', 'dpdk')
+		assert director_type in ('dpdk', 'xdp')
+		return {
+			'dpdk': DPDKDirectorControl,
+			'xdp': XDPDirectorControl,
+		}[director_type]()
 
 	@classmethod
 	def get_initial_forwarding_config(cls):
@@ -130,8 +302,8 @@ class GLBDirectorTestBase():
 		GLBDirectorTestBase.running_forwarding_config = config
 		subprocess.check_call(['./cli/glb-director-cli', 'build-config', 'tests/test-tables.json', 'tests/test-tables.bin'])
 
-		if hasattr(GLBDirectorTestBase, 'director') and GLBDirectorTestBase.director is not None:
-			GLBDirectorTestBase.director.send_signal(signal.SIGUSR1)
+		if hasattr(GLBDirectorTestBase, 'backend') and GLBDirectorTestBase.backend is not None:
+			GLBDirectorTestBase.backend.reload()
 
 	@classmethod
 	def get_running_forwarding_config(cls):
@@ -140,68 +312,34 @@ class GLBDirectorTestBase():
 
 	@classmethod
 	def setup_class(cls):
-		assert os.path.exists('/dev/kni'), "KNI kernel module not loaded"
-
 		initial_config = cls.get_initial_forwarding_config()
 		cls.update_running_forwarding_tables(initial_config)
 
 		ip = IPRoute()
 
-		# set up a veth interface from pythong <-> dpdk
+		# set up a veth interface from python <-> director
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0:
-			ip.link('add', ifname=cls.IFACE_NAME_PY, peer=cls.IFACE_NAME_DPDK, kind='veth')
+			ip.link('add', ifname=cls.IFACE_NAME_PY, peer=cls.IFACE_NAME_DIRECTOR, kind='veth')
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 1)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DPDK)), 1)
+		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 1)
 
 		# bring up both ends of the veth pipe
-		for iface in [cls.IFACE_NAME_DPDK, cls.IFACE_NAME_PY]:
+		for iface in [cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY]:
 			idx = ip.link_lookup(ifname=iface)[0]
 			ip.link('set', index=idx, state='up')
-
+		
 		GLBDirectorTestBase.py_side_mac = dict(ip.link('get', index=ip.link_lookup(ifname=cls.IFACE_NAME_PY))[0]['attrs'])['IFLA_ADDRESS']
 
-		# launch the glb director, mocking an eth device with the dpdk end of our veth
 		with open('tests/director-config.json', 'wb') as f:
 			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
-		GLBDirectorTestBase.director = subprocess.Popen(
-			[
-				'./build/glb-director',
-				'--vdev=eth_pcap0,iface=' + cls.IFACE_NAME_DPDK,
-				'--',
-				'--debug',
-				'--config-file', './tests/director-config.json',
-				'--forwarding-table', './tests/test-tables.bin'
-			],
-			stdout=open('director-output.txt', 'wba'),
-			stderr=subprocess.STDOUT,
-		)
 
-		print 'launched as pid', GLBDirectorTestBase.director.pid
+		GLBDirectorTestBase.backend = GLBDirectorTestBase.make_director_backend()
+		GLBDirectorTestBase.backend.setup(iface=cls.IFACE_NAME_DIRECTOR)
+		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
 
-		# wait for the kni interface to come up, indicating the app is ready
-		try:
-			with timeout(10):
-				while len(ip.link_lookup(ifname=cls.IFACE_NAME_KNI)) == 0:
-					time.sleep(0.1)
-		except TimeoutException:
-			GLBDirectorTestBase.director.kill()
-			GLBDirectorTestBase.director.wait()
-			GLBDirectorTestBase.director = None
-			raise
-
-		# bring up the KNI interface
-		try:
-			idx = ip.link_lookup(ifname=cls.IFACE_NAME_KNI)[0]
-			ip.link('set', index=idx, state='up')
-		except NetlinkError:
-			GLBDirectorTestBase.director.kill()
-			GLBDirectorTestBase.director.wait()
-			GLBDirectorTestBase.director = None
-			raise
-
-		# prepare our listener for return traffic from dpdk
+		# prepare our listener for return traffic from director
 		GLBDirectorTestBase.eth_tx = L2ListenSocket(iface=cls.IFACE_NAME_PY, promisc=True)
-		GLBDirectorTestBase.kni_tx = L2ListenSocket(iface=cls.IFACE_NAME_KNI, promisc=True)
+		GLBDirectorTestBase.kni_tx = GLBDirectorTestBase.backend.kni()
 
 	@classmethod
 	def teardown_class(cls):
@@ -209,18 +347,14 @@ class GLBDirectorTestBase():
 
 		# tear down the veth pair
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DPDK)
+			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DPDK)
+			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DPDK)), 0)
+		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
 
 		# clean up the director
-		GLBDirectorTestBase.director.terminate()
-		time.sleep(0.5)
-		GLBDirectorTestBase.director.kill()
-		GLBDirectorTestBase.director.wait()
-		GLBDirectorTestBase.director = None
+		GLBDirectorTestBase.backend.cleanup()
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)

@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 #
 # BSD 3-Clause License
 # 
-# Copyright (c) 2018 GitHub.
+# Copyright (c) 2020 GitHub.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -31,49 +31,47 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 set -e
+ROOTDIR=$(dirname $0)/..
+cd $ROOTDIR
 
-export BASEDIR=$(cd $(dirname "$0") && cd .. && pwd)
-cd "$(dirname "$0")/.."
+. packaging/version.sh
 
-. ../../script/helpers/folding.sh
+make -C ../glb-director/cli
+make
 
-begin_fold "Building glb-director for testing"
-(
-  make clean
-  make -C cli clean
+../glb-director/cli/glb-director-cli build-config ../glb-director/packaging/forwarding_table.json ../glb-director/packaging/forwarding_table.bin
 
-  scan-build make
-  scan-build make -C cli
-)
-end_fold
+fpm -f -s dir -t deb \
+	-n glb-director-xdp \
+	-v ${GLB_DIRECTOR_XDP_VERSION} \
+	-d "xdp-root-shim" \
+    -d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
+	--conflicts 'glb-director' \
+    --license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
+	--deb-systemd packaging/glb-director-xdp.service \
+	--config-files /etc \
+	glb-director-xdp=/usr/sbin/ \
+	bpf/glb_encap.o=/usr/share/glb-director-xdp/ \
+	bpf/glb_encap_trace.o=/usr/share/glb-director-xdp/ \
+	../glb-director/packaging/director.conf=/etc/glb/ \
+	../glb-director/packaging/forwarding_table.bin=/etc/glb/ \
+	packaging/glb-director-xdp=/etc/default/
 
-begin_fold "Running scapy packet tests against glb-director"
-(
-  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
-)
-end_fold
+fpm -f -s dir -t deb \
+	-n xdp-root-shim \
+	-v ${XDP_ROOT_SHIM_VERSION} \
+	--license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
+	--deb-systemd packaging/xdp-root-shim\@.service \
+	--config-files /etc \
+	xdp-root-shim/xdp-root-shim=/usr/sbin/ \
+    bpf/tailcall.o=/usr/share/xdp-root-shim/ \
+    packaging/xdp-root-shim=/etc/default/
 
-begin_fold "Running glb-director config tests"
-(
-  bash tests/config_check.sh
-)
-end_fold
+if [ -d "$BUILDDIR" ]; then
+  cp glb-director-xdp_${GLB_DIRECTOR_XDP_VERSION}_amd64.deb $BUILDDIR/
+  cp xdp-root-shim_${XDP_ROOT_SHIM_VERSION}_amd64.deb $BUILDDIR/
+fi
 
-begin_fold "Running pcap tests"
-(
-  # needs hugepages run after other tests since its already set up
-  bash tests/pcap_tests.sh
-)
-end_fold
-
-begin_fold "valgrind tests"
-(
-  bash tests/valgrind_check.sh
-)
-end_fold
-
-begin_fold "stub server tests"
-(
-  bash tests/stub_server_tests.sh
-)
-end_fold
+make clean

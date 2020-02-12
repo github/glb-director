@@ -1,6 +1,8 @@
 #!/bin/bash -e
 
-local_ipv4_ip="$1"
+tech_type="$1"
+
+local_ipv4_ip="$2"
 last_octet="${local_ipv4_ip#*.*.*.}"
 
 ## BIRD
@@ -72,13 +74,14 @@ systemctl reload glb-healthcheck
 
 ## glb-director
 
-cat >/etc/default/glb-director <<EOF
+if [[ "$tech_type" == "dpdk" ]]; then
+  cat >/etc/default/glb-director <<EOF
 GLB_DIRECTOR_EAL_ARGS="--master-lcore 0 -l 0,1,2"
 GLB_DIRECTOR_CONFIG_FILE="/etc/glb/director.conf"
 GLB_DIRECTOR_FORWARDING_TABLE="/etc/glb/forwarding_table.checked.bin"
 EOF
 
-cat >/etc/glb/director.conf <<EOF
+  cat >/etc/glb/director.conf <<EOF
 {
   "outbound_gateway_mac": "00:11:22:33:44:55",
   "outbound_src_ip": "${local_ipv4_ip}",
@@ -107,12 +110,47 @@ cat >/etc/glb/director.conf <<EOF
 }
 EOF
 
-systemctl enable glb-director
-systemctl restart glb-director
+  systemctl enable glb-director
+  systemctl restart glb-director
 
-while ! /sbin/ifconfig vglb_kni0 >/dev/null; do
-	sleep 1
-	echo 'Waiting for vglb_kni0 to come up...'
-done
+  while ! /sbin/ifconfig vglb_kni0 >/dev/null; do
+    sleep 1
+    echo 'Waiting for vglb_kni0 to come up...'
+  done
 
-/sbin/ifconfig vglb_kni0 up "$local_ipv4_ip"
+  /sbin/ifconfig vglb_kni0 up "$local_ipv4_ip"
+fi
+
+if [[ "$tech_type" == "xdp" ]]; then
+  cat >/etc/default/glb-director-xdp <<EOF
+GLB_DIRECTOR_XDP_ROOT_PATHS="/sys/fs/bpf/xdp_root_array@eth1"
+GLB_DIRECTOR_XDP_CONFIG_FILE="/etc/glb/director.conf"
+GLB_DIRECTOR_XDP_FORWARDING_TABLE="/etc/glb/forwarding_table.checked.bin"
+GLB_DIRECTOR_XDP_BPF_PROGRAM="/usr/share/glb-director-xdp/glb_encap.o"
+GLB_DIRECTOR_XDP_EXTRA_ARGS=""
+EOF
+
+  cat >/etc/glb/director.conf <<EOF
+{
+  "outbound_gateway_mac": "00:11:22:33:44:55",
+  "outbound_src_ip": "${local_ipv4_ip}",
+  "forward_icmp_ping_responses": true
+}
+EOF
+
+  mkdir -p /etc/systemd/system/glb-director-xdp.service.d/
+  cat >/etc/systemd/system/glb-director-xdp.service.d/depend_on_shim.conf <<EOF
+[Unit]
+Requires=xdp-root-shim@eth1
+After=xdp-root-shim@eth1
+EOF
+
+  /sbin/ifconfig eth1 up "$local_ipv4_ip"
+
+  systemctl daemon-reload
+  systemctl enable xdp-root-shim@eth1
+  systemctl enable glb-director-xdp
+  systemctl restart xdp-root-shim@eth1
+  systemctl restart glb-director-xdp
+
+fi

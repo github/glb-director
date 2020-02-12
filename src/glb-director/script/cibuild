@@ -60,6 +60,7 @@ fpm -f -s dir -t deb \
 	-d 'dpdk = 17.11.1-6' \
     -d 'libjansson4' \
 	-d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
+	--conflicts 'glb-director-xdp' \
     --license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/glb-director.service \
