@@ -45,23 +45,33 @@ make -C cli
 ./cli/glb-director-cli build-config packaging/forwarding_table.json packaging/forwarding_table.bin
 
 fpm -f -s dir -t deb \
-	-n glb-director \
+	-n glb-director-cli \
 	-v ${GLB_DIRECTOR_VERSION} \
 	-d 'dpdk = 17.11.1-6' \
     -d 'libjansson4' \
     --license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
+	cli/glb-director-cli=/usr/sbin/ \
+	cli/glb-config-check=/usr/sbin/
+
+fpm -f -s dir -t deb \
+	-n glb-director \
+	-v ${GLB_DIRECTOR_VERSION} \
+	-d 'dpdk = 17.11.1-6' \
+    -d 'libjansson4' \
+	-d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
+    --license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/glb-director.service \
 	--config-files /etc \
 	build/app/glb-director=/usr/sbin/ \
-	cli/glb-director-cli=/usr/sbin/ \
-	cli/glb-config-check=/usr/sbin/ \
 	packaging/director.conf=/etc/glb/ \
 	packaging/forwarding_table.bin=/etc/glb/ \
 	packaging/glb-director=/etc/default/
 
 if [ -d "$BUILDDIR" ]; then
   cp glb-director_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
+  cp glb-director-cli_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
 fi
 
 make clean
