@@ -46,26 +46,11 @@ typedef struct {
 #define EBPF_VERIFIER_GUARD /* enable EBPF verifier guards where the verifier needs some help */
 #include <glb-hashing/packet_parsing.h>
 
+#define GLB_FMT_TABLE_HASHMASK 0xffff
+
 /* xdpcap integration */
 #include "xdpcap_hook.h"
 struct bpf_map_def SEC("maps") xdpcap_hook = XDPCAP_HOOK();
-
-
-#define GLB_FMT_TABLE_HASHMASK 0xffff
-
-/* Returns the size required to encapsulate a packet for the given route context.
- * Note that space is included for N-1 hops because the first hop is used as dst_addr.
- */
-#define ROUTE_CONTEXT_ENCAP_SIZE_FIXED_2                 \
-	(sizeof(struct pdnet_ethernet_hdr) + sizeof(struct pdnet_ipv4_hdr) +   \
-	 sizeof(struct pdnet_udp_hdr) + sizeof(struct glb_gue_hdr) +  \
-	 (sizeof(uint32_t) * (1)))
-
-
-#define ROUTE_CONTEXT_ENCAP_SIZE_FIXED_4                 \
-	(sizeof(struct pdnet_ethernet_hdr) + sizeof(struct pdnet_ipv4_hdr) +   \
-	 sizeof(struct pdnet_udp_hdr) + sizeof(struct glb_gue_hdr) +  \
-	 (sizeof(uint32_t) * (3)))
 
 typedef struct glb_bind {
 	uint32_t ipv4;
