@@ -88,7 +88,6 @@ int glb_calculate_packet_route(struct glb_fwd_config_ctx *ctx, unsigned int tabl
 	if (glb_extract_packet_fields(route_context) != 0) {
 		return -1;
 	}
-	
 	route_context->hop_count = 0;
 
 	// Add the route using the default hash fields.
