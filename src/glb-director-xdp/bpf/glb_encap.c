@@ -208,8 +208,16 @@ static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth
 #ifdef EBPF_VERIFIER_GUARD
 	if ((void *)&gue_hdr->hops[remaining_hop_count] > data_end) return XDP_DROP;
 #endif
-	/* hops are already encoded in network byte order (same as first_hop_ip above) */
-	/* unrolled manually to make less jumpy/cleaner eBPF output */
+	/* hops are already encoded in network byte order (same as first_hop_ip above)
+	 * We can have at most GLB_MAX_HOPS, with one being the first (used above), so
+	 * this has (GLB_MAX_HOPS-1) hops to potentially copy.
+	 * 
+	 * This will need to be updated if GLB_MAX_HOPS ever changes from 4, which is
+	 * the current value to account for 2 servers with a primary hash and another 2
+	 * servers with a second hash (used for changing hash).
+	 * 
+	 * This is unrolled manually to make less jumpy/cleaner eBPF output.
+	 */
 	if (remaining_hop_count >= 1 && (void *)(&gue_hdr->hops[1]) <= data_end) gue_hdr->hops[0] = route_context->ipv4_hops[1];
 	if (remaining_hop_count >= 2 && (void *)(&gue_hdr->hops[2]) <= data_end) gue_hdr->hops[1] = route_context->ipv4_hops[2];
 	if (remaining_hop_count >= 3 && (void *)(&gue_hdr->hops[3]) <= data_end) gue_hdr->hops[2] = route_context->ipv4_hops[3];
