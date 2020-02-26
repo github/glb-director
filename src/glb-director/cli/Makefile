@@ -75,6 +75,7 @@ glb-director-cli: main.c
 	gcc \
 		$(CFLAGS) \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		main.c \
 		../siphash24.c $(LDFLAGS)\
 		-o glb-director-cli
@@ -85,6 +86,7 @@ glb-config-check:
 		$(CHECK_SRCS) \
 		-o glb-config-check \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
 		-ldpdk -lpcap $(LDFLAGS)\
@@ -96,6 +98,7 @@ glb-director-pcap:
 		$(PCAP_SRCS) \
 		-o glb-director-pcap \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
 		-lpcap \
@@ -108,6 +111,7 @@ glb-director-stub-server:
 		$(STUB_SRCS) \
 		-o glb-director-stub-server \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
 		-DPCAP_MODE $(LDFLAGS)\

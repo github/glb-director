@@ -30,20 +30,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _GLB_GUE_H_
+#define _GLB_GUE_H_
 
-/* configure packet parsing to use linearisation space and the encap_packet_data_read hook */
-#define GLB_PACKET_PARSING_LINEARISER
-const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len, void *buf);
+#define GLB_GUE_PORT 19523 /* 'LB' + 1 */
 
-static void glb_log_info(const char *format, ...); /* let glb-hashing know this is linked */
+struct glb_gue_hdr {
+	uint8_t version_control_hlen;
+	uint8_t protocol;
+	uint16_t flags;
 
-#include <arpa/inet.h>
-#include <glb-hashing/packet_parsing.h>
+	// GUE private data.
+	// we only support holding GLB GUE chained routing
+	uint16_t private_type; // will be 0
+	uint8_t next_hop;
+	uint8_t hop_count;
 
-struct glb_fwd_config_ctx;
-struct glb_fwd_config_content_table;
+	uint32_t hops[];
+} __attribute__((__packed__));
 
-int glb_calculate_packet_route(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
-			  void *packet_data, glb_route_context *route_context);
-
-int glb_encapsulate_packet(struct ether_hdr *eth_hdr, glb_route_context *route_context);
+#endif /* _GLB_GUE_H_ */
