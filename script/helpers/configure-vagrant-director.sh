@@ -123,7 +123,7 @@ fi
 
 if [[ "$tech_type" == "xdp" ]]; then
   cat >/etc/default/glb-director-xdp <<EOF
-GLB_DIRECTOR_XDP_ROOT_PATHS="/sys/fs/bpf/xdp_root_array@eth1"
+GLB_DIRECTOR_XDP_ROOT_PATHS="--xdp-root-path=/sys/fs/bpf/xdp_root_array@eth1"
 GLB_DIRECTOR_XDP_CONFIG_FILE="/etc/glb/director.conf"
 GLB_DIRECTOR_XDP_FORWARDING_TABLE="/etc/glb/forwarding_table.checked.bin"
 GLB_DIRECTOR_XDP_BPF_PROGRAM="/usr/share/glb-director-xdp/glb_encap.o"

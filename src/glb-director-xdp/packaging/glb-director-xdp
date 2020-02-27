@@ -1,4 +1,4 @@
-GLB_DIRECTOR_XDP_ROOT_PATHS="/sys/fs/bpf/xdp_root_array@eth0"
+GLB_DIRECTOR_XDP_ROOT_PATHS="--xdp-root-path=/sys/fs/bpf/xdp_root_array@eth0"
 GLB_DIRECTOR_XDP_CONFIG_FILE="/etc/glb/director.conf"
 GLB_DIRECTOR_XDP_FORWARDING_TABLE="/etc/glb/forwarding_table.bin"
 GLB_DIRECTOR_XDP_BPF_PROGRAM="/usr/share/glb-director-xdp/glb_encap.o"

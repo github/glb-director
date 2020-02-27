@@ -10,7 +10,7 @@ Type=notify
 NotifyAccess=main
 Restart=always
 EnvironmentFile=/etc/default/glb-director-xdp
-ExecStart=/bin/sh -c "exec /usr/sbin/glb-director-xdp --xdp-root-path=${GLB_DIRECTOR_XDP_ROOT_PATHS} --config-file=${GLB_DIRECTOR_XDP_CONFIG_FILE} --forwarding-table=${GLB_DIRECTOR_XDP_FORWARDING_TABLE} --bpf-program=${GLB_DIRECTOR_XDP_BPF_PROGRAM} ${GLB_DIRECTOR_XDP_EXTRA_ARGS}"
+ExecStart=/bin/sh -c "exec /usr/sbin/glb-director-xdp ${GLB_DIRECTOR_XDP_ROOT_PATHS} --config-file=${GLB_DIRECTOR_XDP_CONFIG_FILE} --forwarding-table=${GLB_DIRECTOR_XDP_FORWARDING_TABLE} --bpf-program=${GLB_DIRECTOR_XDP_BPF_PROGRAM} ${GLB_DIRECTOR_XDP_EXTRA_ARGS}"
 ExecReload=/bin/kill -USR1 $MAINPID
 TimeoutStopSec=3
 
