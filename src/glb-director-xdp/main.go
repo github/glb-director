@@ -344,7 +344,7 @@ func main() {
 	usage := `GLB Director XDP
 
 	Usage:
-	  glb-director-xdp --xdp-root-path=<root_path> [--xdp-root-idx=<root_idx>] --config-file=<config> --forwarding-table=<table> --bpf-program=<obj> [--xdpcap-hook-path=<path>] [--debug]
+	  glb-director-xdp --xdp-root-path=<root_path>... [--xdp-root-idx=<root_idx>] --config-file=<config> --forwarding-table=<table> --bpf-program=<obj> [--xdpcap-hook-path=<path>] [--debug]
 	  glb-director-xdp -h | --help
 	
 	Options:
@@ -360,7 +360,7 @@ func main() {
 
 	arguments, _ := docopt.Parse(usage, nil, true, "GLB Director XDP", false)
 
-	xdpRootPath := arguments["--xdp-root-path"].(string)
+	xdpRootPaths := arguments["--xdp-root-path"].([]string)
 	xdpRootIndex, err := strconv.Atoi(arguments["--xdp-root-idx"].(string))
 	if err != nil {
 		log.Fatal(err)
@@ -436,15 +436,17 @@ func main() {
 	app.ReloadForwardingTable()
 
 	/* now get the pinned map specified and drop our prog in that array */
-	progArray, err := ebpf.LoadPinnedMap(xdpRootPath)
-	if err != nil {
-        log.Fatal(err)
-	}
-	
-	rootIndex := uint32(xdpRootIndex)
-	progFd := prog.FD()
-	if err := progArray.Put(unsafe.Pointer(&rootIndex), unsafe.Pointer(&progFd)); err != nil {
-		log.Fatal(err)
+	for _, xdpRootPath := range xdpRootPaths {
+		progArray, err := ebpf.LoadPinnedMap(xdpRootPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		
+		rootIndex := uint32(xdpRootIndex)
+		progFd := prog.FD()
+		if err := progArray.Put(unsafe.Pointer(&rootIndex), unsafe.Pointer(&progFd)); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// let systemd know we're done; ignore the response, we don't care if it's not supported
