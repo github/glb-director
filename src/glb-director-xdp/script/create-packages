@@ -45,11 +45,14 @@ fpm -f -s dir -t deb \
 	-n glb-director-xdp \
 	-v ${GLB_DIRECTOR_XDP_VERSION} \
 	-d "xdp-root-shim" \
+	-d "libbpf4.19" \
     -d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
 	--conflicts 'glb-director' \
     --license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/glb-director-xdp.service \
+	--after-upgrade packaging/after-upgrade-custom-systemd.sh \
+	--after-install packaging/after-upgrade-custom-systemd.sh \
 	--config-files /etc \
 	glb-director-xdp=/usr/sbin/ \
 	bpf/glb_encap.o=/usr/share/glb-director-xdp/ \
@@ -61,9 +64,12 @@ fpm -f -s dir -t deb \
 fpm -f -s dir -t deb \
 	-n xdp-root-shim \
 	-v ${XDP_ROOT_SHIM_VERSION} \
+	-d "libbpf4.19" \
 	--license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/xdp-root-shim\@.service \
+	--after-upgrade packaging/after-upgrade-custom-systemd.sh \
+	--after-install packaging/after-upgrade-custom-systemd.sh \
 	--config-files /etc \
 	xdp-root-shim/xdp-root-shim=/usr/sbin/ \
     bpf/tailcall.o=/usr/share/xdp-root-shim/ \
