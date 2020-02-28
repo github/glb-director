@@ -1,0 +1,18 @@
+[Unit]
+Description=GLB Director XDP
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+# Allow the service to notify systemd when it has finished activating.
+Type=notify
+# NotifyAccess will allow the main pid to send the above ready message (which is also the default).
+NotifyAccess=main
+Restart=always
+EnvironmentFile=/etc/default/glb-director-xdp
+ExecStart=/bin/sh -c "exec /usr/sbin/glb-director-xdp ${GLB_DIRECTOR_XDP_ROOT_PATHS} --config-file=${GLB_DIRECTOR_XDP_CONFIG_FILE} --forwarding-table=${GLB_DIRECTOR_XDP_FORWARDING_TABLE} --bpf-program=${GLB_DIRECTOR_XDP_BPF_PROGRAM} ${GLB_DIRECTOR_XDP_EXTRA_ARGS}"
+ExecReload=/bin/kill -USR1 $MAINPID
+TimeoutStopSec=3
+
+[Install]
+WantedBy=multi-user.target

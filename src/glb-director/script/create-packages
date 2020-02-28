@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # BSD 3-Clause License
 # 
@@ -31,49 +31,48 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 set -e
+ROOTDIR=$(dirname $0)/..
+cd $ROOTDIR
 
-export BASEDIR=$(cd $(dirname "$0") && cd .. && pwd)
-cd "$(dirname "$0")/.."
+. packaging/version.sh
 
-. ../../script/helpers/folding.sh
+make clean
+make -C cli clean
 
-begin_fold "Building glb-director for testing"
-(
-  make clean
-  make -C cli clean
+make
+make -C cli
 
-  scan-build make
-  scan-build make -C cli
-)
-end_fold
+./cli/glb-director-cli build-config packaging/forwarding_table.json packaging/forwarding_table.bin
 
-begin_fold "Running scapy packet tests against glb-director"
-(
-  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
-)
-end_fold
+fpm -f -s dir -t deb \
+	-n glb-director-cli \
+	-v ${GLB_DIRECTOR_VERSION} \
+    -d 'libjansson4' \
+    --license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
+	cli/glb-director-cli=/usr/sbin/ \
+	cli/glb-config-check=/usr/sbin/
 
-begin_fold "Running glb-director config tests"
-(
-  bash tests/config_check.sh
-)
-end_fold
+fpm -f -s dir -t deb \
+	-n glb-director \
+	-v ${GLB_DIRECTOR_VERSION} \
+	-d 'dpdk = 17.11.1-6' \
+    -d 'libjansson4' \
+	-d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
+	--conflicts 'glb-director-xdp' \
+    --license 'BSD 3-Clause' \
+    --maintainer 'GitHub <opensource+glb-director@github.com>' \
+	--deb-systemd packaging/glb-director.service \
+	--config-files /etc \
+	build/app/glb-director=/usr/sbin/ \
+	packaging/director.conf=/etc/glb/ \
+	packaging/forwarding_table.bin=/etc/glb/ \
+	packaging/glb-director=/etc/default/
 
-begin_fold "Running pcap tests"
-(
-  # needs hugepages run after other tests since its already set up
-  bash tests/pcap_tests.sh
-)
-end_fold
+if [ -d "$BUILDDIR" ]; then
+  cp glb-director_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
+  cp glb-director-cli_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
+fi
 
-begin_fold "valgrind tests"
-(
-  bash tests/valgrind_check.sh
-)
-end_fold
-
-begin_fold "stub server tests"
-(
-  bash tests/stub_server_tests.sh
-)
-end_fold
+make clean
+make -C cli clean
