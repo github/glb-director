@@ -24,7 +24,7 @@ RUN patch -d /usr/sbin </root/dkms.diff
 # XDP
 # linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
 RUN apt-get update && apt install -y apt-transport-https curl software-properties-common
-RUN apt-get update && apt install -y -t stretch-backports linux-image-amd64 linux-headers-amd64 iproute2 libbpf-dev linux-libc-dev
+RUN apt-get update && apt install -y -t stretch-backports linux-image-4.19.0-0.bpo.8-amd64-unsigned linux-headers-amd64 iproute2 libbpf-dev linux-libc-dev
 RUN wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 9
-ENV KVER 4.19.0-0.bpo.6-amd64
+ENV KVER 4.19.0-0.bpo.8-amd64
 ENV GOPATH /go
