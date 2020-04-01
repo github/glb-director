@@ -41,11 +41,6 @@ import (
 )
 
 var (
-	SuccessesBeforeMarkedHealthy = 3
-	FailuresBeforeMarkedFailed   = 3
-)
-
-var (
 	managerCounters = expvar.NewMap("HealthCheckManager")
 )
 
@@ -65,7 +60,8 @@ type HealthCheckManager struct {
 	results     map[HealthCheckTarget]HealthResult
 }
 
-func NewHealthCheckManager(checkTimeout time.Duration, checkInterval time.Duration) *HealthCheckManager {
+func NewHealthCheckManager(checkTimeout time.Duration, checkInterval time.Duration, triggerHealthy int,
+	triggerUnhealthy int) *HealthCheckManager {
 	tunnelChecker := &TunnelHealthChecker{}
 	tunnelChecker.Initialize(checkTimeout)
 
