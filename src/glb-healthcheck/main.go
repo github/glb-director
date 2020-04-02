@@ -91,7 +91,7 @@ Options:
 
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec != 0 {
-		HealthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * 1000000
+		HealthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * time.Millisecond
 	}
 
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
