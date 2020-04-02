@@ -48,6 +48,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -376,26 +377,38 @@ func gracefullReloadByExec() {
 
 	err = cmd.Start()
 	if err != nil {
-		log.Fatalf("gracefulRestart: Failed to launch, error: %v", err)
+		log.Printf("gracefullReloadByExec: Failed to launch, error: %v", err)
+		return
 	}
 
 	fmt.Printf("New version of glb-director-xdp launched, waiting for READY signal...\n")
 
-	// wait for ready
-	var buf [1024]byte
-	n, err := conn.Read(buf[:])
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	readyResponse := string(buf[:n])
-	if readyResponse != "READY=1" {
-		log.Fatal("Expected READY=1, but got '%v', so giving up", readyResponse)
-	}
+	signalChan := make(chan string, 1)
 
-	// the new proc has said READY, so we can just exit, we won't be processing packets anymore
-	fmt.Printf("New process is READY, goodbye!\n")
-	os.Exit(0)
+	go func() {
+		// wait for ready
+		var buf [1024]byte
+		n, err := conn.Read(buf[:])
+		if err != nil {
+			log.Printf("gracefullReloadByExec: Failed to read from notify socket of new process: %v", err)
+			signalChan <- "ERROR"
+		} else {
+			signalChan <- string(buf[:n])
+		}
+	}()
+
+	select {
+	case readyResponse := <-signalChan:
+		if readyResponse == "READY=1" {
+			// the new proc has said READY, so we can just exit, we won't be processing packets anymore
+			fmt.Printf("New process is READY, goodbye!\n")
+			os.Exit(0)
+		} else {
+			log.Printf("gracefullReloadByExec: Expected READY=1, but got '%v', so assuming failure. Not reloading.", readyResponse)
+		}
+	case <-time.After(30 * time.Second):
+		log.Printf("gracefullReloadByExec: Expected READY=1 from new process, but timed out after 30 seconds. Not reloading.")
+	}
 }
 
 func main() {
