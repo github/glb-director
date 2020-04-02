@@ -33,9 +33,9 @@
 package main
 
 import (
+	"github.com/cilium/ebpf"
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/docopt/docopt-go"
-	"github.com/cilium/ebpf"
 
 	"log"
 	// "runtime"
@@ -44,9 +44,11 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -68,7 +70,7 @@ int get_more_map_space() {
 
 	rl.rlim_max = RLIM_INFINITY;
 	rl.rlim_cur = rl.rlim_max;
-	
+
 	return setrlimit(RLIMIT_MEMLOCK, &rl);
 }
 
@@ -172,10 +174,10 @@ func LoadDirectorConfig(filename string) (*GLBDirectorConfig, error) {
 }
 
 type Application struct {
-	Config *GLBDirectorConfig
-	Program *ebpf.Program
+	Config     *GLBDirectorConfig
+	Program    *ebpf.Program
 	Collection *ebpf.Collection
-	TableSpec *ebpf.MapSpec
+	TableSpec  *ebpf.MapSpec
 
 	ForwardingTablePath string
 }
@@ -340,25 +342,97 @@ func (app *Application) ReloadForwardingTable() {
 	}
 }
 
+func gracefullReloadByExec() {
+	fmt.Printf("Reloading by exec-ing a new version of glb-director-xdp\n")
+
+	// give us a temp working dir for socket comm
+	tmpDir, err := ioutil.TempDir("/tmp", "glb-xdp")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmpDir)
+
+	// prepare a socket where we can match systemd behaviour, waiting for
+	// the newly forked process to send READY.
+	readySock := tmpDir + "/ready.sock"
+	socketAddr := &net.UnixAddr{
+		Name: readySock,
+		Net:  "unixgram",
+	}
+	conn, err := net.ListenUnixgram("unixgram", socketAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer conn.Close()
+
+	// we'll rexec with the same command and args that we were called with.
+	cmd := exec.Command(os.Args[0], os.Args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(),
+		"NOTIFY_SOCKET=" + readySock,
+	)
+
+	err = cmd.Start()
+	if err != nil {
+		log.Printf("gracefullReloadByExec: Failed to launch, error: %v", err)
+		return
+	}
+
+	fmt.Printf("New version of glb-director-xdp launched, waiting for READY signal...\n")
+
+	signalChan := make(chan string, 1)
+
+	go func() {
+		// wait for ready
+		var buf [1024]byte
+		n, err := conn.Read(buf[:])
+		if err != nil {
+			log.Printf("gracefullReloadByExec: Failed to read from notify socket of new process: %v", err)
+			signalChan <- "ERROR"
+		} else {
+			signalChan <- string(buf[:n])
+		}
+	}()
+
+	select {
+	case readyResponse := <-signalChan:
+		if readyResponse == "READY=1" {
+			// the new proc has said READY, so we can just exit, we won't be processing packets anymore
+			fmt.Printf("New process is READY, goodbye!\n")
+			os.Exit(0)
+		} else {
+			log.Printf("gracefullReloadByExec: Expected READY=1, but got '%v', so assuming failure. Not reloading.", readyResponse)
+		}
+	case <-time.After(30 * time.Second):
+		log.Printf("gracefullReloadByExec: Expected READY=1 from new process, but timed out after 30 seconds. Not reloading.")
+	}
+}
+
 func main() {
 	usage := `GLB Director XDP
 
 	Usage:
-	  glb-director-xdp --xdp-root-path=<root_path>... [--xdp-root-idx=<root_idx>] --config-file=<config> --forwarding-table=<table> --bpf-program=<obj> [--xdpcap-hook-path=<path>] [--debug]
-	  glb-director-xdp -h | --help
+	glb-director-xdp --pid-file=<pid_file> --xdp-root-path=<root_path>... [--xdp-root-idx=<root_idx>] --config-file=<config> --forwarding-table=<table> --bpf-program=<obj> [--xdpcap-hook-path=<path>] [--debug]
+	glb-director-xdp -h | --help
 	
 	Options:
-	  -h --help                     Show this screen.
-	  --xdp-root-path=<root_path>   Specify the XDP root array to bind on.
-	  --xdp-root-idx=<root_idx>     Specify the index in the XDP root array to bind on [default: 2].
-	  --config-file=<config>        Specify the JSON configuration file.
-	  --forwarding-table=<table>    Specify the forwarding table which contains binds and L4 servers.
-	  --bpf-program=<obj>           Specify the path to the GLB encapsulation eBPF program ELF object file.
-	  --xdpcap-hook-path=<path>     Specify the path to pin an xdpcap compatible hook [default: /sys/fs/bpf/glb-director-xdp-capture-hook].
-	  --debug                       Enable additional debug output, useful during testing.
+	-h --help                     Show this screen.
+	--pid-file=<pid_file>         Write our PID out to the specified PID file
+	--xdp-root-path=<root_path>   Specify the XDP root array to bind on.
+	--xdp-root-idx=<root_idx>     Specify the index in the XDP root array to bind on [default: 2].
+	--config-file=<config>        Specify the JSON configuration file.
+	--forwarding-table=<table>    Specify the forwarding table which contains binds and L4 servers.
+	--bpf-program=<obj>           Specify the path to the GLB encapsulation eBPF program ELF object file.
+	--xdpcap-hook-path=<path>     Specify the path to pin an xdpcap compatible hook [default: /sys/fs/bpf/glb-director-xdp-capture-hook].
+	--debug                       Enable additional debug output, useful during testing.
 	`
 
 	arguments, _ := docopt.Parse(usage, nil, true, "GLB Director XDP", false)
+
+	pidFile := arguments["--pid-file"].(string)
 
 	xdpRootPaths := arguments["--xdp-root-path"].([]string)
 	xdpRootIndex, err := strconv.Atoi(arguments["--xdp-root-idx"].(string))
@@ -377,10 +451,10 @@ func main() {
 	}
 
 	spec, err := ebpf.LoadCollectionSpec(bpfProgram)
-    if err != nil {
-        log.Fatal(err)
+	if err != nil {
+		log.Fatal(err)
 	}
-	
+
 	// inject the template
 	tableTemplateSpec := &ebpf.MapSpec{
 		Type:       ebpf.Array,
@@ -390,8 +464,8 @@ func main() {
 	}
 	tableMapSpec, ok := spec.Maps["glb_tables"]
 	if !ok {
-        log.Fatal("no map named glb_tables found")
-    }
+		log.Fatal("no map named glb_tables found")
+	}
 	tableMapSpec.InnerMap = tableTemplateSpec
 
 	// get us some more space for maps
@@ -400,27 +474,27 @@ func main() {
 		log.Fatal("could not increase rlimit to get enough map space")
 	}
 
-    coll, err := ebpf.NewCollection(spec)
-    if err != nil {
-        log.Fatal(err)
-    }
+	coll, err := ebpf.NewCollection(spec)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer coll.Close()
 
 	// pin the xdpcap_hook, after removing it
 	_, err = os.Stat(xdpcapHookPath)
-    if !os.IsNotExist(err) {
-	  syscall.Unlink(xdpcapHookPath)
+	if !os.IsNotExist(err) {
+		syscall.Unlink(xdpcapHookPath)
 	}
 	err = coll.Maps["xdpcap_hook"].Pin(xdpcapHookPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	prog := coll.DetachProgram("xdp_glb_director")
-    if prog == nil {
-        log.Fatal("no program named xdp_glb_director found")
-    }
-    defer prog.Close()
+	if prog == nil {
+		log.Fatal("no program named xdp_glb_director found")
+	}
+	defer prog.Close()
 
 	app := &Application{
 		Config:              cfg,
@@ -441,13 +515,16 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		
+
 		rootIndex := uint32(xdpRootIndex)
 		progFd := prog.FD()
 		if err := progArray.Put(unsafe.Pointer(&rootIndex), unsafe.Pointer(&progFd)); err != nil {
 			log.Fatal(err)
 		}
 	}
+
+	// and now drop out PID file too
+	ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
 
 	// let systemd know we're done; ignore the response, we don't care if it's not supported
 	daemon.SdNotify(false, daemon.SdNotifyReady)
@@ -461,7 +538,7 @@ func main() {
 		sig := <-sigs
 
 		if sig == syscall.SIGUSR1 {
-			// reload
+			gracefullReloadByExec()
 		} else {
 			break
 		}

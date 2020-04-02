@@ -8,10 +8,11 @@ Wants=network-online.target
 Type=notify
 # NotifyAccess will allow the main pid to send the above ready message (which is also the default).
 NotifyAccess=main
-Restart=always
+Restart=on-failure
 EnvironmentFile=/etc/default/glb-director-xdp
-ExecStart=/bin/sh -c "exec /usr/sbin/glb-director-xdp ${GLB_DIRECTOR_XDP_ROOT_PATHS} --config-file=${GLB_DIRECTOR_XDP_CONFIG_FILE} --forwarding-table=${GLB_DIRECTOR_XDP_FORWARDING_TABLE} --bpf-program=${GLB_DIRECTOR_XDP_BPF_PROGRAM} ${GLB_DIRECTOR_XDP_EXTRA_ARGS}"
-ExecReload=/bin/kill -USR1 $MAINPID
+ExecStart=/bin/sh -c "exec /usr/sbin/glb-director-xdp ${GLB_DIRECTOR_XDP_ROOT_PATHS} --pid-file=/run/glb-director-xdp.pid --config-file=${GLB_DIRECTOR_XDP_CONFIG_FILE} --forwarding-table=${GLB_DIRECTOR_XDP_FORWARDING_TABLE} --bpf-program=${GLB_DIRECTOR_XDP_BPF_PROGRAM} ${GLB_DIRECTOR_XDP_EXTRA_ARGS}"
+ExecReload=/bin/sh -c '/bin/kill -USR1 $(cat /run/glb-director-xdp.pid)'
+PIDFile=/run/glb-director-xdp.pid
 TimeoutStopSec=3
 
 [Install]
