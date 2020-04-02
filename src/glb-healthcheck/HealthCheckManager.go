@@ -120,7 +120,8 @@ func (hhc *HealthCheckManager) GetResults() map[HealthCheckTarget]HealthResult {
 // most importantly, we take a snapshot in time each check interval and use that
 // as the source of truth for that round, no mutations. next round we do
 // housekeeping like accepting new targets and throwing away ones that are gone.
-func (hhc *HealthCheckManager) Run(roundComplete chan bool) {
+func (hhc *HealthCheckManager) Run(roundComplete chan bool, SuccessesBeforeMarkedHealthy int,
+	FailuresBeforeMarkedFailed int) {
 	activeTargets := make(map[HealthCheckTarget]*HealthCheckMetadata)
 
 	for {

@@ -42,17 +42,18 @@ import (
 	"time"
 )
 
-var (
+const (
 	// timeout should be < interval
-	HealthCheckTimeout  = 1 * time.Second
-	HealthCheckInterval = 2 * time.Second
+	DefaultHealthCheckTimeout  = 1 * time.Second
+	DefaultHealthCheckInterval = 2 * time.Second
 )
 
 // Default values for the marking-thresholds for marking backends (un)healthy
-var (
-	SuccessesBeforeMarkedHealthy = 3
-	FailuresBeforeMarkedFailed   = 3
+const (
+	DefaultSuccessesBeforeMarkedHealthy = 3
+	DefaultFailuresBeforeMarkedFailed = 3
 )
+
 func main() {
 	usage := `GLB Director->Proxy Healthcheck Service
 
@@ -88,17 +89,21 @@ Options:
 		ctx.logContext.Fatalf("Could not load initial forwarding table: %v", err)
 		return
 	}
-
+	
+	HealthCheckTimeout := DefaultHealthCheckTimeout
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec != 0 {
 		HealthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * time.Millisecond
 	}
 
+	HealthCheckInterval := DefaultHealthCheckInterval
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec != 0 {
 		HealthCheckInterval = ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec * time.Millisecond
 	}
 
+	SuccessesBeforeMarkedHealthy := DefaultSuccessesBeforeMarkedHealthy
+	FailuresBeforeMarkedFailed := DefaultFailuresBeforeMarkedFailed
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger != 0 {
 		SuccessesBeforeMarkedHealthy = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
@@ -122,7 +127,7 @@ Options:
 
 	// run the check manager, and let it notify us whenever a HC round completed
 	healthRoundComplete := make(chan bool)
-	go ctx.checkManager.Run(healthRoundComplete)
+	go ctx.checkManager.Run(healthRoundComplete, SuccessesBeforeMarkedHealthy, FailuresBeforeMarkedFailed)
 
 	// handle SIGHUP and reload our forwarding table
 	sigs := make(chan os.Signal, 1)
