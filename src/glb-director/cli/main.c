@@ -38,71 +38,13 @@
 
 #include "log.h"
 
-#define GLB_BACKEND_HEALTH_DOWN 0
-#define GLB_BACKEND_HEALTH_UP 1
+#include "glb_consts.h"
+#include "glb_config_types.h"
 
-#define GLB_BACKEND_STATE_FILLING 0
-#define GLB_BACKEND_STATE_ACTIVE 1
-#define GLB_BACKEND_STATE_DRAINING_INACTIVE 2
-
-// http://www.iana.org/assignments/address-family-numbers/address-family-numbers.xhtml
-#define GLB_FAMILY_RESERVED 0
-#define GLB_FAMILY_IPV4 1
-#define GLB_FAMILY_IPV6 2
-
-#define GLB_IPPROTO_UDP 17
-#define GLB_IPPROTO_TCP 6
 
 int siphash(uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8_t *k);
 
 #pragma pack(1)
-
-typedef struct {
-	uint32_t file_fmt_ver;
-	uint32_t num_tables;
-	uint32_t table_entries;
-	uint32_t max_num_backends;
-	uint32_t max_num_binds;
-} bin_file_header;
-
-typedef struct {
-	uint32_t inet_family;
-
-	union {
-		char v6[16];
-		struct {
-			uint32_t v4;
-			char reserved[12];
-		};
-	} ip;
-
-	uint16_t state;
-	uint16_t health;
-} backend_entry;
-
-typedef struct {
-	uint32_t inet_family;
-
-	union {
-		char v6[16];
-		struct {
-			uint32_t v4;
-			char _[12];
-		};
-	} ip;
-
-	uint16_t ip_bits;
-
-	uint16_t port_start;
-	uint16_t port_end;
-	uint8_t ipproto;
-	uint8_t reserved;
-} bind_entry;
-
-typedef struct {
-	uint32_t primary_idx;
-	uint32_t secondary_idx;
-} table_entry;
 
 typedef struct {
 	uint32_t index;
@@ -404,9 +346,9 @@ int main(int argc, char *argv[])
 				free(bind_ip);
 
 				if (!strcmp(bind_proto, "tcp")) {
-					entry.ipproto = GLB_IPPROTO_TCP;
+					entry.ipproto = IPPROTO_TCP;
 				} else if (!strcmp(bind_proto, "udp")) {
-					entry.ipproto = GLB_IPPROTO_UDP;
+					entry.ipproto = IPPROTO_UDP;
 				} else {
 					glb_log_error_and_exit("Bad protocol!");
 				}
