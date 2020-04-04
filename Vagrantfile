@@ -134,6 +134,7 @@ Vagrant.configure("2") do |config|
             dpdk-devbind --bind=igb_uio eth1
             dpdk-devbind --status
 
+            apt install /vagrant/tmp/build/glb-director-cli*.deb
             apt install /vagrant/tmp/build/glb-director_*.deb
             apt install /vagrant/tmp/build/glb-healthcheck_*.deb
 
