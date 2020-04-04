@@ -38,9 +38,11 @@ cd $ROOTDIR
 
 make clean
 make -C cli clean
+make -C ftctl clean
 
 make
 make -C cli
+make -C ftctl
 
 ./cli/glb-director-cli build-config packaging/forwarding_table.json packaging/forwarding_table.bin
 
@@ -51,7 +53,9 @@ fpm -f -s dir -t deb \
     --license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	cli/glb-director-cli=/usr/sbin/ \
-	cli/glb-config-check=/usr/sbin/
+	cli/glb-config-check=/usr/sbin/ \
+	ftctl/glb-ftctl=/usr/sbin/
+
 
 fpm -f -s dir -t deb \
 	-n glb-director \
@@ -76,3 +80,4 @@ fi
 
 make clean
 make -C cli clean
+make -C ftctl clean
