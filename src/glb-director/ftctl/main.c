@@ -59,8 +59,8 @@ void glb_ftctl_usage()
 	printf("Usage: glb-ftctl <options> <ft.bin>\n"				\
 		   " Options: \n"												\
 		   "   -d, --detail			Print everything other than table-entries\n" \
-		   "   -n, --table-num <N>	Print information only for " \
-		   "this table (numbering starts with 0)\n"												\
+		   "   -n, --table-num <N>	Print information only for "		\
+		   "this table (numbering starts with 0)\n"						\
 		   "   -v, --verbose		Print everything\n"					\
 		   "\n"															\
 		   "   Default behavior:	Print only the common info\n\n"		\
@@ -68,7 +68,7 @@ void glb_ftctl_usage()
 }
 
 /*
- * fread_ret_check()
+ * glb_fread_ret_check()
  *
  * Function to check if the returned count by a call to fread() can be 
  * considered proper.
@@ -89,7 +89,7 @@ glb_fread_ret_check(size_t ret, size_t num_expect_to_read,
 			return 0;
 		}
 	}
-
+	
 	/* Proper read */
 	return 1;
 }
@@ -142,12 +142,12 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 	backend_entry *backendp;
 	bind_entry *bindp;
 	table_entry *tablep;
-
+	
 	uint32_t num_binds;
 	char hash_key[16];
 	char ip[INET_ADDRSTRLEN];
 	size_t ret;
-
+	
 	/* Read the # of backends that this BFT file knows about */
 	ret = fread(&num_backends, sizeof(uint32_t), 1, in);
 	if (!glb_fread_ret_check(ret, 1, TRUE)) {
@@ -156,7 +156,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 	
 	/* Deal with backends : read each backend & display same */
 	backendp = (backend_entry *) malloc(bfh->max_num_backends * \
-									   sizeof(backend_entry));
+										sizeof(backend_entry));
 	if (!backendp) {
 		return -1;
 	}	
@@ -164,7 +164,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 	if (!glb_fread_ret_check(ret, bfh->max_num_backends, FALSE)) {
 		return -1;
 	}
-
+	
 	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
 										   table_num)) {
 		printf("\n\n*** Table #: %d ***", table_num);
@@ -179,15 +179,13 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 			}
 		}
 	}
-
-
 	
 	/* Number of binds */
 	ret = fread(&num_binds, sizeof(uint32_t), 1, in);
 	if (!glb_fread_ret_check(ret, 1, TRUE)) {
 		return -1;
 	}
-
+	
 	/* Deal with binds: read & display each bind entry */
 	bindp = (bind_entry *)malloc(bfh->max_num_binds * sizeof(bind_entry));
 	if (!bindp) {
@@ -203,7 +201,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
 										   table_num)) {
 		printf("\n\nBinds:");
-
+		
 		for (i = 0; i < num_binds; i++) {
 			struct protoent *proto;
 			
@@ -217,15 +215,15 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 			}
 		}
 	}
-
+	
 	free(bindp);
-
+	
 	/* Hash key */
 	ret = fread(hash_key, 16, 1, in);
 	if (!glb_fread_ret_check(ret, 1, TRUE)) {
 		return -1;
 	}
-
+	
 	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
 										   table_num)) {
 		printf("\n\nHash-key: 0x");
@@ -239,7 +237,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 	if (!tablep) {
 		return -1;
 	}
-
+	
 	for (i = 0; i < bfh->table_entries; i++) {
 		ret = fread(&tablep->primary_idx, sizeof(uint32_t), 1, in);
 		if (!glb_fread_ret_check(ret, 1, TRUE)) {
@@ -283,13 +281,14 @@ glb_print_bin_file_header(bin_file_header *bfh)
 	printf("\n\tMax. # of binds: %u\n", bfh->max_num_binds);
 }
 
-static struct option longopts[] = {
-	{ "detail", no_argument, NULL, 'd' },
-	{ "num-table", required_argument, NULL, 'n' },
-	{ "verbose", no_argument, NULL, 'v' },
-	{ "help",		 no_argument,		NULL, 'h' },
-	{ NULL,			 0,					NULL,  0  }
-};
+static struct option longopts[] = \
+	{											
+	 {"detail", no_argument, NULL, 'd'},
+	 {"num-table", required_argument, NULL, 'n'},
+	 {"verbose", no_argument, NULL, 'v'},
+	 { "help", no_argument, NULL, 'h'},
+	 {NULL, 0, NULL,  0}
+	};
 
 /*
  * Parse the args & determine validity
@@ -305,9 +304,9 @@ static int
 parse_args(int argc, char **argv, const char **src_binary)
 {
 	int c;
-
+	
 	cli_config.table_num = FTCTL_TABLE_ENTRIES_ALL;
-
+	
 	while ((c = getopt_long(argc, argv, "n:dvh?", longopts,
 							NULL)) != -1) {
 		switch(c) {
@@ -318,7 +317,7 @@ parse_args(int argc, char **argv, const char **src_binary)
 		case 'n':
 			cli_config.table_num = atoi(optarg);
 			break;
-
+			
 		case 'v':
 			cli_config.verbose = TRUE;
 			break;
@@ -356,7 +355,6 @@ main(int argc, char **argv)
 		return -1;
 	}
 	
-
 	/* Open the binary forwarding table file for reading */
     FILE *in = fopen(src_binary, "rb");
     if (in == NULL) {
@@ -380,12 +378,12 @@ main(int argc, char **argv)
     if (!glb_fread_ret_check(ret, 1, TRUE)) {
         return -1;
     }
-
+	
     /* Print the header */
     glb_print_bin_file_header(bfh);
-
+	
     printf("\nNumber of tables: %u", bfh->num_tables);
-
+	
 	if (cli_config.detailed || cli_config.verbose) {
 		/* For each table, read the fields & display same */
 		for (i = 0; i < bfh->num_tables; i++) {
