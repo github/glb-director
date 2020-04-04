@@ -165,8 +165,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 		return -1;
 	}
 	
-	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
-										   table_num)) {
+	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num, table_num)) {
 		printf("\n\n*** Table #: %d ***", table_num);
 		printf("\n\nBackends:");
 		for (i = 0; i < num_backends; i++) {
@@ -198,8 +197,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 		return -1;
 	}
 
-	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
-										   table_num)) {
+	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num, table_num)) {
 		printf("\n\nBinds:");
 		
 		for (i = 0; i < num_binds; i++) {
@@ -224,8 +222,7 @@ glb_read_per_table_fields(FILE *in, const bin_file_header *bfh,
 		return -1;
 	}
 	
-	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num,
-										   table_num)) {
+	if (FTCTL_CHECK_IF_ENTRIES_ALL_OR_THIS(cli_config.table_num, table_num)) {
 		printf("\n\nHash-key: 0x");
 		for (i = 0; i < 16; i++) {
 			printf("%x", (unsigned char)hash_key[i]);
