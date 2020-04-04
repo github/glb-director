@@ -56,10 +56,10 @@ ftctl_config_t cli_config;
  */
 void glb_ftctl_usage()
 {
-	printf("Usage: glb-director-ftctl <options> <ft.bin>\n"				\
+	printf("Usage: glb-ftctl <options> <ft.bin>\n"				\
 		   " Options: \n"												\
 		   "   -d, --detail			Print everything other than table-entries\n" \
-		   "   -n, --table-num <N>	Print forwarding-table entries only for " \
+		   "   -n, --table-num <N>	Print information only for " \
 		   "this table (numbering starts with 0)\n"												\
 		   "   -v, --verbose		Print everything\n"					\
 		   "\n"															\
