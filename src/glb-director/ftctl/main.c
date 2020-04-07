@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <netdb.h>
-#include "glb-includes/glb_common_includes.h"
 #include "../glb_consts.h"
 #include "glb_config_types.h"
 #include "glb-ftctl.h"
