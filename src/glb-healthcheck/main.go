@@ -127,7 +127,7 @@ Options:
 
 	// run the check manager, and let it notify us whenever a HC round completed
 	healthRoundComplete := make(chan bool)
-	go ctx.checkManager.Run(healthRoundComplete, SuccessesBeforeMarkedHealthy, FailuresBeforeMarkedFailed)
+	go ctx.checkManager.Run(healthRoundComplete, successesBeforeMarkedHealthy, failuresBeforeMarkedFailed)
 
 	// handle SIGHUP and reload our forwarding table
 	sigs := make(chan os.Signal, 1)
