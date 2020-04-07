@@ -90,29 +90,29 @@ Options:
 		return
 	}
 	
-	HealthCheckTimeout := DefaultHealthCheckTimeout
+	healthCheckTimeout := DefaultHealthCheckTimeout
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec != 0 {
-		HealthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * time.Millisecond
+		healthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * time.Millisecond
 	}
 
-	HealthCheckInterval := DefaultHealthCheckInterval
+	healthCheckInterval := DefaultHealthCheckInterval
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec != 0 {
-		HealthCheckInterval = ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec * time.Millisecond
+		healthCheckInterval = ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec * time.Millisecond
 	}
 
-	SuccessesBeforeMarkedHealthy := DefaultSuccessesBeforeMarkedHealthy
-	FailuresBeforeMarkedFailed := DefaultFailuresBeforeMarkedFailed
+	successesBeforeMarkedHealthy := DefaultSuccessesBeforeMarkedHealthy
+	failuresBeforeMarkedFailed := DefaultFailuresBeforeMarkedFailed
 	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
 		ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger != 0 {
-		SuccessesBeforeMarkedHealthy = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
-		FailuresBeforeMarkedFailed   = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
+		successesBeforeMarkedHealthy = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
+		failuresBeforeMarkedFailed   = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
 	}
 
 	// the check manager will run the HC loop and manage most of the HC part of the work
-	ctx.checkManager = NewHealthCheckManager(HealthCheckTimeout, HealthCheckInterval, SuccessesBeforeMarkedHealthy,
-		FailuresBeforeMarkedFailed)
+	ctx.checkManager = NewHealthCheckManager(healthCheckTimeout, healthCheckInterval, successesBeforeMarkedHealthy,
+		failuresBeforeMarkedFailed)
 
 	err = ctx.SyncBackendsToCheckManager()
 	if err != nil {
