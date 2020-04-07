@@ -53,6 +53,14 @@ Health-checking configuration related to the actual sending of the probes and th
   }
 }
 ```
+### interval_ms
+_optional_
+
+This field specifies the duration of time, in milli seconds, between successive health-check probes sent to a given a L7 back-end.
+It applies to all back-ends for which health-checking is enabled.
+
+By default, 2 seconds.
+
 ### timeout_ms
 _optional_
 
@@ -61,14 +69,6 @@ At the conclusion of this duration, in the absence of a response the health-chec
 It applies to all back-ends for which health-checking is enabled.
 
 By default, 1 second.
-
-### interval_ms
-_optional_
-
-This field specifies the duration of time, in milli seconds, between successive health-check probes sent to a given a L7 back-end.
-It applies to all back-ends for which health-checking is enabled.
-
-By default, 2 seconds.
 
 ### trigger
 _optional_
