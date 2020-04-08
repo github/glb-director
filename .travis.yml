@@ -11,6 +11,8 @@ before_install:
   - sudo chmod a+rwx /var/run/libvirt/libvirt-sock
   - vagrant plugin install vagrant-mutate
   - vagrant box add debian/stretch64 --provider libvirt
+  - sudo sh -c "echo '/home/vagrant 192.168.0.0/16' >> /etc/exports"
+  - sudo systemctl restart nfs-server
 addons:
   apt:
     update: true
