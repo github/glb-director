@@ -28,8 +28,9 @@ The configuration for `glb-healthcheck` component is present by default at:
 ```
 
 ### forwarding_table
-####`src` and `dst`: configuration for the file-path for the source and destination JSON files to be processed by `glb-healthcheck`.
-By default, `src` is `/etc/glb/forwarding_table.src.json`; and `dst` is `/etc/glb/forwarding_table.checked.json`.
+####`src` and `dst`
+
+These fields specify the file paths for the source and destination JSON files to be processed by `glb-healthcheck`. By default, `src` is `/etc/glb/forwarding_table.src.json`; and `dst` is `/etc/glb/forwarding_table.checked.json`.
 
 This instructs the healthchecker to load `/etc/glb/forwarding_table.src.json`, perform any checks defined inside it, and keep a `/etc/glb/forwarding_table.checked.json` up to date with valid/live health state. Any time it changes the `dst` file, it also runs the reload command (which in this case compiles the table and reloads the director to pick up those changes).
 
