@@ -5,8 +5,8 @@ script: script/cibuild
 before_install:
   - sudo apt-get install -y linux-headers-$(uname -r)
   - sudo apt-get install -y libvirt-dev libvirt-bin qemu-utils qemu-kvm
-  - wget https://releases.hashicorp.com/vagrant/2.1.5/vagrant_2.1.5_x86_64.deb
-  - sudo dpkg -i vagrant_2.1.5_x86_64.deb
+  - wget https://releases.hashicorp.com/vagrant/2.2.7/vagrant_2.2.7_x86_64.deb
+  - sudo dpkg -i vagrant_2.2.7_x86_64.deb
   - vagrant plugin install vagrant-libvirt
   - sudo chmod a+rwx /var/run/libvirt/libvirt-sock
   - vagrant plugin install vagrant-mutate
