@@ -47,7 +47,7 @@ Health-checking configuration related to the actual sending of the probes and th
      "interval_ms": 4000,
      "timeout_ms": 2000,
      "trigger": 4
-  }
+  },
   "tables":
   {
      "backends": [{ "ip": "<a.b.c.d>", "state": "<state-name>", "healthchecks": {"<protocol>": <port-number>, "<tunnel-type>": <gue-port-number>, "http_uri": "<URL if protocol is "http">" } }]
