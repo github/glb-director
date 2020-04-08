@@ -42,7 +42,7 @@ Specifies the commands to run upon creation, by `glb-healthcheck`, of a new/upda
 Health-checking configuration related to the actual sending of the probes and the receiving of the responses is listed in this file:
 ```
 {
- "healthcheck_defaults":
+ "healthchecks":
   {
      "interval_ms": 4000,
      "timeout_ms": 2000,
@@ -86,7 +86,7 @@ _mandatory_
 This field specifies the list of back-ends to which glb-director will load-balance the traffic. The list of back-ends for which to do the health-checking, is determined by the presence of "healthchecks" for the resepctive backends. 
 
 If health-checking is not desired for a specific back-end, the parameters under "healthchecks" for that back-end can be omitted.
-If present, then along with the settings under "healthcheck_defaults" it determines the characteristics of health-checking for the back-ends listed.
+If present, then along with the settings under "healthchecks" it determines the characteristics of health-checking for the back-ends listed.
 
 For each back-end listed, health-check probes of the specified protocol are sent to its IP and port as listed.
 

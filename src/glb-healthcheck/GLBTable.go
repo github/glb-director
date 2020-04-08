@@ -77,7 +77,7 @@ type GLBHealthGlobalConfig struct {
 }
 
 type GLBGlobalConfig struct {
-	HealthcheckGlobalCfg *GLBHealthGlobalConfig `json:"healthcheck_defaults"`
+	HealthcheckGlobalCfg *GLBHealthGlobalConfig `json:"healthchecks"`
 	Tables               []*GLBTable            `json:"tables"`
 }
 
