@@ -14,7 +14,6 @@ before_install:
   - sudo sh -c "echo '/home/travis/build/github/glb-director 192.168.0.0/16(sync,no_subtree_check)' >> /etc/exports"
   - sudo systemctl restart nfs-server || sudo systemctl status nfs-server -l
   - cat /etc/exports
-  - exit 1
 addons:
   apt:
     update: true
