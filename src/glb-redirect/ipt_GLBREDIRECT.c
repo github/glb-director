@@ -560,7 +560,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			u64_stats_update_begin(&s->syncp);
 			s->accepted_established_packets++;
 			u64_stats_update_end(&s->syncp);
-			sock_put(nsk);
+			sock_gen_put(nsk);
 			return 1;
 		}
 	}
