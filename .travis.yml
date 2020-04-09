@@ -1,0 +1,10 @@
+dist: bionic
+sudo: required
+install: true
+script: script/cibuild-kata
+before_install:
+  - bash -c "$(curl -fsSL https://raw.githubusercontent.com/kata-containers/tests/master/cmd/kata-manager/kata-manager.sh) install-docker-system"
+  - sudo docker run --rm -it debian:stretch uname -r
+addons:
+  apt:
+    update: true
