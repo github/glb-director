@@ -6,6 +6,7 @@ Vagrant.configure("2") do |config|
 
   config.vm.provider :libvirt do |libvirt|
     libvirt.driver = "qemu"
+    config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: ".git/"
   end
 
   config.vm.synced_folder "src/glb-wireshark-dissector/", "/home/vagrant/.wireshark", type: 'rsync'
