@@ -115,4 +115,4 @@ If `glb-healthcheck` is used, a backend will be considered down if either the `g
 
 ## Healthcheck configuration options
 
-Refer [GLB Healthcheck Configuration](../development/glb-healthcheck-configuration.md) for more details. 
+Refer [GLB Healthcheck Configuration](glb-healthcheck-configuration.md) for more details. 
