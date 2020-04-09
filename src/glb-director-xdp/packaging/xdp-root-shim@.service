@@ -1,5 +1,5 @@
 [Unit]
-Description=GLB Director
+Description=XDP Root Shim provides a root array to bind and replace XDP programs on a given interface
 After=network.target network-online.target
 Wants=network-online.target
 
@@ -9,9 +9,8 @@ Type=notify
 # NotifyAccess will allow the main pid to send the above ready message (which is also the default).
 NotifyAccess=main
 Restart=always
-EnvironmentFile=/etc/default/glb-director
-ExecStart=/usr/sbin/glb-director $GLB_DIRECTOR_EAL_ARGS -- --config-file ${GLB_DIRECTOR_CONFIG_FILE} --forwarding-table ${GLB_DIRECTOR_FORWARDING_TABLE}
-ExecReload=/bin/kill -USR1 $MAINPID
+EnvironmentFile=/etc/default/xdp-root-shim
+ExecStart=/usr/sbin/xdp-root-shim /usr/share/xdp-root-shim/tailcall.o ${BPFFS_INTERFACE_PREFIX}%i %i
 TimeoutStopSec=3
 
 [Install]

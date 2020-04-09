@@ -1,8 +1,7 @@
 /*
  * BSD 3-Clause License
  * 
- * Copyright (c) 2018 GitHub.
- * All rights reserved.
+ * Copyright (c) 2019, Cloudflare. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,20 +29,39 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef XDPCAP_HOOK_H
+#define XDPCAP_HOOK_H
 
-/* configure packet parsing to use linearisation space and the encap_packet_data_read hook */
-#define GLB_PACKET_PARSING_LINEARISER
-const void *encap_packet_data_read(void *packet_data, uint32_t off, uint32_t len, void *buf);
+#include <linux/bpf.h>
 
-static void glb_log_info(const char *format, ...); /* let glb-hashing know this is linked */
+/**
+ * Create a bpf map suitable for use as an xdpcap hook point.
+ *
+ * For example:
+ *   struct bpf_map_def xdpcap_hook = XDPCAP_HOOK();
+ */
+#define XDPCAP_HOOK() { \
+	.type = BPF_MAP_TYPE_PROG_ARRAY, \
+	.key_size = sizeof(int), \
+	.value_size = sizeof(int), \
+	.max_entries = 5, \
+}
 
-#include <arpa/inet.h>
-#include <glb-hashing/packet_parsing.h>
+/**
+ * Return action, exposing the action and input packet to xdpcap hook.
+ *
+ *   return xdpcap_exit(ctx, &hook, XDP_PASS)
+ *
+ * is equivalent to:
+ *
+ *   return XDP_PASS;
+ */
+__attribute__((__always_inline__))
+static inline enum xdp_action xdpcap_exit(struct xdp_md *ctx, void *hook_map, enum xdp_action action) {
+	// tail_call
+	// Some headers define tail_call (Cilium), others bpf_tail_call (kernel self tests). Use the helper ID directly
+	((int (*)(struct xdp_md *, void *, int))12)(ctx, hook_map, action);
+	return action;
+}
 
-struct glb_fwd_config_ctx;
-struct glb_fwd_config_content_table;
-
-int glb_calculate_packet_route(struct glb_fwd_config_ctx *ctx, unsigned int table_id,
-			  void *packet_data, glb_route_context *route_context);
-
-int glb_encapsulate_packet(struct ether_hdr *eth_hdr, glb_route_context *route_context);
+#endif /* XDPCAP_HOOK_H */
