@@ -63,7 +63,7 @@ type HealthCheckerAppContext struct {
 	checkManager *HealthCheckManager
 
 	sync.Mutex
-	forwardingTableConfig *GLBTableConfig
+	forwardingTableConfig *GLBGlobalConfig
 	dirty                 bool
 	nextAllowedDirtyClear time.Time
 }
@@ -205,8 +205,7 @@ func (ctx *HealthCheckerAppContext) LoadForwardingTable() error {
 	// also allow write outs immediately, since this was an explicit (externally requested) reload
 	ctx.nextAllowedDirtyClear = time.Now()
 	ctx.Unlock()
-
-	return ctx.SyncBackendsToCheckManager()
+	return nil
 }
 
 func (ctx *HealthCheckerAppContext) SyncAndMaybeReload() {

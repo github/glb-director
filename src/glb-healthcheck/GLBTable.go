@@ -35,6 +35,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"time"
 )
 
 type GLBHealthcheckConfig struct {
@@ -69,17 +70,24 @@ type GLBTable struct {
 	Backends []*GLBBackend `json:"backends"`
 }
 
-type GLBTableConfig struct {
-	Tables []*GLBTable `json:"tables"`
+type GLBHealthGlobalConfig struct {
+	TimeoutMilliSec  time.Duration `json:"timeout_ms,omitempty"`
+	IntervalMilliSec time.Duration `json:"interval_ms,omitempty"`
+	Trigger          int           `json:"trigger,omitempty"`
 }
 
-func LoadGLBTableConfig(filename string) (*GLBTableConfig, error) {
+type GLBGlobalConfig struct {
+	HealthcheckGlobalCfg *GLBHealthGlobalConfig `json:"healthchecks"`
+	Tables               []*GLBTable            `json:"tables"`
+}
+
+func LoadGLBTableConfig(filename string) (*GLBGlobalConfig, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &GLBTableConfig{}
+	c := &GLBGlobalConfig{}
 	err = json.Unmarshal(bytes, c)
 	if err != nil {
 		return nil, err
@@ -88,7 +96,7 @@ func LoadGLBTableConfig(filename string) (*GLBTableConfig, error) {
 	return c, nil
 }
 
-func (cfg *GLBTableConfig) WriteToFile(filename string) error {
+func (cfg *GLBGlobalConfig) WriteToFile(filename string) error {
 	bytes, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err

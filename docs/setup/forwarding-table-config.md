@@ -115,15 +115,4 @@ If `glb-healthcheck` is used, a backend will be considered down if either the `g
 
 ## Healthcheck configuration options
 
-`/etc/glb/healthcheck.conf` defines the few values that need to be configured to use the healthchecker. For most use cases, the default will work:
-```
-{
-  "forwarding_table": {
-    "src": "/etc/glb/forwarding_table.src.json",
-    "dst": "/etc/glb/forwarding_table.checked.json"
-  },
-  "reload_command": "glb-director-cli build-config /etc/glb/forwarding_table.checked.json /etc/glb/forwarding_table.checked.bin && systemctl reload glb-director"
-}
-```
-
-This instructs the healthchecker to load `/etc/glb/forwarding_table.src.json`, perform any checks defined inside it, and keep a `/etc/glb/forwarding_table.checked.json` up to date with valid/live health state. Any time it changes the `dst` file, it also runs the reload command (which in this case compiles the table and reloads the director to pick up those changes).
+Refer [GLB Healthcheck Configuration](glb-healthcheck-configuration.md) for more details. 
