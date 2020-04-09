@@ -12,7 +12,7 @@ before_install:
   - vagrant plugin install vagrant-mutate
   - vagrant box add debian/stretch64 --provider libvirt
   - sudo sh -c "echo '/home/travis 192.168.0.0/16 -alldirs -mapall=501:20' >> /etc/exports"
-  - sudo systemctl restart nfs-server || sudo systemctl status nfs-server
+  - sudo systemctl restart nfs-server || sudo systemctl status nfs-server -l
   - cat /etc/exports
   - exit 1
 addons:
