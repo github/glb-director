@@ -115,10 +115,14 @@ struct glb_fwd_config_ctx {
 	struct glb_fwd_config_content *raw_config;
 	uint64_t raw_config_size;
 
+#ifndef NO_DPDK
 	struct rte_acl_ctx *bind_classifier_v4;
 	struct rte_acl_ctx *bind_classifier_v6;
 
 	rte_atomic32_t _ref_count;
+#else
+	uint32_t _ref_count;
+#endif
 };
 
 struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file);

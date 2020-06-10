@@ -1,7 +1,8 @@
 mkdeb:
 	make -C src/glb-redirect mkdeb
 	make -C src/glb-healthcheck mkdeb
-	cd src/glb-director && script/cibuild
+	cd src/glb-director-xdp && script/create-packages
+	cd src/glb-director && script/create-packages
 
 clean:
 	make -C src/glb-redirect clean

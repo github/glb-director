@@ -49,10 +49,13 @@ CFLAGS += -O3 -g
 CFLAGS += $(WERROR_FLAGS)
 CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
 CFLAGS += -DSTATSD
+CFLAGS += -DSYSTEMD
 #CFLAGS += -DGLB_DUMP_FULL_PACKET
+CFLAGS += -I$(SRCDIR)/../ # for <glb-hashing/...>
 
 LDFLAGS += -z relro -z now
 LDFLAGS += -ljansson
+LDFLAGS += -lsystemd
 
 # disable since libxenstore.so isn't linked properly
 CONFIG_RTE_LIBRTE_PMD_XENVIRT = n

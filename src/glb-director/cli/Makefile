@@ -73,44 +73,48 @@ LDFLAGS += -ljansson
 
 glb-director-cli: main.c
 	gcc \
-		$(CFLAGS) $(LDFLAGS) \
+		$(CFLAGS) \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		main.c \
-		../siphash24.c \
+		../siphash24.c $(LDFLAGS)\
 		-o glb-director-cli
 
 glb-config-check:
 	gcc \
-		$(CFLAGS) $(LDFLAGS) \
+		$(CFLAGS) \
 		$(CHECK_SRCS) \
 		-o glb-config-check \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
-		-ldpdk -lpcap \
+		-ldpdk -lpcap $(LDFLAGS)\
 		-m64 -mssse3
 
 glb-director-pcap:
 	gcc \
-		$(CFLAGS) $(LDFLAGS) \
+		$(CFLAGS) \
 		$(PCAP_SRCS) \
 		-o glb-director-pcap \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
 		-lpcap \
-		-DPCAP_MODE \
+		-DPCAP_MODE $(LDFLAGS)\
 		-m64 -mssse3
 
 glb-director-stub-server:
 	gcc \
-		$(CFLAGS) $(LDFLAGS) \
+		$(CFLAGS) \
 		$(STUB_SRCS) \
 		-o glb-director-stub-server \
 		-I`pwd`/.. \
+		-I`pwd`/../.. \
 		-I/usr/include/dpdk \
 		-I/usr/include/x86_64-linux-gnu \
-		-DPCAP_MODE \
+		-DPCAP_MODE $(LDFLAGS)\
 		-m64 -mssse3
 
 clean:

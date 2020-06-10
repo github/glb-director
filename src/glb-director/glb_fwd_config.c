@@ -40,10 +40,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef PCAP_MODE
+#define NO_DPDK 1
+#endif
+
+#ifndef NO_DPDK
 #include <rte_atomic.h>
 #include <rte_log.h>
 
 #include "bind_classifier.h"
+#endif
+
 #include "config.h"
 #include "glb_fwd_config.h"
 #include "log.h"
@@ -79,7 +86,11 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 		goto fail;
 	}
 
+#ifndef NO_DPDK
 	rte_atomic32_set(&ctx->_ref_count, 0);
+#else
+	ctx->_ref_count = 0;
+#endif
 
 	ctx->raw_config_size = fs.st_size;
 	ctx->raw_config = malloc(ctx->raw_config_size);
@@ -104,7 +115,7 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 		goto fail;
 	}
 
-#ifndef PCAP_MODE
+#ifndef NO_DPDK
 	/* dont create bind classifiers in pcap mode, requires dpdk*/
 	glb_log_info(
 	    "glb-config raw config looks good, generating classifiers...");
@@ -139,7 +150,11 @@ glb_fwd_config_ctx_incref(struct glb_fwd_config_ctx *ctx)
 	if (ctx == NULL)
 		return NULL;
 
+#ifndef NO_DPDK
 	rte_atomic32_inc(&ctx->_ref_count);
+#else
+	ctx->_ref_count++;
+#endif
 
 	return ctx;
 }
@@ -149,9 +164,14 @@ void glb_fwd_config_ctx_decref(struct glb_fwd_config_ctx *ctx)
 	if (ctx == NULL)
 		return;
 
+#ifndef NO_DPDK
 	if (rte_atomic32_dec_and_test(&ctx->_ref_count)) {
+#else
+	ctx->_ref_count--;
+	if (ctx->_ref_count <= 0) {
+#endif
 // dont deal with bind classifiers in pcap mode, requires dpdk
-#ifndef PCAP_MODE
+#ifndef NO_DPDK
 		// no more refs, we can free this!
 		if (ctx->bind_classifier_v4 != NULL)
 			rte_acl_free(ctx->bind_classifier_v4);

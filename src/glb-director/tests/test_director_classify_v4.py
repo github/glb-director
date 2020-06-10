@@ -22,7 +22,7 @@ import socket, struct, time
 
 class TestGLBClassifyV4(GLBDirectorTestBase):
 	def test_01_route_classified_v4(self):
-		test_packet = Ether()/IP(src="10.11.12.13", dst="1.1.1.1")/TCP(sport=45678, dport=80)
+		test_packet = Ether(dst='56:0e:37:46:a2:21', src='b6:59:5f:11:c1:2a')/IP(src="10.11.12.13", dst="1.1.1.1")/TCP(sport=45678, dport=80)
 		self.sendp(test_packet, iface=self.IFACE_NAME_PY)
 		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == '3.4.5.6')
 

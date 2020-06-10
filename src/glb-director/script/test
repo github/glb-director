@@ -49,7 +49,7 @@ end_fold
 
 begin_fold "Running scapy packet tests against glb-director"
 (
-  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v
+  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
 )
 end_fold
 

@@ -13,3 +13,4 @@ build
 *.mod.c
 *.symvers
 *.order
+*.deb

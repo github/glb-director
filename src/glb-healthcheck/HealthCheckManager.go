@@ -41,11 +41,6 @@ import (
 )
 
 var (
-	SuccessesBeforeMarkedHealthy = 3
-	FailuresBeforeMarkedFailed   = 3
-)
-
-var (
 	managerCounters = expvar.NewMap("HealthCheckManager")
 )
 
@@ -65,18 +60,23 @@ type HealthCheckManager struct {
 	results     map[HealthCheckTarget]HealthResult
 }
 
-func NewHealthCheckManager(checkTimeout time.Duration, checkInterval time.Duration) *HealthCheckManager {
+func NewHealthCheckManager(checkTimeout time.Duration, checkInterval time.Duration, triggerHealthy int,
+	triggerUnhealthy int) *HealthCheckManager {
 	tunnelChecker := &TunnelHealthChecker{}
 	tunnelChecker.Initialize(checkTimeout)
 
 	httpChecker := &HttpHealthChecker{}
 	httpChecker.Initialize(checkTimeout)
 
+	tcpChecker := &TcpHealthChecker{}
+	tcpChecker.Initialize(checkTimeout)
+
 	m := &HealthCheckManager{
 		checkTimeout:  checkTimeout,
 		checkInterval: checkInterval,
 		checkers: map[string]HealthChecker{
 			"http": httpChecker,
+			"tcp":  tcpChecker,
 			"gue":  tunnelChecker,
 			"fou":  tunnelChecker,
 		},
@@ -120,7 +120,8 @@ func (hhc *HealthCheckManager) GetResults() map[HealthCheckTarget]HealthResult {
 // most importantly, we take a snapshot in time each check interval and use that
 // as the source of truth for that round, no mutations. next round we do
 // housekeeping like accepting new targets and throwing away ones that are gone.
-func (hhc *HealthCheckManager) Run(roundComplete chan bool) {
+func (hhc *HealthCheckManager) Run(roundComplete chan bool, SuccessesBeforeMarkedHealthy int,
+	FailuresBeforeMarkedFailed int) {
 	activeTargets := make(map[HealthCheckTarget]*HealthCheckMetadata)
 
 	for {

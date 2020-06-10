@@ -18,13 +18,15 @@
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMPv6PacketTooBig, ICMPv6EchoRequest
 from nose.tools import assert_equals
+from nose.plugins.attrib import attr
 import socket, struct
 
+# @attr(director_type='dpdk')
 class TestGLBClassifyV6(GLBDirectorTestBase):
 	def test_01_route_classified_v6(self):
 		test_packet = Ether()/IPv6(src='fd91:79d3:d621::1234', dst='fdb4:98ce:52d4::42')/TCP(sport=45678, dport=80)
 		self.sendp(test_packet, iface=self.IFACE_NAME_PY)
-		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == '5.6.7.8')
+		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and isinstance(packet.payload.payload, UDP) and packet.payload.payload.dport == self.DIRECTOR_GUE_PORT)
 
 		fou_ip = packet.payload
 		assert isinstance(fou_ip, IP) # Expecting an IP packet
@@ -55,7 +57,7 @@ class TestGLBClassifyV6(GLBDirectorTestBase):
 	def test_02_icmp_fragmentation_required(self):
 		test_packet = Ether()/IPv6(src='fd91:79d3:d621::6666', dst='fdb4:98ce:52d4::42')/ICMPv6PacketTooBig()/IPv6(src="fdb4:98ce:52d4::42", dst="fd91:79d3:d621::1234")/TCP(sport=80, dport=45678)
 		self.sendp(test_packet, iface=self.IFACE_NAME_PY)
-		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == '5.6.7.8')
+		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and isinstance(packet.payload.payload, UDP) and packet.payload.payload.dport == self.DIRECTOR_GUE_PORT)
 
 		assert isinstance(packet, Ether)
 		assert_equals(packet.dst, self.py_side_mac)
@@ -87,7 +89,7 @@ class TestGLBClassifyV6(GLBDirectorTestBase):
 	def test_03_icmp_echo_request(self):
 		test_packet = Ether()/IPv6(src='fd91:79d3:d621::1234', dst='fdb4:98ce:52d4::42')/ICMPv6EchoRequest()
 		self.sendp(test_packet, iface=self.IFACE_NAME_PY)
-		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == '5.6.7.8')
+		packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and isinstance(packet.payload.payload, UDP) and packet.payload.payload.dport == self.DIRECTOR_GUE_PORT)
 
 		assert isinstance(packet, Ether)
 		assert_equals(packet.dst, self.py_side_mac)
