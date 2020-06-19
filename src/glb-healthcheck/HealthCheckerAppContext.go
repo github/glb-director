@@ -141,6 +141,11 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 					successes++
 				} else {
 					failures++
+
+					// when we see a failure, tag in the failure as well
+					logContext = logContext.WithFields(log.Fields{
+						target.CheckType + "Error": targetResults[target].Failure,
+					})
 				}
 
 				// add in tags for each check type
