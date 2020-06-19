@@ -146,6 +146,12 @@ Options:
 				continue
 			}
 
+			err = ctx.SyncBackendsToCheckManager()
+			if err != nil {
+				ctx.logContext.Errorf("Could not sync backends after reload: %v", err)
+				continue
+			}
+
 			ctx.SyncAndMaybeReload()
 		}
 	}()
