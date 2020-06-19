@@ -143,7 +143,7 @@ Options:
 
 			err = ctx.SyncBackendsToCheckManager()
 			if err != nil {
-				ctx.logContext.Errorf("Could sync backends after reload: %v", err)
+				ctx.logContext.Errorf("Could not sync backends after reload: %v", err)
 				continue
 			}
 
