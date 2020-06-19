@@ -69,7 +69,12 @@ Options:
 	arguments, _ := docopt.Parse(usage, nil, true, "GLB Director->Proxy Healthcheck Service", false)
 
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+
+	if os.Getenv("GLB_HEALTHCHECK_LOG_DEBUG") == "1" {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 
 	ctx := &HealthCheckerAppContext{dirty: true, nextAllowedDirtyClear: time.Now()}
 	ctx.logContext = log.WithFields(log.Fields{
