@@ -39,6 +39,7 @@ protocol bgp director1 {
 
   import filter glbdemo;
   export none;
+  hold time 10;
 
   neighbor 192.168.50.6 as 65006;
 }
@@ -48,6 +49,7 @@ protocol bgp director2 {
 
   import filter glbdemo;
   export none;
+  hold time 10;
 
   neighbor 192.168.50.7 as 65007;
 }
