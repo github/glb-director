@@ -1,10 +1,13 @@
-#!/bin/bash -e
+#!/bin/bash 
+
+set -x
 
 tech_type="$1"
 
 local_ipv4_ip="$2"
 last_octet="${local_ipv4_ip#*.*.*.}"
 
+/sbin/ifconfig
 ## BIRD
 
 cat >/etc/bird/bird.conf <<EOF
@@ -122,8 +125,9 @@ EOF
 fi
 
 if [[ "$tech_type" == "xdp" ]]; then
+ set -x
   cat >/etc/default/glb-director-xdp <<EOF
-GLB_DIRECTOR_XDP_ROOT_PATHS="--xdp-root-path=/sys/fs/bpf/xdp_root_array@eth1"
+GLB_DIRECTOR_XDP_ROOT_PATHS="--xdp-root-path=/sys/fs/bpf/xdp_root_array@ens6"
 GLB_DIRECTOR_XDP_CONFIG_FILE="/etc/glb/director.conf"
 GLB_DIRECTOR_XDP_FORWARDING_TABLE="/etc/glb/forwarding_table.checked.bin"
 GLB_DIRECTOR_XDP_BPF_PROGRAM="/usr/share/glb-director-xdp/glb_encap.o"
@@ -141,16 +145,16 @@ EOF
   mkdir -p /etc/systemd/system/glb-director-xdp.service.d/
   cat >/etc/systemd/system/glb-director-xdp.service.d/depend_on_shim.conf <<EOF
 [Unit]
-Requires=xdp-root-shim@eth1
-After=xdp-root-shim@eth1
+Requires=xdp-root-shim@ens6
+After=xdp-root-shim@ens6
 EOF
 
-  /sbin/ifconfig eth1 up "$local_ipv4_ip"
+  /sbin/ifconfig ens6 up "$local_ipv4_ip"
 
   systemctl daemon-reload
-  systemctl enable xdp-root-shim@eth1
+  systemctl enable 'xdp-root-shim@ens6'
   systemctl enable glb-director-xdp
-  systemctl restart xdp-root-shim@eth1
+  systemctl restart 'xdp-root-shim@ens6'
   systemctl restart glb-director-xdp
 
 fi

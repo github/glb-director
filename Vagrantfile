@@ -13,27 +13,47 @@ Vagrant.configure("2") do |config|
   config.vm.box = "debian/stretch64"
 
   config.vm.synced_folder "src/glb-wireshark-dissector/", "/home/vagrant/.config/wireshark/plugins/glb-wireshark-dissector", type: 'rsync'
+  config.vm.synced_folder ".", "/vagrant", type: 'rsync'
 
   config.vm.provision :shell, inline: <<-SHELL
+    ls -al /vagrant/
     echo 'deb http://ftp.debian.org/debian stretch-backports main' >/etc/apt/sources.list.d/backports.list
+
+    export DEBIAN_FRONTEND=noninteractive
     apt-get update
-
-    DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade
-    sudo apt install -y -t stretch-backports linux-image-amd64 linux-headers-amd64 iproute2
-
-    DEBIAN_FRONTEND=noninteractive apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev linux-headers-amd64 python-pip jq bird curl libsystemd-dev libbpf-dev
+    apt-get -y dist-upgrade
+    apt-get install -y -t stretch-backports linux-image-amd64 linux-headers-amd64 iproute2
+    apt-get install -y tcpdump net-tools tshark build-essential libxtables-dev linux-headers-amd64 python-pip jq bird curl libsystemd-dev libbpf-dev
 
     groupadd wireshark || true
     usermod -a -G wireshark vagrant || true
     chgrp wireshark /usr/bin/dumpcap
     chmod 4750 /usr/bin/dumpcap
     pip install -r /vagrant/requirements.txt
+    ifconfig 
   SHELL
   config.vm.provision :reload
 
   config.vm.define "router" do |v|
-    v.vm.network "private_network", ip: "192.168.40.3", virtualbox__intnet: "glb_user_network"
-    v.vm.network "private_network", ip: "192.168.50.2", virtualbox__intnet: "glb_datacenter_network", :mac=> "001122334455"
+    v.vm.network :private_network, 
+         :ip=> "192.168.40.3", 
+	 :name => "glb_user_network",
+	 :mode => "none",
+	 :dhcp_enabled=> false,
+	 :virtualbox__intnet=> "glb_user_network",
+	 :libvirt__forward_mode => "none",
+	 :libvirt__dhcp_enabled => false
+
+    v.vm.network :private_network, 
+         :ip=> "192.168.50.2", 
+	 :mac=> "001122334455", 
+	 :name => "glb_datacenter_network",
+	 :mode => "none",
+	 :dhcp_enabled=> false,
+	 :virtualbox__intnet=> "glb_datacenter_network",
+	 :libvirt__forward_mode => "none",
+	 :libvirt__dhcp_enabled => false
+
     v.vm.hostname = "router"
 
     v.vm.provision :shell, name: 'Enable forwarding and configure router', inline: <<-SHELL
@@ -47,29 +67,65 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "user" do |v|
-    v.vm.network "private_network", ip: "192.168.40.2", virtualbox__intnet: "glb_user_network"
+    v.vm.network :private_network, 
+         :ip=> "192.168.40.2", 
+	 :name => "glb_user_network",
+	 :mode => "none",
+	 :dhcp_enabled=> false,
+	 :virtualbox__intnet=> "glb_user_network",
+	 :libvirt__forward_mode => "none",
+	 :libvirt__dhcp_enabled => false
     v.vm.hostname = "user"
 
     v.vm.provision :shell, inline: <<-SHELL
+      ifconfig 
       /vagrant/script/helpers/configure-vagrant-user.sh
+      ip route del default via 192.168.121.1
+      ip route add default via 192.168.40.3
 
-      ip addr add 192.168.40.50/24 dev eth1 || true
-      ip addr add 192.168.40.51/24 dev eth1 || true
-      ip addr add 192.168.40.52/24 dev eth1 || true
-      ip addr add 192.168.40.53/24 dev eth1 || true
-      ip addr add 192.168.40.54/24 dev eth1 || true
-      ip addr add 192.168.40.55/24 dev eth1 || true
+      ip addr add 192.168.40.50/24 dev ens6 || true
+      ip addr add 192.168.40.51/24 dev ens6 || true
+      ip addr add 192.168.40.52/24 dev ens6 || true
+      ip addr add 192.168.40.53/24 dev ens6 || true
+      ip addr add 192.168.40.54/24 dev ens6 || true
+      ip addr add 192.168.40.55/24 dev ens6 || true
     SHELL
   end
 
-  def define_director(config, name, ipv4_addr, ipv6_addr, install_example_setup: false, example_setup_type: nil)
+  def define_director(config, name, ipv4_addr, ipv6_addr, install_example_setup: "false", example_setup_type: nil)
     config.vm.define name do |v|
       v.vm.hostname = name
 
       if install_example_setup
-        v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network", auto_config: false, nic_type: "82540EM"
+	v.vm.network :private_network, 
+	     :ip=> ipv4_addr, 
+	     :auto_config=> false,
+	     :nic_type => "82540EM",
+	     :name => "glb_datacenter_network",
+	     :mode => "none",
+	     :dhcp_enabled=> false,
+	     :virtualbox__intnet=> "glb_datacenter_network",
+	     :libvirt__forward_mode => "none",
+	     :libvirt__dhcp_enabled => false
       else
-        v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network"
+	v.vm.network :private_network, 
+	     :ip=> ipv4_addr, 
+	     :auto_config=> false,
+	     :name => "glb_datacenter_network",
+	     :mode => "none",
+	     :dhcp_enabled=> false,
+	     :virtualbox__intnet=> "glb_datacenter_network",
+	     :libvirt__forward_mode => "none",
+	     :libvirt__dhcp_enabled => false
+      end
+
+      v.vm.provider "libvirt" do |virt|
+        virt.cpus = 3
+        virt.memory = "2048"
+	virt.nic_model_type = "e1000"
+	virt.cpu_feature :name => 'sse4.1', :policy => 'require'
+	virt.cpu_feature :name => 'sse4.2', :policy => 'require'
+	virt.management_network_mode = "none"
       end
 
       v.vm.provider "virtualbox" do |vb|
@@ -82,6 +138,7 @@ Vagrant.configure("2") do |config|
       end
 
       v.vm.provision "shell", run: "always", inline: <<-SHELL
+        ifconfig 
         mkdir -p /mnt/huge
         if ! grep -q 'hugetlbfs' /etc/fstab; then
           echo 'hugetlbfs /mnt/huge hugetlbfs mode=1770 0 0' >>/etc/fstab
@@ -99,21 +156,26 @@ Vagrant.configure("2") do |config|
 
       # install DPDK et al.
       v.vm.provision "shell", run: "always", inline: <<-SHELL
+	export DEBIAN_FRONTEND=noninteractive
         apt-get install -y apt-transport-https curl software-properties-common
 
-        wget https://apt.llvm.org/llvm.sh
+        wget --no-verbose https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
-        sudo ./llvm.sh 9
+	[ ! -x ./llvm.sh ] && exit -1
+	# use llvm v10 beceause v9 not evailable in https://apt.llvm.org/llvm.sh repository 
+        sudo ./llvm.sh 10
 
         curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | sudo bash
         apt-get install -y --force-yes linux-headers-amd64 # dpdk requires this for the current kernel, but won't block if not installed
         apt-get install -y python-pip dpdk-dev=17.11.1-6 dpdk=17.11.1-6 dpdk-rte-kni-dkms dpdk-igb-uio-dkms libjansson-dev
         apt-get install -y valgrind vim tcpdump git
 
-
-        curl -O https://dl.google.com/go/go1.13.6.linux-amd64.tar.gz
-        tar xvf go1.13.6.linux-amd64.tar.gz
+        curl -s -O https://dl.google.com/go/go1.13.6.linux-amd64.tar.gz
+	[ ! -f go1.13.6.linux-amd64.tar.gz ] && exit -1
+        tar xf go1.13.6.linux-amd64.tar.gz
+	ls -al go go1.13.6.linux-amd64.tar.gz
         sudo chown -R root:root ./go
+	sudo rm -rf /usr/local/go
         sudo mv go /usr/local
 
         echo 'rte_kni' >/etc/modules-load.d/dpdk
@@ -121,7 +183,8 @@ Vagrant.configure("2") do |config|
       SHELL
 
       v.vm.provision "shell", run: "always", inline: <<-SHELL
-        sudo apt install -y dpdk-rte-kni-dkms dpdk-igb-uio-dkms
+	export DEBIAN_FRONTEND=noninteractive
+        apt-get install -y --allow-unauthenticated dpdk-rte-kni-dkms dpdk-igb-uio-dkms
         modprobe rte_kni
         modprobe igb_uio
       SHELL
@@ -130,12 +193,13 @@ Vagrant.configure("2") do |config|
         # example setup
         if example_setup_type == 'dpdk'
           v.vm.provision "shell", run: "always", inline: <<-SHELL
-            ifdown eth1
-            dpdk-devbind --bind=igb_uio eth1
-            dpdk-devbind --status
+	    ip -j link show | python -m json.tool
+            ifconfig ens6 down
+            dpdk-devbind --bind=igb_uio ens6
+            dpdk-devbind --status-dev "net"
 
-            apt install /vagrant/tmp/build/glb-director_*.deb
-            apt install /vagrant/tmp/build/glb-healthcheck_*.deb
+            apt-get install -y --force-yes /vagrant/tmp/build/glb-director-cli_*.deb /vagrant/tmp/build/glb-director_*.deb
+            apt-get install -y --force-yes /vagrant/tmp/build/glb-healthcheck_*.deb
 
             /vagrant/script/helpers/configure-vagrant-director.sh dpdk "#{ipv4_addr}"
           SHELL
@@ -143,8 +207,8 @@ Vagrant.configure("2") do |config|
 
         if example_setup_type == 'xdp'
           v.vm.provision "shell", run: "always", inline: <<-SHELL
-            DEBIAN_FRONTEND=noninteractive apt install -y /vagrant/tmp/build/glb-director-xdp_*.deb /vagrant/tmp/build/glb-director-cli_*.deb /vagrant/tmp/build/xdp-root-shim_*.deb
-            DEBIAN_FRONTEND=noninteractive apt install -y /vagrant/tmp/build/glb-healthcheck_*.deb
+            apt-get install -y --force-yes /vagrant/tmp/build/glb-director-xdp_*.deb /vagrant/tmp/build/glb-director-cli_*.deb /vagrant/tmp/build/xdp-root-shim_*.deb
+            apt-get install -y --force-yes /vagrant/tmp/build/glb-healthcheck_*.deb
 
             /vagrant/script/helpers/configure-vagrant-director.sh xdp "#{ipv4_addr}"
           SHELL
@@ -152,7 +216,8 @@ Vagrant.configure("2") do |config|
       else
         # test setup
         v.vm.provision "shell", run: "always", inline: <<-SHELL
-          ip addr add #{ipv6_addr} dev eth1 || true
+          ip addr add #{ipv6_addr} dev ens6 || true
+	  ifconfig
         SHELL
       end
     end
@@ -162,10 +227,17 @@ Vagrant.configure("2") do |config|
     config.vm.define name do |v|
       v.vm.hostname = name
 
-      v.vm.network "private_network", ip: ipv4_addr, virtualbox__intnet: "glb_datacenter_network"
+    v.vm.network :private_network, 
+         :ip=> ipv4_addr, 
+	 :name => "glb_datacenter_network",
+	 :mode => "none",
+	 :dhcp_enabled=> false,
+	 :libvirt__forward_mode => "none",
+	 :libvirt__dhcp_enabled => false
 
       v.vm.provision "shell", inline: <<-SHELL
-        DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+        ifconfig 
+        apt-get install -y nginx
         echo "hello world from #{name} via GLB" >/var/www/html/index.html
       SHELL
 
@@ -178,9 +250,9 @@ Vagrant.configure("2") do |config|
         ip addr add 10.10.10.10/32 dev tunl0 || true
         ip addr add fd2c:394c:33a3:26bf::1/128 dev sit0 || true
 
-        ip addr add #{ipv6_addr} dev eth1 || true
+        ip addr add #{ipv6_addr} dev ens6 || true
 
-        ip route add 192.168.40.0/24 via 192.168.50.2 dev eth1 || true
+        ip route add 192.168.40.0/24 via 192.168.50.2 dev ens6 || true
         
         cp /vagrant/script/helpers/test-snoop.service /etc/systemd/system/test-snoop.service
         systemctl daemon-reload
