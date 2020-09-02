@@ -103,7 +103,7 @@ Vagrant.configure("2") do |config|
 
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
-        sudo ./llvm.sh 9
+        sudo ./llvm.sh 10
 
         curl -s https://packagecloud.io/install/repositories/github/unofficial-dpdk-stable/script.deb.sh | sudo bash
         apt-get install -y --force-yes linux-headers-amd64 # dpdk requires this for the current kernel, but won't block if not installed
