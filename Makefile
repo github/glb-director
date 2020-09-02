@@ -9,3 +9,4 @@ clean:
 	make -C src/glb-healthcheck clean
 	make -C src/glb-director clean
 	make -C src/glb-director/cli clean
+	make -C src/glb-director/ftctl clean	

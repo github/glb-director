@@ -42,22 +42,6 @@
 #define FAMILY_IPV4 1
 #define FAMILY_IPV6 2
 
-/* we only support icmp, tcp, udp */
-#define SUPPORTED_PROTOS_ICMP 1
-#define SUPPORTED_PROTOS_TCP 6
-#define SUPPORTED_PROTOS_UDP 17
-
-typedef enum {
-	GLB_BACKEND_STATE_FILLING = 0,
-	GLB_BACKEND_STATE_ACTIVE = 1,
-	GLB_BACKEND_STATE_DRAINING = 2,
-} glb_fwd_config_host_state;
-
-typedef enum {
-	GLB_BACKEND_HEALTH_DOWN = 0,
-	GLB_BACKEND_HEALTH_UP = 1,
-} glb_fwd_config_host_health;
-
 struct glb_fwd_config_content_table_backend {
 	uint32_t family;
 	union {
