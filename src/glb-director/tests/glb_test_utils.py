@@ -58,8 +58,6 @@ class DirectorControlBase(object):
 		pass
 
 class DPDKDirectorControl(DirectorControlBase):
-	IFACE_NAME_KNI = 'vglb_kni0'
-
 	def __init__(self):
 		assert os.path.exists('/dev/kni'), "KNI kernel module not loaded"
 
@@ -82,10 +80,12 @@ class DPDKDirectorControl(DirectorControlBase):
 
 		print 'launched as pid', self.director.pid
 
+		ip = IPRoute()
+
 		# wait for the kni interface to come up, indicating the app is ready
 		try:
 			with timeout(10):
-				while len(ip.link_lookup(ifname=cls.IFACE_NAME_KNI)) == 0:
+				while len(ip.link_lookup(ifname=GLBDirectorTestBase.IFACE_NAME_KNI)) == 0:
 					time.sleep(0.1)
 		except TimeoutException:
 			self.director.kill()
@@ -95,7 +95,7 @@ class DPDKDirectorControl(DirectorControlBase):
 
 		# bring up the KNI interface
 		try:
-			idx = ip.link_lookup(ifname=cls.IFACE_NAME_KNI)[0]
+			idx = ip.link_lookup(ifname=GLBDirectorTestBase.IFACE_NAME_KNI)[0]
 			ip.link('set', index=idx, state='up')
 		except NetlinkError:
 			self.director.kill()
@@ -115,7 +115,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			self.director.send_signal(signal.SIGUSR1)
 	
 	def kni(self):
-		return L2ListenSocket(iface=cls.IFACE_NAME_KNI, promisc=True)
+		return L2ListenSocket(iface=GLBDirectorTestBase.IFACE_NAME_KNI, promisc=True)
 
 class SystemdNotify(object):
 	def __init__(self, unix_path):
@@ -217,6 +217,7 @@ class GLBDirectorTestBase():
 
 	IFACE_NAME_PY = 'vglbtest_py'
 	IFACE_NAME_DIRECTOR = 'vglbtest_dpdk'
+	IFACE_NAME_KNI = 'vglb_kni0'
 
 	eth_tx = None
 	kni_tx = None
