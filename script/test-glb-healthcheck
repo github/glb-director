@@ -9,9 +9,10 @@ cd "$(dirname "$0")/.."
 
 begin_fold "Testing glb-healthcheck daemon"
 (
-  vagrant ssh director-test -- bash /dev/stdin <<'EOF'
+  vagrant ssh director-test -- sudo bash /dev/stdin <<'EOF'
+    . /etc/profile.d/gopath.sh
     cd /vagrant/src/glb-healthcheck
-    sudo script/test
+    script/test
 EOF
 )
 end_fold

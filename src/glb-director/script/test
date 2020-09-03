@@ -42,8 +42,8 @@ begin_fold "Building glb-director for testing"
   make clean
   make -C cli clean
 
-  scan-build make
-  scan-build make -C cli
+  scan-build-10 make
+  scan-build-10 make -C cli
 )
 end_fold
 

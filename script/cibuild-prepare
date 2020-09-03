@@ -11,6 +11,7 @@ GLB_REDIRECT_VERSION="$( source src/glb-redirect/dkms.conf; echo $PACKAGE_VERSIO
 
 begin_fold "Bringing up and syncing vagrant test environment"
 (
+  vagrant box update
   vagrant up
 
   script/helpers/prepare-vagrant director-test
