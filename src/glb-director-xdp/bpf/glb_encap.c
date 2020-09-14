@@ -250,7 +250,7 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 	uint32_t stat = 0;
 	struct glb_global_stats *g_stats = bpf_map_lookup_elem(&glb_global_packet_counters, &stat);
-	if (g_stats == NULL) return XDP_PASS; /* we must have the stats struct for simplicity */
+	if (g_stats == NULL) return XDP_PASS; /* this should always succeed, but we must bail if not for eBPF verifier */
 	g_stats->Processed++;
 	
 	int rc = XDP_PASS;
