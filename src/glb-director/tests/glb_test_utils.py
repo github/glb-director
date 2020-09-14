@@ -33,6 +33,7 @@ import tempfile
 from netaddr import IPNetwork
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from rendezvous_table import GLBRendezvousTable
+import select, fcntl
 
 class TimeoutException(BaseException): pass
 
@@ -78,7 +79,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			stderr=subprocess.STDOUT,
 		)
 
-		print 'launched as pid', self.director.pid
+		print('launched as pid', self.director.pid)
 
 		ip = IPRoute()
 
@@ -139,7 +140,7 @@ class SystemdNotify(object):
 			data, addr = self.notify_sock.recvfrom(32)
 			assert data == 'READY=1' # only thing it will send
 		except socket.timeout:
-			print 'notify ready timed out'
+			print('notify ready timed out')
 			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read())
 		
 		self.notify_sock.close()
@@ -181,6 +182,7 @@ class XDPDirectorControl(DirectorControlBase):
 			[
 				# 'strace',
 				'../glb-director-xdp/glb-director-xdp',
+				'--pid-file', '/tmp/glb-director-xdp.pid',
 				'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
 				'--debug',
 				'--config-file', os.path.abspath('./tests/director-config.json'),
@@ -192,7 +194,7 @@ class XDPDirectorControl(DirectorControlBase):
 			env=notify_director.updated_env(),
 		)
 
-		print 'launched as pid', self.director.pid
+		print('launched as pid', self.director.pid)
 
 		notify_director.wait()
 
@@ -292,6 +294,7 @@ class GLBDirectorTestBase():
 					"work_source": 1,
 				}
 			},
+			"statsd_port": 8125
 		}
 
 	@classmethod
@@ -334,6 +337,17 @@ class GLBDirectorTestBase():
 		with open('tests/director-config.json', 'wb') as f:
 			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
 
+		# set up a statsd receiver
+		GLBDirectorTestBase.statsd_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		GLBDirectorTestBase.statsd_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		GLBDirectorTestBase.statsd_sock.bind(("127.0.0.1", 8125))
+		try:
+			flags = fcntl.fcntl(GLBDirectorTestBase.statsd_sock, fcntl.F_GETFD)
+		except IOError:
+			pass
+		else:
+			fcntl.fcntl(GLBDirectorTestBase.statsd_sock, fcntl.F_SETFD, flags | fcntl.FD_CLOEXEC) 
+		
 		GLBDirectorTestBase.backend = GLBDirectorTestBase.make_director_backend()
 		GLBDirectorTestBase.backend.setup(iface=cls.IFACE_NAME_DIRECTOR)
 		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
@@ -361,12 +375,12 @@ class GLBDirectorTestBase():
 		sendp(*args, **kwargs)
 
 	def wait_for_packet(self, iface, condition, timeout_seconds=5):
-		print 'Waiting for packets on', iface.iff, 'with timeout', timeout_seconds
+		print('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds)
 		try:
 			with timeout(timeout_seconds):
 				while True:
 					packet = iface.recv(MTU)
-					print repr(packet)
+					print(repr(packet))
 					if condition(packet):
 						return packet
 		except:
@@ -377,6 +391,37 @@ class GLBDirectorTestBase():
 				sys.stdout.write(d.read())
 				sys.stdout.write('-' * 50 + '\n')
 			raise
+
+	def stream_statsd_metrics(self, timeout=0):
+		s = GLBDirectorTestBase.statsd_sock
+		while True:
+			rlist, _, _ = select.select([s], [], [], timeout)
+			if s not in rlist:
+				return # nothing more to receive, we timed out
+			else:
+				block, _ = s.recvfrom(4096)
+				for data in block.split('\n'):
+					metric_name, metric_data = data.split(':', 1)
+					metric_info, metric_tags = metric_data.split('#', 1)
+					metric_value, metric_type, _ = metric_info.split('|', 2)
+					yield (metric_name, int(metric_value), metric_type, tuple(metric_tags.split(',')))
+
+	def clear_metrics(self):
+		for metric in self.stream_statsd_metrics(timeout=0):
+			pass # drop on the floor
+	
+	def expect_metrics(self, spec):
+		spec_matches = set()
+		for metric_name, metric_value, metric_type, metric_tags in self.stream_statsd_metrics(timeout=1):
+			metric_key = (metric_name, metric_tags)
+			print metric_key
+			if metric_key in spec:
+				assert spec[metric_key](metric_value), "Metric {} had unexpected value {}".format(metric_key, repr(metric_value))
+				spec_matches.add(metric_key)
+		
+		missing_metrics = set(spec.keys()) - spec_matches
+		assert len(missing_metrics) == 0, "Expected all specified metrics to be emitted, but {} were missing".format(missing_metrics)
+
 
 	def _encode_addr(self, addr):
 		family = socket.AF_INET

@@ -33,6 +33,7 @@
 package main
 
 import (
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/cilium/ebpf"
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/docopt/docopt-go"
@@ -58,6 +59,7 @@ import (
 #include <stdint.h>
 #include "../glb-hashing/pdnet.h"
 
+#include "bpf/glb_stats.h"
 
 // meh
 #include <sys/resource.h>
@@ -155,6 +157,8 @@ type GLBDirectorConfig struct {
 		DstPort bool `json:"dst_port"`
 	} `json:"alt_hash_fields"`
 
+	StatsdPort uint16 `json:"statsd_port"`
+
 	// unused by XDP version: num_worker_queues, flow_paths, lcores
 }
 
@@ -180,6 +184,8 @@ type Application struct {
 	TableSpec  *ebpf.MapSpec
 
 	ForwardingTablePath string
+
+	StatsClient *statsd.Client
 }
 
 func boolToC(a bool) C.uchar {
@@ -342,6 +348,82 @@ func (app *Application) ReloadForwardingTable() {
 	}
 }
 
+func (app *Application) InitStatsCollection() {
+	if app.Config.StatsdPort != 0 {
+		client, err := statsd.New(fmt.Sprintf("127.0.0.1:%d", app.Config.StatsdPort))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		client.Namespace = "glb.director."
+		client.Tags = append(client.Tags, "glb_engine:xdp")
+		app.StatsClient = client
+
+		go app.RunStatsCollection()
+	}
+}
+
+func diffAndSumGlobalStats(last []C.glb_global_stats, curr []C.glb_global_stats) C.glb_global_stats {
+	sum := C.glb_global_stats{}
+
+	for cpuIndex := 0; cpuIndex < len(last); cpuIndex++ {
+		sum.Processed += curr[cpuIndex].Processed - last[cpuIndex].Processed
+		sum.Encapsulated += curr[cpuIndex].Encapsulated - last[cpuIndex].Encapsulated
+
+		sum.UnknownFormat += curr[cpuIndex].UnknownFormat - last[cpuIndex].UnknownFormat
+		sum.NoMatchingBind += curr[cpuIndex].NoMatchingBind - last[cpuIndex].NoMatchingBind
+		sum.Matched += curr[cpuIndex].Matched - last[cpuIndex].Matched
+
+		sum.ErrorTable += curr[cpuIndex].ErrorTable - last[cpuIndex].ErrorTable
+		sum.ErrorSecret += curr[cpuIndex].ErrorSecret - last[cpuIndex].ErrorSecret
+		sum.ErrorHashConfig += curr[cpuIndex].ErrorHashConfig - last[cpuIndex].ErrorHashConfig
+		sum.ErrorMissingRow += curr[cpuIndex].ErrorMissingRow - last[cpuIndex].ErrorMissingRow
+		sum.ErrorCreatingSpace += curr[cpuIndex].ErrorCreatingSpace - last[cpuIndex].ErrorCreatingSpace
+		sum.ErrorMissingGatewayMAC += curr[cpuIndex].ErrorMissingGatewayMAC - last[cpuIndex].ErrorMissingGatewayMAC
+		sum.ErrorMissingSourceAddress += curr[cpuIndex].ErrorMissingSourceAddress - last[cpuIndex].ErrorMissingSourceAddress
+	}
+
+	return sum
+}
+
+func (app *Application) RunStatsCollection() {
+	globalCounters := app.Collection.Maps["glb_global_packet_counters"]
+	if globalCounters == nil {
+		log.Fatal("Could not load map glb_global_packet_counters")
+	}
+
+	var lastGlobalValues []C.struct_glb_global_stats
+
+	for {
+		var globalValues []C.struct_glb_global_stats
+
+		err := globalCounters.Lookup(uint32(0), &globalValues)
+		if err == nil {
+			if len(lastGlobalValues) > 0 {
+				sum := diffAndSumGlobalStats(lastGlobalValues, globalValues)
+				app.StatsClient.Count("packets.processed", int64(sum.Processed), nil, 1)
+				app.StatsClient.Count("packets.encapsulated", int64(sum.Encapsulated), nil, 1)
+
+				app.StatsClient.Count("packets.results", int64(sum.UnknownFormat), []string{"result:UnknownFormat"}, 1)
+				app.StatsClient.Count("packets.results", int64(sum.NoMatchingBind), []string{"result:NoMatchingBind"}, 1)
+				app.StatsClient.Count("packets.results", int64(sum.Matched), []string{"result:Matched"}, 1)
+
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorTable), []string{"error:ErrorTable"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorSecret), []string{"error:ErrorSecret"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorHashConfig), []string{"error:ErrorHashConfig"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorMissingRow), []string{"error:ErrorMissingRow"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorCreatingSpace), []string{"error:ErrorCreatingSpace"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorMissingGatewayMAC), []string{"error:ErrorMissingGatewayMAC"}, 1)
+				app.StatsClient.Count("packets.internal_errors", int64(sum.ErrorMissingSourceAddress), []string{"error:ErrorMissingSourceAddress"}, 1)
+			}
+
+			lastGlobalValues = globalValues
+		}
+
+		time.Sleep(10 * time.Second)
+	}
+}
+
 func gracefullReloadByExec() {
 	fmt.Printf("Reloading by exec-ing a new version of glb-director-xdp\n")
 
@@ -372,7 +454,7 @@ func gracefullReloadByExec() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(),
-		"NOTIFY_SOCKET=" + readySock,
+		"NOTIFY_SOCKET="+readySock,
 	)
 
 	err = cmd.Start()
@@ -506,6 +588,7 @@ func main() {
 
 	// load up our entire config/forwarding table before we attach
 	// this makes the attach itself the atomic cut-over between reloads.
+	app.InitStatsCollection()
 	app.SyncConfigMap()
 	app.ReloadForwardingTable()
 

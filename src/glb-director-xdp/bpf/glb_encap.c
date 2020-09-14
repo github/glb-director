@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "bpf_helpers.h"
+#include "glb_stats.h"
 
 #include <glb-hashing/glb_gue.h>
 #include <glb-hashing/pdnet.h>
@@ -95,6 +96,14 @@ struct bpf_map_def SEC("maps") glb_table_secrets = {
 	.max_entries = 4096,
 };
 
+struct bpf_map_def SEC("maps") glb_global_packet_counters = {
+	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
+	.key_size = sizeof(uint32_t),
+	.value_size = sizeof(struct glb_global_stats),
+	/* we don't actually need an array, but PERCPU_* only has multi-element types */
+	.max_entries = 1,
+};
+
 static __always_inline uint16_t compute_ipv4_checksum(void *iph) {
 	uint16_t *iph16 = (uint16_t *)iph;
 
@@ -117,7 +126,7 @@ static __always_inline uint16_t compute_ipv4_checksum(void *iph) {
  * Expects that `eth_hdr` points to ROUTE_CONTEXT_ENCAP_SIZE(ctx) bytes of free space
  * before the inner/original IP packet header begins.
  */
-static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth_hdr, void *data_end, glb_route_context *route_context)
+static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth_hdr, void *data_end, glb_route_context *route_context, struct glb_global_stats *g_stats)
 {
 	if (route_context == NULL)
 		return XDP_DROP;
@@ -136,8 +145,10 @@ static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth
 
 	uint32_t config_bit = 0;
 	struct pdnet_mac_addr *gw_mac = (struct pdnet_mac_addr *)bpf_map_lookup_elem(&config_bits, &config_bit);
-	if (gw_mac == NULL)
+	if (gw_mac == NULL) {
+		g_stats->ErrorMissingGatewayMAC++;
 		return XDP_DROP;
+	}
 	eth_hdr->src_addr = route_context->orig_dst_mac;
 	eth_hdr->dst_addr = *gw_mac;
 	eth_hdr->ether_type = htons(PDNET_ETHER_TYPE_IPV4);
@@ -149,8 +160,10 @@ static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth
 
 	config_bit = 1;
 	uint32_t *src_ip = (uint32_t *)bpf_map_lookup_elem(&config_bits, &config_bit);
-	if (src_ip == NULL)
+	if (src_ip == NULL) {
+		g_stats->ErrorMissingSourceAddress++;
 		return XDP_DROP;
+	}
 	
 	glb_bpf_printk("  src_ip: 0x%x\n", *src_ip);
 
@@ -224,6 +237,7 @@ static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth
 
 	glb_bpf_printk("  encaped!\n");
 
+	g_stats->Encapsulated++;
 	return XDP_TX;
 }
 
@@ -233,6 +247,11 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 	// cat /sys/kernel/debug/tracing/trace_pipe
 	glb_bpf_printk("Greetings\n");
+
+	uint32_t stat = 0;
+	struct glb_global_stats *g_stats = bpf_map_lookup_elem(&glb_global_packet_counters, &stat);
+	if (g_stats == NULL) return XDP_PASS; /* we must have the stats struct for simplicity */
+	g_stats->Processed++;
 	
 	int rc = XDP_PASS;
 
@@ -242,8 +261,10 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 	route_context.packet_end = data_end;
 	rc = glb_extract_packet_fields(&route_context);
 	glb_bpf_printk("  parse rc = %d\n", rc);
-	if (rc != 0)
+	if (rc != 0) {
+		g_stats->UnknownFormat++;
 		return XDP_PASS;
+	}
 
 	glb_bpf_printk("  dst_addr: 0x%x\n", route_context.dst_addr.ipv4);
 	glb_bpf_printk("  src_addr: 0x%x\n", route_context.src_addr.ipv4);
@@ -264,26 +285,36 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 	glb_bpf_printk("  bind proto: 0x%x\n", bind.proto);
 
 	uint32_t *table_id_ptr = (uint32_t *)bpf_map_lookup_elem(&glb_binds, &bind);
-	if (table_id_ptr == NULL)
+	if (table_id_ptr == NULL) {
+		g_stats->NoMatchingBind++;
 		return XDP_PASS;
+	}
+
+	g_stats->Matched++;
 	
 	uint32_t table_id = *table_id_ptr;
 	glb_bpf_printk("  bind maps to table id: %d\n", table_id);
 
 	struct bpf_map_def *table = (struct bpf_map_def *)bpf_map_lookup_elem(&glb_tables, &table_id);
 	glb_bpf_printk("  bind maps to table fd: 0x%p\n", table);
-	if (table == NULL)
+	if (table == NULL) {
+		g_stats->ErrorTable++;
 		return XDP_PASS; // we don't know
+	}
 
 	uint8_t *secret = (uint8_t *)bpf_map_lookup_elem(&glb_table_secrets, &table_id);
 	glb_bpf_printk("  table secret: 0x%p\n", secret);
-	if (secret == NULL)
+	if (secret == NULL) {
+		g_stats->ErrorSecret++;
 		return XDP_PASS; // we don't have a valid secret, bail
+	}
 
 	uint32_t config_bit = 3;
 	glb_director_hash_fields *hf_cfg_ptr = (glb_director_hash_fields *)bpf_map_lookup_elem(&config_bits, &config_bit);
-	if (hf_cfg_ptr == NULL)
+	if (hf_cfg_ptr == NULL) {
+		g_stats->ErrorHashConfig++;
 		return XDP_PASS;
+	}
 
 	// glb_bpf_printk("  dst_addr: 0x%x\n", route_context.dst_addr.ipv4);
 	// glb_bpf_printk("  src_addr: 0x%x\n", route_context.src_addr.ipv4);
@@ -298,8 +329,10 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 	glb_bpf_printk("  which is tableRow %d: 0x%p\n", tableRowIndex, tableRow);
 
-	if (tableRow == NULL)
+	if (tableRow == NULL) {
+		g_stats->ErrorMissingRow++;
 		return XDP_PASS; // we don't know
+	}
 
 	glb_bpf_printk("  table primary: %d\n", tableRow[0]);
 	glb_bpf_printk("  table secondary: %d\n", tableRow[1]);
@@ -313,8 +346,10 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 	config_bit = 4;
 	glb_director_hash_fields *hf_cfg_alt_ptr = (glb_director_hash_fields *)bpf_map_lookup_elem(&config_bits, &config_bit);
-	if (hf_cfg_alt_ptr == NULL)
+	if (hf_cfg_alt_ptr == NULL) {
+		g_stats->ErrorHashConfig++;
 		return XDP_PASS;
+	}
 
 	if (hf_cfg_alt_ptr->dst_addr || hf_cfg_alt_ptr->dst_port || hf_cfg_alt_ptr->src_addr || hf_cfg_alt_ptr->src_port) {
 		uint64_t hash = glb_compute_hash(&route_context, secret, hf_cfg_alt_ptr);
@@ -325,8 +360,10 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 		glb_bpf_printk("  which is tableRow (alt) %d: 0x%p\n", tableRowIndex, tableRow);
 
-		if (tableRow == NULL)
+		if (tableRow == NULL) {
+			g_stats->ErrorMissingRow++;
 			return XDP_PASS; // we don't know
+		}
 
 		glb_bpf_printk("  table (alt) primary: %d\n", tableRow[0]);
 		glb_bpf_printk("  table (alt) secondary: %d\n", tableRow[1]);
@@ -340,16 +377,18 @@ static __always_inline int xdp_glb_director_process(struct xdp_md *ctx) {
 
 	// encapsulate!
 	// we want to essentially remove (add to our start) an eth and add (subtract from our start) all the bits we need.
-	if (bpf_xdp_adjust_head(ctx, (int)sizeof(struct pdnet_ethernet_hdr) - (int)ROUTE_CONTEXT_ENCAP_SIZE(&route_context)))
+	if (bpf_xdp_adjust_head(ctx, (int)sizeof(struct pdnet_ethernet_hdr) - (int)ROUTE_CONTEXT_ENCAP_SIZE(&route_context))) {
+		g_stats->ErrorCreatingSpace++;
 		return XDP_DROP;
+	}
 
 	/* these must be retrieved again after the adjust_head */
 	data = (void*)(long)ctx->data;
 	data_end = (void *)(long)ctx->data_end;
-	if (data + ROUTE_CONTEXT_ENCAP_SIZE(&route_context) > data_end)
+	if (data + ROUTE_CONTEXT_ENCAP_SIZE(&route_context) > data_end) /* this is just to let the compiler know we checked for safety */
 		return XDP_DROP;
 	
-	return glb_encapsulate_packet(data, data_end, &route_context);
+	return glb_encapsulate_packet(data, data_end, &route_context, g_stats);
 }
 
 SEC("xdp/xdp_glb_director")

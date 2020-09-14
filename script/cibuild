@@ -12,3 +12,4 @@ script/cibuild-prepare
 script/test-glb-redirect
 script/test-glb-healthcheck
 script/test-glb-director
+script/test-glb-director-xdp
