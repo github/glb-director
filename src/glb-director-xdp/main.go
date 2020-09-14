@@ -393,8 +393,10 @@ func diffAndSumGlobalStats(last []C.glb_global_stats, curr []C.glb_global_stats)
 
 func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 	var lastGlobalValues []C.struct_glb_global_stats
+	// grab the data at the start, this will ensure that at the first tick we can immediately emit data.
+	globalCounters.Lookup(uint32(0), &lastGlobalValues)
 
-	for {
+	for range time.Tick(10 * time.Second) {
 		var globalValues []C.struct_glb_global_stats
 
 		err := globalCounters.Lookup(uint32(0), &globalValues)
@@ -419,8 +421,6 @@ func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 
 			lastGlobalValues = globalValues
 		}
-
-		time.Sleep(10 * time.Second)
 	}
 }
 
