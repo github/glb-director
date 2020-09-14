@@ -359,7 +359,12 @@ func (app *Application) InitStatsCollection() {
 		client.Tags = append(client.Tags, "glb_engine:xdp")
 		app.StatsClient = client
 
-		go app.RunStatsCollection()
+		globalCounters := app.Collection.Maps["glb_global_packet_counters"]
+		if globalCounters == nil {
+			log.Fatal("Could not load map glb_global_packet_counters")
+		}
+
+		go app.runStatsCollection(globalCounters)
 	}
 }
 
@@ -386,12 +391,7 @@ func diffAndSumGlobalStats(last []C.glb_global_stats, curr []C.glb_global_stats)
 	return sum
 }
 
-func (app *Application) RunStatsCollection() {
-	globalCounters := app.Collection.Maps["glb_global_packet_counters"]
-	if globalCounters == nil {
-		log.Fatal("Could not load map glb_global_packet_counters")
-	}
-
+func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 	var lastGlobalValues []C.struct_glb_global_stats
 
 	for {
