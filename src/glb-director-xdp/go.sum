@@ -1,3 +1,5 @@
+github.com/DataDog/datadog-go v4.0.0+incompatible h1:Dq8Dr+4sV1gBO1sHDWdW+4G+PdsA+YSJOK925MxrrCY=
+github.com/DataDog/datadog-go v4.0.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/cilium/ebpf v0.0.0-20200901135951-4048cd641690 h1:GpWvisoWNFzz/RB0fMgyYUcFmF4G5MlYD9uUHoofayo=
 github.com/cilium/ebpf v0.0.0-20200901135951-4048cd641690/go.mod h1:7cR51M8ViRLIdUjrmSXlK9pkrsDlLHbO8jiB8X8JnOc=
 github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf h1:iW4rZ826su+pqaw19uhpSCzhj44qo35pNgKFGqzDKkU=
