@@ -1,7 +1,8 @@
 [Unit]
 Description=XDP Root Shim provides a root array to bind and replace XDP programs on a given interface
-After=network.target network-online.target
-Wants=network-online.target
+After=network.target
+Before=network-online.target
+Wants=network.target
 
 [Service]
 # Allow the service to notify systemd when it has finished activating.
