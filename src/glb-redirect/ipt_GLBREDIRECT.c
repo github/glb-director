@@ -101,7 +101,13 @@ static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_bu
 #endif
 	skb_forward_csum(skb);
 
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,158)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0))) || \
+    ((LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,78)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0))) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,9))
+	if (ip_route_me_harder(net, skb->sk, skb, RTN_UNSPEC)) {
+#else
 	if (ip_route_me_harder(net, skb, RTN_UNSPEC)) {
+#endif
 		kfree_skb(skb);
 		return NF_STOLEN;
 	}
