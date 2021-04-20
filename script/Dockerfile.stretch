@@ -18,7 +18,8 @@ ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
 
 # fpm for packaging
 RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
-RUN gem install --no-ri --no-rdoc rake fpm
+# pin fpm 1.11.0 until https://github.com/jordansissel/fpm/pull/1752 is fixed
+RUN gem install --no-ri --no-rdoc rake fpm:1.11.0
 
 # patch DKMS for source package generation https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=832558
 ADD helpers/dkms.diff /root/dkms.diff
