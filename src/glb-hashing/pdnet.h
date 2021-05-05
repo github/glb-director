@@ -12,8 +12,8 @@
    <http://creativecommons.org/publicdomain/zero/1.0/>.
  */
 
-#ifndef _PDNET_H_
-#define _PDNET_H_
+#ifndef PDNET_H
+#define PDNET_H
 
 #include <stdint.h>
 #include <endian.h>
@@ -206,4 +206,4 @@ struct pdnet_icmpv6_too_big_hdr {
 #define PDNET_IP_PROTO_UDP    0x11
 #define PDNET_IP_PROTO_ICMPV6 0x3A
 
-#endif /* _PDNET_H_ */
+#endif /* PDNET_H */
