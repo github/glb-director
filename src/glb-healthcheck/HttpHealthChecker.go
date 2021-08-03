@@ -52,12 +52,15 @@ type HttpHealthChecker struct {
 // that will be given a HealthResult once completed. the timeouts here are
 // from http.Get, the caller will handle the shorter check interval timeout
 // for simplicity.
-func httpCheckURL(url string) HealthResultStream {
+func httpCheckURL(url string, timeoutSec time.Duration) HealthResultStream {
 	ch := make(HealthResultStream, 1)
 
 	go func() {
 		httpCounters.Add("Checks", 1)
-		resp, err := http.Get(url)
+		var httpClient = &http.Client {
+			Timeout: timeoutSec,
+		}
+		resp, err := httpClient.Get(url)
 		if err != nil {
 			ch <- HealthResult{Healthy: false, Failure: err.Error()}
 			close(ch)
@@ -95,7 +98,7 @@ func (h *HttpHealthChecker) CheckTarget(resultChannel HealthResultStream, target
 
 	go func() {
 		logContext.Debug("Sending HTTP request to health check port")
-		resultCh := httpCheckURL(fmt.Sprintf("http://%s:%d%s", target.Ip, target.Port, target.Uri))
+		resultCh := httpCheckURL(fmt.Sprintf("http://%s:%d%s", target.Ip, target.Port, target.Uri), h.checkTimeout)
 
 		// either receive the successful result, or time out and craft an error result.
 		var result HealthResult
