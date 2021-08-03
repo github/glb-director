@@ -49,9 +49,7 @@ type HttpHealthChecker struct {
 }
 
 // runs an HTTP GET on a given URL and returns a one-shot result stream
-// that will be given a HealthResult once completed. the timeouts here are
-// from http.Get, the caller will handle the shorter check interval timeout
-// for simplicity.
+// that will be given a HealthResult once completed
 func httpCheckURL(url string, timeoutSec time.Duration) HealthResultStream {
 	ch := make(HealthResultStream, 1)
 
