@@ -21,7 +21,7 @@ from nose.tools import assert_equals
 from nose.plugins.attrib import attr
 import socket, struct, time
 
-@attr(director_type='dpdk')
+#@attr(director_type='dpdk')
 class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 	@classmethod
 	def get_initial_forwarding_config(cls):
@@ -42,6 +42,9 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 		}
 
 	def test_01_ip_range_match_v4(self):
+        # We don't yet support ip ranges in XDP
+		if self.kni_tx is None: return # if no KNI is available, don't test
+
 		for i in [0, 1, 10, 50, 62, 63]: # 1.1.1.64/26
 			dst_ip = "1.1.1." + str(64 + i)
 
@@ -119,5 +122,5 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 		for dst_port in [98, 99, 201, 202]: # just next to the range
 			test_packet = Ether()/IP(src="10.11.12.13", dst="2.2.2.2")/TCP(sport=45678, dport=dst_port)
 			self.sendp(test_packet, iface=self.IFACE_NAME_PY)
-			packet = self.wait_for_packet(self.kni_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == "2.2.2.2")
+			packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == "2.2.2.2")
 			assert_equals(packet.payload.dst, "2.2.2.2")
