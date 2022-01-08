@@ -19,6 +19,7 @@ from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
 from nose.tools import assert_equals
 from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 import socket, struct, time
 
 #@attr(director_type='dpdk')
@@ -43,7 +44,8 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 
 	def test_01_ip_range_match_v4(self):
         # We don't yet support ip ranges in XDP
-		if self.kni_tx is None: return # if no KNI is available, don't test
+		if self.kni_tx is None:
+			raise SkipTest("IP ranges not supported in XDP")
 
 		for i in [0, 1, 10, 50, 62, 63]: # 1.1.1.64/26
 			dst_ip = "1.1.1." + str(64 + i)
@@ -77,7 +79,8 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 			assert_equals(inner_tcp.dport, 80)
 
 	def test_02_ip_range_no_match_v4(self):
-		if self.kni_tx is None: return # if no KNI is available, don't test
+		if self.kni_tx is None:
+			raise SkipTest("IP ranges not supported in XDP")
 
 		for i in [62, 63, 128, 129]: # around the edges of 1.1.1.64/26
 			dst_ip = "1.1.1." + str(i)
