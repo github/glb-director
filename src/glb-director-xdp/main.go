@@ -138,10 +138,6 @@ uint32_t _get_backend_ipv4(struct glb_fwd_config_content_table_backend *backend)
 	return backend->ipv4_addr;
 }
 
-uint32_t _is_bind_range(struct glb_fwd_config_content_table_bind *bind) {
-	return (bind->port_start != bind->port_end);
-}
-
 uint16_t _get_bind_port_start(struct glb_fwd_config_content_table_bind *bind) {
 	return bind->port_start;
 }
@@ -344,28 +340,16 @@ func (app *Application) ReloadForwardingTable() {
 		for b := uint32(0); b < uint32(srcTable.num_binds); b++ {
 			bindEntry := srcTable.binds[b]
 
-			bindRange := uint32(C._is_bind_range(&bindEntry))
-			isBindRange := bindRange != 0
-			if isBindRange {
-				port_start := uint16(C._get_bind_port_start(&bindEntry))
-				port_end := uint16(C._get_bind_port_end(&bindEntry))
-				for p := port_start; p <= port_end; p++ {
-					bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C.ushort(bindEntry.proto), port: C.htons(C.uint16_t(p))}
-					fmt.Printf("      range bind: %v\n", bindKey)
-					tableIndex := uint32(i)
-					if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
-						log.Fatal(err)
-					}
-				}
-			} else {
-				bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C.ushort(bindEntry.proto), port: C._get_bind_port(&bindEntry)}
-				fmt.Printf("      bind: %v\n", bindKey)
-				tableIndex := uint32(i)
-				if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
-					log.Fatal(err)
-				}
-			}
-
+            port_start := uint16(C._get_bind_port_start(&bindEntry))
+            port_end := uint16(C._get_bind_port_end(&bindEntry))
+            for p := port_start; p <= port_end; p++ {
+                bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C.ushort(bindEntry.proto), port: C.htons(C.uint16_t(p))}
+                fmt.Printf("      bind for %d in %d-%d: %v\n", p, port_start, port_end, bindKey)
+                tableIndex := uint32(i)
+                if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
+                    log.Fatal(err)
+                }
+            }
 
 			// also map icmp traffic to the table for echo
 			bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C._get_bind_icmp_proto(&bindEntry), port: C.ushort(0)}
