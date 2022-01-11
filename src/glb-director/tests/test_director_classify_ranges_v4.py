@@ -22,7 +22,6 @@ from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
 import socket, struct, time
 
-#@attr(director_type='dpdk')
 class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 	@classmethod
 	def get_initial_forwarding_config(cls):
@@ -43,7 +42,6 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 		}
 
 	def test_01_ip_range_match_v4(self):
-        # We don't yet support ip ranges in XDP
 		if self.kni_tx is None:
 			raise SkipTest("IP ranges not supported in XDP")
 
