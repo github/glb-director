@@ -137,6 +137,16 @@ uint16_t _get_bind_port(struct glb_fwd_config_content_table_bind *bind) {
 uint32_t _get_backend_ipv4(struct glb_fwd_config_content_table_backend *backend) {
 	return backend->ipv4_addr;
 }
+
+uint16_t _get_bind_port_start(struct glb_fwd_config_content_table_bind *bind) {
+	return bind->port_start;
+}
+
+uint16_t _get_bind_port_end(struct glb_fwd_config_content_table_bind *bind) {
+	return bind->port_end;
+}
+
+#include "bpf/glb_encap_limits.h"
 */
 import "C"
 
@@ -290,6 +300,11 @@ func (app *Application) ReloadForwardingTable() {
 	// go needs a fixed size array here, but we slice it to get the real size (and it's not really allocated)
 	tables := (*[1 << 30]C.struct_glb_fwd_config_content_table)(unsafe.Pointer(tableBasePtr))[:fwdConfig.raw_config.num_tables]
 
+	// max_num_binds above is the number of binds in the forwarding table config and that includes bind ranges
+	// total_binds_count counts the number of individual binds after bind ranges are expanded
+	total_binds_count := uint32(0)
+	max_binds := uint32(C.bpf_max_binds())
+
 	for i := uint32(0); i < uint32(fwdConfig.raw_config.num_tables); i++ {
 		srcTable := tables[i]
 		fmt.Printf("  table at index: %d\n", i)
@@ -331,19 +346,32 @@ func (app *Application) ReloadForwardingTable() {
 		for b := uint32(0); b < uint32(srcTable.num_binds); b++ {
 			bindEntry := srcTable.binds[b]
 
-			bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C.ushort(bindEntry.proto), port: C._get_bind_port(&bindEntry)}
-			fmt.Printf("      bind: %v\n", bindKey)
-			tableIndex := uint32(i)
-			if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
-				log.Fatal(err)
+			port_start := uint16(C._get_bind_port_start(&bindEntry))
+			port_end := uint16(C._get_bind_port_end(&bindEntry))
+			for p := port_start; p <= port_end; p++ {
+				if total_binds_count == max_binds {
+					log.Fatal("Max supported binds reached. Cannot add more binds")
+				}
+
+				bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C.ushort(bindEntry.proto), port: C.htons(C.uint16_t(p))}
+				fmt.Printf("      bind for %d in %d-%d: %v\n", p, port_start, port_end, bindKey)
+				tableIndex := uint32(i)
+				if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
+					log.Fatal(err)
+				}
+				total_binds_count += 1
 			}
 
 			// also map icmp traffic to the table for echo
-			bindKey = C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C._get_bind_icmp_proto(&bindEntry), port: C.ushort(0)}
+			if total_binds_count == max_binds {
+				log.Fatal("Max supported binds reached. Cannot add more binds")
+			}
+			bindKey := C.glb_bind{ipv4: C._get_bind_ipv4(&bindEntry), ipv6: C._get_bind_ipv6(&bindEntry), proto: C._get_bind_icmp_proto(&bindEntry), port: C.ushort(0)}
 			fmt.Printf("      bind (ICMP): %v\n", bindKey)
 			if err := tableMap4.Put(unsafe.Pointer(&bindKey), unsafe.Pointer(&tableIndex)); err != nil {
 				log.Fatal(err)
 			}
+			total_binds_count += 1
 		}
 	}
 }
