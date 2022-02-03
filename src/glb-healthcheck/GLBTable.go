@@ -35,6 +35,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"time"
 )
 
 type GLBHealthcheckConfig struct {
@@ -42,6 +43,7 @@ type GLBHealthcheckConfig struct {
 	HttpUri *string `json:"http_uri,omitempty"`
 	GUE     *int    `json:"gue,omitempty"`
 	FOU     *int    `json:"fou,omitempty"`
+	TCP     *int    `json:"tcp,omitempty"`
 }
 
 type GLBBind struct {
@@ -68,17 +70,24 @@ type GLBTable struct {
 	Backends []*GLBBackend `json:"backends"`
 }
 
-type GLBTableConfig struct {
-	Tables []*GLBTable `json:"tables"`
+type GLBHealthGlobalConfig struct {
+	TimeoutMilliSec  time.Duration `json:"timeout_ms,omitempty"`
+	IntervalMilliSec time.Duration `json:"interval_ms,omitempty"`
+	Trigger          int           `json:"trigger,omitempty"`
 }
 
-func LoadGLBTableConfig(filename string) (*GLBTableConfig, error) {
+type GLBGlobalConfig struct {
+	HealthcheckGlobalCfg *GLBHealthGlobalConfig `json:"healthchecks"`
+	Tables               []*GLBTable            `json:"tables"`
+}
+
+func LoadGLBTableConfig(filename string) (*GLBGlobalConfig, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &GLBTableConfig{}
+	c := &GLBGlobalConfig{}
 	err = json.Unmarshal(bytes, c)
 	if err != nil {
 		return nil, err
@@ -87,7 +96,7 @@ func LoadGLBTableConfig(filename string) (*GLBTableConfig, error) {
 	return c, nil
 }
 
-func (cfg *GLBTableConfig) WriteToFile(filename string) error {
+func (cfg *GLBGlobalConfig) WriteToFile(filename string) error {
 	bytes, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -98,6 +107,14 @@ func (cfg *GLBTableConfig) WriteToFile(filename string) error {
 
 func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 	targets := make([]HealthCheckTarget, 0, 2)
+
+	// when a backend is listed as inactive, it also shouldn't be healthchecked.
+	// part of the forwarding table state design allows inactive backends to be
+	// listed anyway, so we should respect that:
+	//  > * `inactive` - the backend is completely ignored
+	if backend.State == "inactive" {
+		return targets
+	}
 
 	if backend.HealthcheckConfig.Http != nil {
 		var uri string = "/"
@@ -125,6 +142,14 @@ func (backend *GLBBackend) HealthTargets() []HealthCheckTarget {
 			CheckType: "fou",
 			Ip:        backend.Ip,
 			Port:      *backend.HealthcheckConfig.FOU,
+		})
+	}
+
+	if backend.HealthcheckConfig.TCP != nil {
+		targets = append(targets, HealthCheckTarget{
+			CheckType: "tcp",
+			Ip:        backend.Ip,
+			Port:      *backend.HealthcheckConfig.TCP,
 		})
 	}
 

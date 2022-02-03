@@ -8,8 +8,9 @@ build
 *.pyc
 *.mk
 *.cmd
-*.mod
+src/glb-redirect/*/*.mod
 *.ko
 *.mod.c
 *.symvers
 *.order
+*.deb

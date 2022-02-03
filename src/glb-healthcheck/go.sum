@@ -1,0 +1,12 @@
+github.com/docopt/docopt-go v0.0.0-20160216232012-784ddc588536 h1:rHnpq7uNlix5l7tWZ55iJcHHrxCPnOVF4FGb7qOT2Jc=
+github.com/docopt/docopt-go v0.0.0-20160216232012-784ddc588536/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
+github.com/google/gopacket v1.1.14 h1:1+TEhSu8Mh154ZBVjyd1Nt2Bb7cnyOeE3GQyb1WGLqI=
+github.com/google/gopacket v1.1.14/go.mod h1:UCLx9mCmAwsVbn6qQl1WIEt2SO7Nd2fD0th1TBAsqBw=
+github.com/rs/xid v0.0.0-20170604230408-02dd45c33376 h1:pisBoZ1sLLFc+g7EZflpvatXVqmQKv8EjPP8/radknQ=
+github.com/rs/xid v0.0.0-20170604230408-02dd45c33376/go.mod h1:+uKXf+4Djp6Md1KODXJxgGQPKngRmWyn10oCKFzNHOQ=
+github.com/sirupsen/logrus v1.0.5 h1:8c8b5uO0zS4X6RPl/sd1ENwSkIc0/H2PaHxE3udaE8I=
+github.com/sirupsen/logrus v1.0.5/go.mod h1:pMByvHTf9Beacp5x1UXfOR9xyW/9antXMhjMPG0dEzc=
+golang.org/x/crypto v0.0.0-20180515001509-1a580b3eff78 h1:uJIReYEB1ZZLarzi83Pmig1HhZ/cwFCysx05l0PFBIk=
+golang.org/x/crypto v0.0.0-20180515001509-1a580b3eff78/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+golang.org/x/sys v0.0.0-20180514143608-7c87d13f8e83 h1:RBQVaDuCnVU3bRWKyzSxMStfh2k1xl+FdtjOsarwO28=
+golang.org/x/sys v0.0.0-20180514143608-7c87d13f8e83/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

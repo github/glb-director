@@ -42,10 +42,16 @@ import (
 	"time"
 )
 
-var (
+const (
 	// timeout should be < interval
-	HealthCheckTimeout  = 1 * time.Second
-	HealthCheckInterval = 2 * time.Second
+	DefaultHealthCheckTimeout  = 1 * time.Second
+	DefaultHealthCheckInterval = 2 * time.Second
+)
+
+// Default values for the marking-thresholds for marking backends (un)healthy
+const (
+	DefaultSuccessesBeforeMarkedHealthy = 3
+	DefaultFailuresBeforeMarkedFailed = 3
 )
 
 func main() {
@@ -63,7 +69,12 @@ Options:
 	arguments, _ := docopt.Parse(usage, nil, true, "GLB Director->Proxy Healthcheck Service", false)
 
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+
+	if os.Getenv("GLB_HEALTHCHECK_LOG_DEBUG") == "1" {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 
 	ctx := &HealthCheckerAppContext{dirty: true, nextAllowedDirtyClear: time.Now()}
 	ctx.logContext = log.WithFields(log.Fields{
@@ -77,13 +88,40 @@ Options:
 		return
 	}
 
-	// the check manager will run the HC loop and manage most of the HC part of the work
-	ctx.checkManager = NewHealthCheckManager(HealthCheckTimeout, HealthCheckInterval)
-
 	// load up the forwarding table and register all the check targets
 	err = ctx.LoadForwardingTable()
 	if err != nil {
 		ctx.logContext.Fatalf("Could not load initial forwarding table: %v", err)
+		return
+	}
+	
+	healthCheckTimeout := DefaultHealthCheckTimeout
+	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
+		ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec != 0 {
+		healthCheckTimeout = ctx.forwardingTableConfig.HealthcheckGlobalCfg.TimeoutMilliSec * time.Millisecond
+	}
+
+	healthCheckInterval := DefaultHealthCheckInterval
+	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
+		ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec != 0 {
+		healthCheckInterval = ctx.forwardingTableConfig.HealthcheckGlobalCfg.IntervalMilliSec * time.Millisecond
+	}
+
+	successesBeforeMarkedHealthy := DefaultSuccessesBeforeMarkedHealthy
+	failuresBeforeMarkedFailed := DefaultFailuresBeforeMarkedFailed
+	if ctx.forwardingTableConfig.HealthcheckGlobalCfg != nil &&
+		ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger != 0 {
+		successesBeforeMarkedHealthy = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
+		failuresBeforeMarkedFailed   = ctx.forwardingTableConfig.HealthcheckGlobalCfg.Trigger
+	}
+
+	// the check manager will run the HC loop and manage most of the HC part of the work
+	ctx.checkManager = NewHealthCheckManager(healthCheckTimeout, healthCheckInterval, successesBeforeMarkedHealthy,
+		failuresBeforeMarkedFailed)
+
+	err = ctx.SyncBackendsToCheckManager()
+	if err != nil {
+		ctx.logContext.Fatalf("Could not create targets for backends : %v", err)
 		return
 	}
 
@@ -94,7 +132,7 @@ Options:
 
 	// run the check manager, and let it notify us whenever a HC round completed
 	healthRoundComplete := make(chan bool)
-	go ctx.checkManager.Run(healthRoundComplete)
+	go ctx.checkManager.Run(healthRoundComplete, successesBeforeMarkedHealthy, failuresBeforeMarkedFailed)
 
 	// handle SIGHUP and reload our forwarding table
 	sigs := make(chan os.Signal, 1)
@@ -105,6 +143,12 @@ Options:
 			err := ctx.LoadForwardingTable()
 			if err != nil {
 				ctx.logContext.Errorf("Could not load initial forwarding table: %v", err)
+				continue
+			}
+
+			err = ctx.SyncBackendsToCheckManager()
+			if err != nil {
+				ctx.logContext.Errorf("Could not sync backends after reload: %v", err)
 				continue
 			}
 

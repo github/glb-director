@@ -94,13 +94,30 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 static unsigned int glbredirect_send_forwarded_skb(struct net *net, struct sk_buff *skb)
 {
 	struct glbgue_stats *s = this_cpu_ptr(percpu_stats);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+	nf_reset_ct(skb);
+#else
 	nf_reset(skb);
+#endif
 	skb_forward_csum(skb);
 
+#if ((LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,158)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0))) || \
+    ((LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,78)) && (LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0))) || \
+    (LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,9))
+	if (ip_route_me_harder(net, skb->sk, skb, RTN_UNSPEC)) {
+#else
 	if (ip_route_me_harder(net, skb, RTN_UNSPEC)) {
+#endif
 		kfree_skb(skb);
 		return NF_STOLEN;
 	}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+	/* Clear out timestamp to make forwarding work with fq on Linux 5.4:
+	 * - https://github.com/torvalds/linux/commit/8203e2d844d34af2
+	 */
+	skb->tstamp = 0;
+#endif
 
 	PRINT_DEBUG(KERN_ERR " -> forwarded to alternate\n");
 	ip_local_out(net, skb->sk, skb);
@@ -549,7 +566,7 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			u64_stats_update_begin(&s->syncp);
 			s->accepted_established_packets++;
 			u64_stats_update_end(&s->syncp);
-			sock_put(nsk);
+			sock_gen_put(nsk);
 			return 1;
 		}
 	}

@@ -18,8 +18,10 @@
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
 from nose.tools import assert_equals
+from nose.plugins.attrib import attr
 import socket, struct, time
 
+@attr(director_type='dpdk')
 class TestGLBClassifyRangesV6(GLBDirectorTestBase):
 	@classmethod
 	def get_initial_forwarding_config(cls):
@@ -72,6 +74,8 @@ class TestGLBClassifyRangesV6(GLBDirectorTestBase):
 			assert_equals(inner_tcp.dport, 80)
 
 	def test_02_ip_range_no_match_v6(self):
+		if self.kni_tx is None: return # if no KNI is available, don't test
+
 		for i in [62, 63, 128, 129]: # fdb4:98ce:52d4::4240/122
 			dst_ip = "fdb4:98ce:52d4::42%02x" % i
 

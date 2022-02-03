@@ -63,7 +63,7 @@ type HealthCheckerAppContext struct {
 	checkManager *HealthCheckManager
 
 	sync.Mutex
-	forwardingTableConfig *GLBTableConfig
+	forwardingTableConfig *GLBGlobalConfig
 	dirty                 bool
 	nextAllowedDirtyClear time.Time
 }
@@ -141,6 +141,11 @@ func (ctx *HealthCheckerAppContext) UpdateTableBackendHealth() {
 					successes++
 				} else {
 					failures++
+
+					// when we see a failure, tag in the failure as well
+					logContext = logContext.WithFields(log.Fields{
+						target.CheckType + "Error": targetResults[target].Failure,
+					})
 				}
 
 				// add in tags for each check type
@@ -205,8 +210,7 @@ func (ctx *HealthCheckerAppContext) LoadForwardingTable() error {
 	// also allow write outs immediately, since this was an explicit (externally requested) reload
 	ctx.nextAllowedDirtyClear = time.Now()
 	ctx.Unlock()
-
-	return ctx.SyncBackendsToCheckManager()
+	return nil
 }
 
 func (ctx *HealthCheckerAppContext) SyncAndMaybeReload() {

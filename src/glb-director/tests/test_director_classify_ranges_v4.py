@@ -18,6 +18,8 @@
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
 from nose.tools import assert_equals
+from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 import socket, struct, time
 
 class TestGLBClassifyRangesV4(GLBDirectorTestBase):
@@ -40,6 +42,9 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 		}
 
 	def test_01_ip_range_match_v4(self):
+		if self.kni_tx is None:
+			raise SkipTest("IP ranges not supported in XDP")
+
 		for i in [0, 1, 10, 50, 62, 63]: # 1.1.1.64/26
 			dst_ip = "1.1.1." + str(64 + i)
 
@@ -72,6 +77,9 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 			assert_equals(inner_tcp.dport, 80)
 
 	def test_02_ip_range_no_match_v4(self):
+		if self.kni_tx is None:
+			raise SkipTest("IP ranges not supported in XDP")
+
 		for i in [62, 63, 128, 129]: # around the edges of 1.1.1.64/26
 			dst_ip = "1.1.1." + str(i)
 
@@ -115,5 +123,5 @@ class TestGLBClassifyRangesV4(GLBDirectorTestBase):
 		for dst_port in [98, 99, 201, 202]: # just next to the range
 			test_packet = Ether()/IP(src="10.11.12.13", dst="2.2.2.2")/TCP(sport=45678, dport=dst_port)
 			self.sendp(test_packet, iface=self.IFACE_NAME_PY)
-			packet = self.wait_for_packet(self.kni_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == "2.2.2.2")
+			packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == "2.2.2.2")
 			assert_equals(packet.payload.dst, "2.2.2.2")
