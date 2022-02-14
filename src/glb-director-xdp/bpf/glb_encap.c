@@ -21,6 +21,7 @@
 
 #include "bpf_helpers.h"
 #include "glb_stats.h"
+#include "glb_encap_limits.h"
 
 #include <glb-hashing/glb_gue.h>
 #include <glb-hashing/pdnet.h>
@@ -79,7 +80,7 @@ struct bpf_map_def SEC("maps") glb_binds = {
 	.type = BPF_MAP_TYPE_HASH,
 	.key_size = sizeof(struct glb_bind),
 	.value_size = sizeof(uint32_t),
-	.max_entries = 4096,
+	.max_entries = BPF_MAX_BINDS,
 };
 
 struct bpf_map_def SEC("maps") glb_tables = {
