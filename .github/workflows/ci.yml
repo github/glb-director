@@ -9,5 +9,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Run package build
+    - name: Run package build stretch
       run: script/cibuild-create-packages
+    - name: Run package build focal
+      run: script/cibuild-create-packages-focal

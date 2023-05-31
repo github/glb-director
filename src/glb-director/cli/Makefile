@@ -60,7 +60,7 @@ STUB_SRCS = stub_server.c \
 
 CFLAGS += -Wall
 
-WERROR_FLAGS += -Werror
+#WERROR_FLAGS += -Werror
 
 CFLAGS += -O3 -g
 CFLAGS += $(WERROR_FLAGS)

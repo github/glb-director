@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
+cd "$(dirname "$0")/.."
+
+. script/helpers/folding.sh
+
+begin_fold "Preparing Docker build environment"
+(
+  docker build -t glb-director-build-focal -f script/Dockerfile.focal script
+)
+end_fold
+
+begin_fold "Building packages"
+(
+  # prep
+  rm -rf tmp/build/
+  mkdir -p tmp/build/
+
+  docker run --rm \
+    --volume "$HOSTPATH":/glb-director \
+    "glb-director-build-focal" \
+    bash -c "cd /glb-director &&
+      make BUILDDIR=/glb-director/tmp/build clean mkdeb"
+)
+end_fold
