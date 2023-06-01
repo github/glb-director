@@ -1,0 +1,35 @@
+FROM ubuntu:focal
+
+RUN apt-get update && apt-get -y install curl git
+
+# DPDK 
+RUN echo "deb http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev
+
+# iptables / DKMS
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
+
+# golang
+RUN wget --quiet https://golang.org/dl/go1.14.8.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
+ENV GOROOT /usr/local/go
+ENV GOPATH /go
+ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+
+# fpm for packaging
+RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
+# pin fpm 1.11.0 until https://github.com/jordansissel/fpm/pull/1752 is fixed
+RUN gem install rake fpm
+
+# XDP
+# linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
+RUN apt-get update && apt install -y apt-transport-https curl software-properties-common
+RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-10
+
+# Hack because the kernel headers are not installed in the right place (linuxkit vs generic)
+RUN ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname -r)
+
+# Hack for C99 math
+RUN sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h 
+RUN sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h

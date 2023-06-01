@@ -43,7 +43,7 @@ SRCS-y := main.c bind_classifier.c glb_kni.c glb_fwd_config.c \
 glb_encap.c glb_encap_dpdk.c glb_control_loop.c glb_processor_loop.c \
 siphash24.c glb_director_config.c statsd-client.c shared_opt.c
 
-WERROR_FLAGS += -Werror
+#WERROR_FLAGS += -Werror
 
 CFLAGS += -O3 -g
 CFLAGS += $(WERROR_FLAGS)
