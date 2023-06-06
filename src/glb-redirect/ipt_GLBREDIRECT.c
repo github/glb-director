@@ -792,10 +792,10 @@ static int proc_open(struct inode *inode, struct file *file)
 
 #ifdef HAVE_PROC_OPS
 static const struct proc_ops proc_operations = {
-  .proc_open = proc_open,
-  .proc_read = seq_read,
-  .proc_lseek = seq_lseek,
-  .proc_release = single_release,
+	.proc_open = proc_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
 };
 #else
 static const struct file_operations proc_operations = {
