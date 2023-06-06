@@ -11,3 +11,10 @@ jobs:
     - uses: actions/checkout@v1
     - name: Run package build focal
       run: script/cibuild-create-packages-focal
+    - name: Tar files
+      run: tar -cvf glb-director.tar $GITHUB_WORKSPACE/tmp/build
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: glb-director
+        path: glb-director.tar
