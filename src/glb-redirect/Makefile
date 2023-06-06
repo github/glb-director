@@ -28,7 +28,7 @@ install: lib kmod
 	install ipt_GLBREDIRECT.ko $(DESTDIR)/lib/modules/$(shell uname -r)/updates
 
 KSRC=/usr/src/linux-headers-$(shell uname -r)
-IPT_CFLAGS=-I$(KSRC)/include/uapi -I$(KSRC)/include -DPIC -fPIC -Wno-cpp
+IPT_CFLAGS=-DPIC -fPIC -Wno-cpp
 IPT_LDFLAGS=-lxtables -shared
 
 %.so: %.c
