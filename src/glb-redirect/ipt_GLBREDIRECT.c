@@ -786,6 +786,18 @@ static int proc_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_show, NULL);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+#define HAVE_PROC_OPS
+#endif
+
+#ifdef HAVE_PROC_OPS
+static const struct proc_ops proc_operations = {
+  .proc_open = proc_open,
+  .proc_read = seq_read,
+  .proc_lseek = seq_lseek,
+  .proc_release = single_release,
+};
+#else
 static const struct file_operations proc_operations = {
 	.owner		= THIS_MODULE,
 	.open		= proc_open,
@@ -793,6 +805,7 @@ static const struct file_operations proc_operations = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif
 
 static int __init glbredirect_tg4_init(void)
 {
