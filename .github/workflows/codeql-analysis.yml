@@ -51,7 +51,7 @@ jobs:
 
   analyze_cpp:
     name: Analyze cpp
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       actions: read
       contents: read
