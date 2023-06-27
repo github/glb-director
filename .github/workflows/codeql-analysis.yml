@@ -10,8 +10,8 @@ name: "CodeQL"
     - cron: '29 15 * * 5'
 
 jobs:
-  analyze:
-    name: Analyze
+  analyze_go_python:
+    name: Analyze Go and Python
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ cpp, go, python ]
+        language: [ go, python ]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
         # Learn more about CodeQL language support at https://git.io/codeql-language-support
 
@@ -46,6 +46,40 @@ jobs:
     - name: Autobuild
       uses: github/codeql-action/autobuild@v2
 
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  analyze_cpp:
+    name: Analyze cpp
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ cpp ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
+        # Learn more about CodeQL language support at https://git.io/codeql-language-support
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        # queries: ./path/to/local/query, your-org/your-repo/queries@main
+        queries: security-and-quality
+        config-file: ./.github/codeql/codeql-config.yml
+
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
 
@@ -55,7 +89,6 @@ jobs:
 
     - run: |
        make clean mkdeb
-    #   make release
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
