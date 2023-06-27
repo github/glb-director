@@ -67,6 +67,16 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+    - name: Install system packages and configure environment
+      run: |
+        echo "deb http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
+        apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev
+        apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
+        apt-get update && apt install -y apt-transport-https curl software-properties-common
+        apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-10
+        ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname -r)
+        sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
+        sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
