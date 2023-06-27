@@ -8,6 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Run package build
-      run: script/cibuild-create-packages
+    - uses: actions/checkout@v3
+    - name: Run package build focal
+      run: script/cibuild-create-packages-focal
+    - name: Tar files
+      run: tar -cvf glb-director.tar $GITHUB_WORKSPACE/tmp/build
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: glb-director
+        path: glb-director.tar
