@@ -36,7 +36,7 @@ cd $ROOTDIR
 
 . packaging/version.sh
 
-go build
+go build -buildvcs=false
 
 fpm -f -s dir -t deb \
 	-n glb-healthcheck \
