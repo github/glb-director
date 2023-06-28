@@ -78,7 +78,7 @@ jobs:
         sudo gem install rake fpm
         sudo DEBIAN_FRONTEND=noninteractive apt install -y apt-transport-https curl software-properties-common
         sudo DEBIAN_FRONTEND=noninteractive apt install -y iproute2 libbpf-dev linux-libc-dev clang-10 linux-image-generic linux-headers-generic
-        sudo ln -s /usr/src/$(ls -d /usr/src/*-generic | tail -1) /usr/src/linux-headers-$(uname -r)
+        sudo ln -s /usr/src/$(ls -d /usr/src/*-azure | tail -1) /usr/src/linux-headers-$(uname -r)
         sudo sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
         sudo sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
 
