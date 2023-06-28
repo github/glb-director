@@ -12,7 +12,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
 
 # golang
-RUN wget --quiet https://golang.org/dl/go1.14.8.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
+RUN wget --quiet https://golang.org/dl/go1.20.5.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
