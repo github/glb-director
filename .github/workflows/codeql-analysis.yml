@@ -97,7 +97,8 @@ jobs:
     - uses: addnab/docker-run-action@v3
       with:
         image: localcodeql:latest
-        run: bash -c "cd /glb-director && make BUILDDIR=/glb-director/tmp/build clean mkdeb"
+        run: mkdir -p /github/workspace/tmp/build \
+             bash -c "cd /github/workspace && make BUILDDIR=/github/workspace/tmp/build clean mkdeb"
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
