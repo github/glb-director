@@ -57,9 +57,6 @@ jobs:
       contents: read
       security-events: write
 
-    container:
-      image: localcodeql:latest
-
     strategy:
       fail-fast: false
       matrix:
@@ -102,11 +99,7 @@ jobs:
         image: localcodeql:latest
         shell: bash
         options: -v ${{ github.workspace }}:/glb-director
-        run: |
-             mkdir -p /glb-director/tmp/build
-             mount
-             cd /glb-director && ls -l
-             cd /glb-director && make BUILDDIR=/glb-director/tmp/build clean mkdeb
+        run: cd /glb-director && make BUILDDIR=/glb-director/tmp/build clean mkdeb
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
