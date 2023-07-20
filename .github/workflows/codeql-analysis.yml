@@ -51,7 +51,7 @@ jobs:
 
   analyze_cpp:
     name: Analyze cpp
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
@@ -67,21 +67,15 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-    - name: Install system packages and configure environment
-      run: |
-        echo "deb http://archive.ubuntu.com/ubuntu/ bionic main universe" | sudo tee -a /etc/apt/sources.list
-        wget --quiet https://golang.org/dl/go1.14.8.linux-amd64.tar.gz -O- | sudo tar -C /usr/local -zxvf -
-        sudo DEBIAN_FRONTEND=noninteractive apt update
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y ruby ruby-dev rubygems build-essential
-        sudo gem install rake fpm
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y apt-transport-https curl software-properties-common
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y iproute2 libbpf-dev linux-libc-dev clang-10 linux-image-generic linux-headers-generic
-        sudo ln -s /usr/src/$(ls -d /usr/src/*-azure | tail -1) /usr/src/linux-headers-$(uname -r)
-        sudo sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
-        sudo sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
-
+    - uses: docker/setup-buildx-action@v2
+    - uses: docker/build-push-action@v4
+      with:
+#        driver-opts: network=host
+        context: .
+        file: script/Dockerfile.focal
+        load: true
+        push: false
+        tags: localcodeql:latest
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v2
@@ -100,9 +94,10 @@ jobs:
     # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
     #    and modify them (or add more) to build your code if your project
     #    uses a compiled language
-
-    - run: |
-       make clean mkdeb
+    - uses: addnab/docker-run-action@v3
+      with:
+        image: localcodeql:latest
+        run: make clean mkdeb
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
