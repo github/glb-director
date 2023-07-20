@@ -57,6 +57,9 @@ jobs:
       contents: read
       security-events: write
 
+    container:
+      image: localcodeql:latest
+
     strategy:
       fail-fast: false
       matrix:
