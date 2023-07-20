@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
              mkdir -p /github/workspace/tmp/build
-             ls -al
+             cd /github/workspace && ls -al
              cd /github/workspace && make BUILDDIR=/github/workspace/tmp/build clean mkdeb
 
     - name: Perform CodeQL Analysis
