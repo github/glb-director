@@ -98,8 +98,10 @@ jobs:
       with:
         image: localcodeql:latest
         shell: bash
-        options: -v ${{ github.workspace }}:/glb-director
-        run: cd /glb-director && make BUILDDIR=/glb-director/tmp/build clean mkdeb
+        options: -v /home/runner:/home/runner -v /opt:/opt
+        run: |
+          mkdir /home/runner/work/glb-director/glb-director/tmp/build
+          cd /home/runner/work/glb-director/glb-director && make BUILDDIR=/home/runner/work/glb-director/glb-director/tmp/build clean mkdeb
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
