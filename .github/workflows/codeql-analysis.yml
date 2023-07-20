@@ -27,7 +27,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -66,7 +66,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - uses: docker/setup-buildx-action@v2
     - uses: docker/build-push-action@v4
       with:
@@ -100,7 +100,8 @@ jobs:
         shell: bash
         run: |
              mkdir -p /github/workspace/tmp/build
-             cd /github/workspace && ls -al
+             mount
+             cd /github && find . -type d -print
              cd /github/workspace && make BUILDDIR=/github/workspace/tmp/build clean mkdeb
 
     - name: Perform CodeQL Analysis
