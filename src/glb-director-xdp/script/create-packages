@@ -46,7 +46,7 @@ fpm -f -s dir -t deb \
 	-v ${GLB_DIRECTOR_XDP_VERSION} \
 	-d "xdp-root-shim" \
 	-d "libbpf0" \
-    -d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
+  -d "glb-director-cli >= ${GLB_DIRECTOR_VERSION}" \
 	--conflicts 'glb-director' \
     --license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
