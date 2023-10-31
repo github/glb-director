@@ -45,7 +45,7 @@ fpm -f -s dir -t deb \
 	-n glb-director-xdp \
 	-v ${GLB_DIRECTOR_XDP_VERSION} \
 	-d "xdp-root-shim" \
-	-d "libbpf4.19" \
+	-d "libbpf0" \
     -d "glb-director-cli = ${GLB_DIRECTOR_VERSION}" \
 	--conflicts 'glb-director' \
     --license 'BSD 3-Clause' \
@@ -64,7 +64,7 @@ fpm -f -s dir -t deb \
 fpm -f -s dir -t deb \
 	-n xdp-root-shim \
 	-v ${XDP_ROOT_SHIM_VERSION} \
-	-d "libbpf4.19" \
+	-d "libbpf0" \
 	--license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/xdp-root-shim\@.service \
