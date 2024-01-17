@@ -1,6 +1,6 @@
 module github.com/github/glb-director/src/glb-healthcheck
 
-go 1.21.6
+go 1.21
 
 require (
 	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
@@ -11,8 +11,5 @@ require (
 
 require (
 	github.com/stretchr/testify v1.8.4 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
-	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
-	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )
