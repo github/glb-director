@@ -19,7 +19,6 @@ ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
 
 # fpm for packaging
 RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
-# pin fpm 1.11.0 until https://github.com/jordansissel/fpm/pull/1752 is fixed
 RUN gem install rake fpm
 
 # XDP
