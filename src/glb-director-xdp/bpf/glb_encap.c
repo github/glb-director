@@ -239,6 +239,7 @@ static __always_inline int glb_encapsulate_packet(struct pdnet_ethernet_hdr *eth
 	glb_bpf_printk("  encaped!\n");
 
 	g_stats->Encapsulated++;
+	g_stats->EncapsulatedBytes += ntohs(ipv4_hdr->total_length) + sizeof(struct pdnet_ethernet_hdr);
 	return XDP_TX;
 }
 

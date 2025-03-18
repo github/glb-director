@@ -402,6 +402,7 @@ func diffAndSumGlobalStats(last []C.glb_global_stats, curr []C.glb_global_stats)
 	for cpuIndex := 0; cpuIndex < len(last); cpuIndex++ {
 		sum.Processed += curr[cpuIndex].Processed - last[cpuIndex].Processed
 		sum.Encapsulated += curr[cpuIndex].Encapsulated - last[cpuIndex].Encapsulated
+		sum.EncapsulatedBytes += curr[cpuIndex].EncapsulatedBytes - last[cpuIndex].EncapsulatedBytes
 
 		sum.UnknownFormat += curr[cpuIndex].UnknownFormat - last[cpuIndex].UnknownFormat
 		sum.NoMatchingBind += curr[cpuIndex].NoMatchingBind - last[cpuIndex].NoMatchingBind
@@ -433,6 +434,7 @@ func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 				sum := diffAndSumGlobalStats(lastGlobalValues, globalValues)
 				app.StatsClient.Count("packets.processed", int64(sum.Processed), nil, 1)
 				app.StatsClient.Count("packets.encapsulated", int64(sum.Encapsulated), nil, 1)
+				app.StatsClient.Gauge("packets.encapsulated_bytes", float64(sum.EncapsulatedBytes), nil, 1)
 
 				app.StatsClient.Count("packets.results", int64(sum.UnknownFormat), []string{"result:UnknownFormat"}, 1)
 				app.StatsClient.Count("packets.results", int64(sum.NoMatchingBind), []string{"result:NoMatchingBind"}, 1)

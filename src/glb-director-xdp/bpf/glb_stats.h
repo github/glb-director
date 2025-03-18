@@ -21,6 +21,11 @@ typedef struct glb_global_stats {
     
     /* The number of packets that made it all the way through to encapsulation and transmit. */
     uint64_t Encapsulated;
+
+    /* The number of bytes that made it all the way through to encapsulation and transmit.
+     * This includes the encapsulation overhead and ethernet frame header.
+    */
+    uint64_t EncapsulatedBytes;
     
     /* The below errors are unexpected, and we generally expect none of them to occur.
      * They might be useful to debug why the system isn't behaving as expected
