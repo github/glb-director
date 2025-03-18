@@ -402,6 +402,7 @@ func diffAndSumGlobalStats(last []C.glb_global_stats, curr []C.glb_global_stats)
 	for cpuIndex := 0; cpuIndex < len(last); cpuIndex++ {
 		sum.Processed += curr[cpuIndex].Processed - last[cpuIndex].Processed
 		sum.Encapsulated += curr[cpuIndex].Encapsulated - last[cpuIndex].Encapsulated
+		sum.EncapsulatedBytes += curr[cpuIndex].EncapsulatedBytes - last[cpuIndex].EncapsulatedBytes
 
 		sum.UnknownFormat += curr[cpuIndex].UnknownFormat - last[cpuIndex].UnknownFormat
 		sum.NoMatchingBind += curr[cpuIndex].NoMatchingBind - last[cpuIndex].NoMatchingBind
