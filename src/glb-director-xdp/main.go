@@ -434,7 +434,7 @@ func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 				sum := diffAndSumGlobalStats(lastGlobalValues, globalValues)
 				app.StatsClient.Count("packets.processed", int64(sum.Processed), nil, 1)
 				app.StatsClient.Count("packets.encapsulated", int64(sum.Encapsulated), nil, 1)
-				app.StatsClient.Gauge("packets.encapsulated_bytes", float64(sum.EncapsulatedBytes), nil, 1)
+				app.StatsClient.Count("packets.encapsulated_bytes", int64(sum.EncapsulatedBytes), nil, 1)
 
 				app.StatsClient.Count("packets.results", int64(sum.UnknownFormat), []string{"result:UnknownFormat"}, 1)
 				app.StatsClient.Count("packets.results", int64(sum.NoMatchingBind), []string{"result:NoMatchingBind"}, 1)
