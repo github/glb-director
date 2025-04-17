@@ -130,7 +130,7 @@ static inline void send_logs_metrics(statsd_link *link)
 	rte_eth_dev_info_get(DEFAULT_ETH_DEV, &nic_info);
 
 	// retrieve all per-port stats
-	// http://www.dpdk.org/doc/api/structrte__eth__stats.html
+	// https://doc.dpdk.org/api/structrte__eth__stats.html
 	for (port_id = 0; port_id < num_ports; port_id++) {
 		rte_eth_stats_get(port_id, &curr_eth_stats[port_id]);
 	}
