@@ -2,8 +2,6 @@ module github.com/github/glb-director/src/glb-healthcheck
 
 go 1.23
 
-toolchain go1.24.2
-
 require (
 	github.com/docopt/docopt-go v0.0.0-20160216232012-784ddc588536
 	github.com/google/gopacket v1.1.14
