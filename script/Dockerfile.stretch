@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y build-essential dpdk dpdk-dev wget pkg-
 RUN apt-get update && apt-get install -y iptables-dev dkms debhelper libxtables-dev
 
 # golang
-RUN wget --quiet https://golang.org/dl/go1.14.8.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
+RUN wget --quiet https://golang.org/dl/go1.24.5.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
