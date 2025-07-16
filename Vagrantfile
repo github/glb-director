@@ -29,7 +29,7 @@ Vagrant.configure("2") do |config|
     chmod 4750 /usr/bin/dumpcap
     pip install -r /vagrant/requirements.txt
 
-    wget --quiet https://golang.org/dl/go1.14.8.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
+    wget --quiet https://golang.org/dl/go1.24.5.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
     cat >/etc/profile.d/gopath.sh <<'EOF'
     export GOROOT=/usr/local/go
     export GOPATH=/go
