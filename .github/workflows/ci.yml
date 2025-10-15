@@ -2,6 +2,9 @@ name: ci
 
 on: [push]
 
+permissions:
+  contents: read
+
 jobs:
   package-build:
 
