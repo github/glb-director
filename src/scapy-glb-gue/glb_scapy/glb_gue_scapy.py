@@ -36,7 +36,7 @@ class GLBGUE(Packet):
     name = "GLBGUE"
     fields_desc = [BitField("version", 0, 2),
                    BitField("control_msg", 0, 1),
-                   BitFieldLenField("hlen", None, 5, length_of='private_data', adjust=lambda pkt, x: (x / 4)),
+                   BitFieldLenField("hlen", None, 5, length_of='private_data', adjust=lambda pkt, x: (x // 4)),
                    BitField("protocol", 0, 8),
                    BitField("flags", 0, 16),
                    PacketListField("private_data", [], GLBGUEChainedRouting, length_from=lambda p:p.hlen * 4)
