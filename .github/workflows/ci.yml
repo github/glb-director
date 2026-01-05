@@ -17,7 +17,7 @@ jobs:
     - name: Tar files
       run: tar -cvf glb-director.tar $GITHUB_WORKSPACE/tmp/build
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: glb-director
         path: glb-director.tar
