@@ -47,6 +47,8 @@ void get_options(char *config_file, char *forwarding_table, int argc,
 	    {"forwarding-table", required_argument, NULL, 't'},
 	    {"debug", no_argument, NULL, 'v'},
 	    {NULL, 0, NULL, 0}};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 
 	while ((opt = getopt_long(argc, argv, ":c:t:v", long_options, NULL)) !=
 	       -1)
@@ -72,6 +74,8 @@ void get_options(char *config_file, char *forwarding_table, int argc,
 		default:
 			abort();
 		}
+
+#pragma GCC diagnostic pop
 
 	glb_log_info("Using config: %s, Using forwarding table: %s,",
 		     config_file, forwarding_table);
