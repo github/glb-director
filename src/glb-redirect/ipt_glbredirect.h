@@ -19,8 +19,8 @@
  * along with glb-redirect.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef __IPT_GLBREDIRECT_MATCH__
-#define __IPT_GLBREDIRECT_MATCH__
+#ifndef IPT_GLBREDIRECT_MATCH
+#define IPT_GLBREDIRECT_MATCH
 
 struct ipt_glbredirect_info {
 

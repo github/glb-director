@@ -30,8 +30,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PACKET_PARSING_H_
-#define _PACKET_PARSING_H_
+#ifndef PACKET_PARSING_H
+#define PACKET_PARSING_H
 
 #include <stdint.h>
 
@@ -461,4 +461,4 @@ static __always_inline uint64_t glb_compute_hash(glb_route_context *route_contex
     return pkt_hash;
 }
 
-#endif /* _PACKET_PARSING_H_ */
+#endif /* PACKET_PARSING_H */
