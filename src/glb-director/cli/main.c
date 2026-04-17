@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -182,6 +183,10 @@ int main(int argc, char *argv[])
 	 * glb-director-xdp) could see a partially-written file.
 	 */
 	char *dst_copy = strdup(dst_binary);
+	if (dst_copy == NULL) {
+		glb_log_error("Out of memory allocating path for temporary file.");
+		return 1;
+	}
 	const char *dst_dir = dirname(dst_copy);
 	snprintf(tmp_path, sizeof(tmp_path), "%s/.glb-table-XXXXXX", dst_dir);
 	free(dst_copy);
@@ -192,6 +197,11 @@ int main(int argc, char *argv[])
 		tmp_path[0] = '\0';
 		return 1;
 	}
+
+	/* mkstemp creates with 0600; match fopen("wb") behavior (0666 & ~umask) */
+	mode_t old_umask = umask(0);
+	umask(old_umask);
+	fchmod(tmp_fd, 0666 & ~old_umask);
 
 	atexit(cleanup_tmp_file);
 
