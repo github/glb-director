@@ -33,8 +33,12 @@
 #include <arpa/inet.h>
 #include <byteswap.h>
 #include <jansson.h>
+#include <libgen.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "log.h"
 
@@ -121,6 +125,15 @@ int sortable_backend_cmp(const void *a_, const void *b_)
 	return 0;
 }
 
+/* Temp file path for atomic write; cleaned up on abnormal exit via atexit */
+static char tmp_path[PATH_MAX];
+
+static void cleanup_tmp_file(void)
+{
+	if (tmp_path[0] != '\0')
+		unlink(tmp_path);
+}
+
 void usage()
 {
 	glb_log_error(
@@ -163,9 +176,31 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	FILE *out = fopen(dst_binary, "wb");
+	/*
+	 * Write to a temporary file in the same directory, then atomically
+	 * rename to the final path. This avoids races where a reader (e.g.
+	 * glb-director-xdp) could see a partially-written file.
+	 */
+	char *dst_copy = strdup(dst_binary);
+	const char *dst_dir = dirname(dst_copy);
+	snprintf(tmp_path, sizeof(tmp_path), "%s/.glb-table-XXXXXX", dst_dir);
+	free(dst_copy);
+
+	int tmp_fd = mkstemp(tmp_path);
+	if (tmp_fd < 0) {
+		glb_log_error("Could not create temporary file for writing.");
+		tmp_path[0] = '\0';
+		return 1;
+	}
+
+	atexit(cleanup_tmp_file);
+
+	FILE *out = fdopen(tmp_fd, "wb");
 	if (out == NULL) {
-		glb_log_error("Could not open destination file for writing.");
+		glb_log_error("Could not open temporary file for writing.");
+		close(tmp_fd);
+		unlink(tmp_path);
+		tmp_path[0] = '\0';
 		return 1;
 	}
 
@@ -518,6 +553,16 @@ int main(int argc, char *argv[])
 	}
 
 	fclose(out);
+
+	if (rename(tmp_path, dst_binary) != 0) {
+		glb_log_error("Failed to rename temporary file to destination.");
+		unlink(tmp_path);
+		tmp_path[0] = '\0';
+		return 1;
+	}
+
+	/* Rename succeeded; clear tmp_path so atexit handler is a no-op */
+	tmp_path[0] = '\0';
 
 	return 0;
 }

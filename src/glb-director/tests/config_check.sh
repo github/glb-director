@@ -76,3 +76,10 @@ begin_test "no errors"
   grep -iv 'failed' $BASEDIR/build/check.out
 )
 end_test
+
+begin_test "check_config rejects corrupt tables (0 backends, 0 binds, 0 tables)"
+(
+  $BASEDIR/cli/test-check-config
+)
+end_test
+
