@@ -9,9 +9,6 @@ name: ci
   merge_group:
     types: [checks_requested]
 
-permissions:
-  contents: read
-
 # These deploy artifacts are only for testing.
 # The production versions are built by https://github.com/github/brew2deb/blob/main/packages/glb-director/formula.rb and deployed with puppet.
 jobs:
