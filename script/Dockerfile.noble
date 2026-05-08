@@ -3,13 +3,28 @@ FROM ubuntu:noble
 RUN apt-get update && apt-get -y install curl git
 
 # DPDK 
-RUN echo "deb http://dk.archive.ubuntu.com/ubuntu/ noble main universe" >> /etc/apt/sources.list
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev
+RUN apt-get update
+RUN apt-get install --assume-yes \
+    build-essential \
+    dpdk=23.11.4-0ubuntu0.24.04.2 \
+    dpdk-dev=23.11.4-0ubuntu0.24.04.2 \
+    libdpdk-dev=23.11.4-0ubuntu0.24.04.2 \
+    wget \
+    pkg-config \
+    libjansson-dev \
+    libsystemd-dev
 
 # iptables / DKMS
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
+RUN apt-get update
+RUN apt-get install --assume-yes --fix-broken \
+    wget \
+    pkg-config \
+    libsystemd-dev \
+    dkms \
+    debhelper \
+    libxtables-dev
 
 # golang
 RUN wget --quiet https://golang.org/dl/go1.24.5.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
@@ -28,7 +43,7 @@ RUN gem install rake fpm
 # XDP
 # linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
 RUN apt-get update && apt install -y apt-transport-https curl software-properties-common
-RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-10
+RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-20
 
 # Hack because the kernel headers are not installed in the right place (linuxkit vs generic)
 RUN ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname -r)
