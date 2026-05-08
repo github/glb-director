@@ -18,12 +18,12 @@ jobs:
       fail-fast: false
       matrix:
         ci_job: [
-          {'job': 'build-tarball-focal', 'cibuild_script': 'script/cibuild-create-package focal'},
-          {'job': 'build-tarball-noble', 'cibuild_script': 'script/cibuild-create-package noble'}
+          {'job': 'build-tarball-focal', 'cibuild_script': 'script/cibuild-create-packages focal'},
+          {'job': 'build-tarball-noble', 'cibuild_script': 'script/cibuild-create-packages noble'}
         ]
     uses: github/internal-actions/.github/workflows/default_simple.yml@main
     with:
-      cibuild-script: 'script/${{ matrix.ci_job.cibuild_script }}'
+      cibuild-script: ${{ matrix.ci_job.cibuild_script }}
       ci-formatted-job-name: ${{ matrix.ci_job.job }}
     secrets:
       dx-bot-token: ${{ secrets.INTERNAL_ACTIONS_DX_BOT_ACCOUNT_TOKEN }}
