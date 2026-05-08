@@ -1,6 +1,13 @@
+---
 name: ci
 
-on: [push]
+"on":
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - "gh-readonly-queue/**"
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -24,3 +31,11 @@ jobs:
     secrets:
       dx-bot-token: ${{ secrets.INTERNAL_ACTIONS_DX_BOT_ACCOUNT_TOKEN }}
       datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
+
+permissions:
+  attestations: write
+  actions: read
+  checks: read
+  contents: read
+  statuses: read
+  id-token: write
