@@ -1,9 +1,9 @@
 #!/bin/bash
 
 begin_fold() {
-	echo "%%%FOLD {$*}%%%"
+    echo "::group::$*"
 }
 
 end_fold() {
-	echo "%%%END FOLD%%%"
+    echo "::endgroup::"
 }
