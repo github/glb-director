@@ -7,17 +7,18 @@ permissions:
 
 jobs:
   package-build:
-
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        distro: [focal, noble]
     steps:
     - uses: actions/checkout@v6
-    - name: Run package build focal
-      run: script/cibuild-create-packages-focal
+    - name: Run package build ${{ matrix.distro }}
+      run: script/cibuild-create-packages ${{ matrix.distro }}
     - name: Tar files
-      run: tar -cvf glb-director.tar $GITHUB_WORKSPACE/tmp/build
+      run: tar -cvf glb-director-${{ matrix.distro }}.tar $GITHUB_WORKSPACE/tmp/build
     - name: Upload Artifact
       uses: actions/upload-artifact@v6
       with:
-        name: glb-director
-        path: glb-director.tar
+        name: glb-director-${{ matrix.distro }}
+        path: glb-director-${{ matrix.distro }}.tar
