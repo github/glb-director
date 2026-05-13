@@ -25,14 +25,14 @@ jobs:
 
       - name: Build image
         run: |
-          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          IMAGE_TAG=$(basename ${{ matrix.dockerfile }} | sed 's/Dockerfile\./glb-director-/' | tr '[:upper:]' '[:lower:]')
           docker build -f ${{ matrix.dockerfile }} -t ${IMAGE_TAG}:latest .
           docker save ${IMAGE_TAG}:latest -o ${IMAGE_TAG}.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.dockerfile }}
+          name: $(basename ${{ matrix.dockerfile }})
           path: glb-director-*.tar
           retention-days: 1
 
@@ -50,16 +50,16 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.dockerfile }}
+          name: $(basename ${{ matrix.dockerfile }})
 
       - name: Load Docker image
         run: |
-          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          IMAGE_TAG=$(basename ${{ matrix.dockerfile }} | sed 's/Dockerfile\./glb-director-/' | tr '[:upper:]' '[:lower:]')
           docker load -i ${IMAGE_TAG}.tar
 
       - name: Run test suite in container
         run: |
-          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          IMAGE_TAG=$(basename ${{ matrix.dockerfile }} | sed 's/Dockerfile\./glb-director-/' | tr '[:upper:]' '[:lower:]')
           docker run --rm \
             --privileged \
             -v $(pwd):/workspace \
