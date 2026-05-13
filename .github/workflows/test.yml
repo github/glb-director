@@ -1,0 +1,68 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile: [dockerfile.noble, dockerfile.focal]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build image
+        run: |
+          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          docker build -f ${{ matrix.dockerfile }} -t ${IMAGE_TAG}:latest .
+          docker save ${IMAGE_TAG}:latest -o ${IMAGE_TAG}.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.dockerfile }}
+          path: glb-director-*.tar
+          retention-days: 1
+
+  test:
+    needs: build-images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-suite: [director, director-xdp, healthcheck, redirect]
+        dockerfile: [dockerfile.noble, dockerfile.focal]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ matrix.dockerfile }}
+
+      - name: Load Docker image
+        run: |
+          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          docker load -i ${IMAGE_TAG}.tar
+
+      - name: Run test suite in container
+        run: |
+          IMAGE_TAG=$(echo ${{ matrix.dockerfile }} | sed 's/dockerfile./glb-director-/')
+          docker run --rm \
+            --privileged \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            ${IMAGE_TAG}:latest \
+            bash -c "script/test-glb-${{ matrix.test-suite }}"
