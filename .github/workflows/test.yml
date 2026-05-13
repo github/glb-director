@@ -32,7 +32,7 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
-          name: glb-director-build-${{ matrix.distro }}
+          name: glb_director_build_${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
           retention-days: 1
 
