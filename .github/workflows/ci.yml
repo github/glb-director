@@ -1,38 +1,23 @@
----
 name: ci
 
-"on":
-  workflow_dispatch:
-  push:
-    branches-ignore:
-      - "gh-readonly-queue/**"
-  merge_group:
-    types: [checks_requested]
-
-# These deploy artifacts are only for testing.
-# The production versions are built by https://github.com/github/brew2deb/blob/main/packages/glb-director/formula.rb and deployed with puppet.
-jobs:
-  default-simple:
-    name: ${{ matrix.ci_job.job }}
-    strategy:
-      fail-fast: false
-      matrix:
-        ci_job: [
-          {'job': 'build-tarball-focal', 'cibuild_script': 'script/cibuild-create-packages focal'},
-          {'job': 'build-tarball-noble', 'cibuild_script': 'script/cibuild-create-packages noble'}
-        ]
-    uses: github/internal-actions/.github/workflows/default_simple.yml@main
-    with:
-      cibuild-script: ${{ matrix.ci_job.cibuild_script }}
-      ci-formatted-job-name: ${{ matrix.ci_job.job }}
-    secrets:
-      dx-bot-token: ${{ secrets.INTERNAL_ACTIONS_DX_BOT_ACCOUNT_TOKEN }}
-      datadog-api-key: ${{ secrets.DATADOG_API_KEY }}
+on: [push]
 
 permissions:
-  attestations: write
-  actions: read
-  checks: read
   contents: read
-  statuses: read
-  id-token: write
+
+jobs:
+  package-build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Run package build focal
+      run: script/cibuild-create-packages-focal
+    - name: Tar files
+      run: tar -cvf glb-director.tar $GITHUB_WORKSPACE/tmp/build
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: glb-director
+        path: glb-director.tar
