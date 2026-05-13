@@ -14,6 +14,7 @@ jobs:
   build-images:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         distro: [noble, focal]
     steps:
