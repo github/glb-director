@@ -35,6 +35,9 @@
 #include <jansson.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+
+bool debug = false;
 
 #include "log.h"
 
