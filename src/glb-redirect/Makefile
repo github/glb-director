@@ -36,7 +36,8 @@ IPT_LDFLAGS=-lxtables -shared
 
 mkdeb:
 	rm -rf glb-redirect-iptables-dkms-mkdeb
-	cp -R /etc/dkms/template-dkms-mkdeb/ glb-redirect-iptables-dkms-mkdeb
+	test -d "$(DKMS_TEMPLATE_DIR)"
+	cp -R "$(DKMS_TEMPLATE_DIR)" glb-redirect-iptables-dkms-mkdeb
 	chown : -R glb-redirect-iptables-dkms-mkdeb
 	# Works around this bug: https://ubuntuforums.org/showthread.php?t=2234906
 	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
