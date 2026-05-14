@@ -26,13 +26,13 @@ jobs:
 
       - name: Build image
         run: |
-          docker build -f script/Dockerfile.${{ matrix.distro }} -t glb-director-build-${{ matrix.distro }}:latest .
-          docker save glb-director-build-${{ matrix.distro }}:latest -o glb-director-build-${{ matrix.distro }}.tar
+          docker build --file script/Dockerfile.${{ matrix.distro }} --tag glb-director-build-${{ matrix.distro }}:latest .
+          docker save glb-director-build-${{ matrix.distro }}:latest --output glb-director-build-${{ matrix.distro }}.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
-          name: glb_director_build_${{ matrix.distro }}
+          name: glb-director-build-${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
           retention-days: 1
 
@@ -54,13 +54,13 @@ jobs:
 
       - name: Load Docker image
         run: |
-          docker load -i glb-director-build-${{ matrix.distro }}.tar
+          docker load --input glb-director-build-${{ matrix.distro }}.tar
 
       - name: Run test suite in container
         run: |
           docker run --rm \
             --privileged \
-            -v $(pwd):/workspace \
-            -w /workspace \
+            --volume $(pwd):/workspace \
+            --workdir /workspace \
             glb-director-build-${{ matrix.distro }}:latest \
             bash -c "script/test-glb-${{ matrix.test-suite }}"
