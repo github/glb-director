@@ -30,9 +30,9 @@ jobs:
           docker save glb-director-build-${{ matrix.distro }}:latest --output glb-director-build-${{ matrix.distro }}.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: glb-director-build-${{ matrix.distro }}
+          name: build-${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
           retention-days: 1
 
@@ -47,11 +47,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: glb-director-build-${{ matrix.distro }}
 
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.distro }}
+      
       - name: Load Docker image
         run: |
           docker load --input glb-director-build-${{ matrix.distro }}.tar

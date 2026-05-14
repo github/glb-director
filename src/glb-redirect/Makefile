@@ -49,4 +49,3 @@ mkdeb:
 		sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"; \
 	fi
 	cd "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb" && dkms mkdeb --source-only
-	mv "$(BUILDDIR)"/glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb "$(BUILDDIR)/"
