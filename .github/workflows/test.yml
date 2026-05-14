@@ -33,7 +33,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: glb_director_build_${{ matrix.distro }}
-          path: glb-director-build-${{ matrix.distro }}.tar
+          path: glb_director_build_${{ matrix.distro }}.tar
           retention-days: 1
 
   test:
@@ -50,7 +50,7 @@ jobs:
       - name: Download image artifact
         uses: actions/download-artifact@v3
         with:
-          name: glb-director-build-${{ matrix.distro }}
+          name: glb_director_build_${{ matrix.distro }}
 
       - name: Load Docker image
         run: |
