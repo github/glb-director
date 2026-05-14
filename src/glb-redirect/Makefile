@@ -38,13 +38,13 @@ IPT_LDFLAGS=-lxtables -shared
 DKMS_TEMPLATE_DIR ?= $(ROOT_DIR)
 
 mkdeb:
-	rm -rf glb-redirect-iptables-dkms-mkdeb
+	rm -rf "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
 	@test -n "$(DKMS_TEMPLATE_DIR)" && test -d "$(DKMS_TEMPLATE_DIR)" || \
 		(echo "DKMS_TEMPLATE_DIR is unset or does not exist: '$(DKMS_TEMPLATE_DIR)'" >&2; exit 1)
-	cp -R "$(DKMS_TEMPLATE_DIR)" glb-redirect-iptables-dkms-mkdeb
-	chown : -R glb-redirect-iptables-dkms-mkdeb
-	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
-	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
-	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
-	dkms mkdeb --source-only
-	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/
+	cp -R "$(DKMS_TEMPLATE_DIR)" "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
+	chown : -R "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
+	sed -i '/chmod 644/d' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/Makefile"
+	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"
+	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"
+	cd "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb" && dkms mkdeb --source-only
+	mv "$(BUILDDIR)"/glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb "$(BUILDDIR)/"
