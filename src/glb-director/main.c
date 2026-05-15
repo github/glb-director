@@ -227,7 +227,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Find out how many NIC ports we have, validate that it's reasonable */
-	nb_sys_ports = rte_eth_dev_count_avail();
+	nb_sys_ports = rte_eth_dev_count();
 	if (nb_sys_ports == 0) {
 		glb_log_error_and_exit("No supported Ethernet device found");
 		return -1;
