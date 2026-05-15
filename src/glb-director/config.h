@@ -34,6 +34,10 @@
 /* Macros for printing using RTE_LOG */
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 
+#include <rte_ether.h>
+#include <rte_ip.h>
+#include <rte_lcore.h>
+
 /* Max size of a single packet */
 #define MAX_PACKET_SZ 9220
 
@@ -62,3 +66,43 @@
 
 /* default ethernet dev, used for collecting nic info */
 #define DEFAULT_ETH_DEV 0
+
+/*
+ * Compatibility aliases for newer DPDK releases (e.g. Ubuntu Noble) where
+ * legacy symbol names are no longer provided.
+ */
+#ifndef ether_addr
+#define ether_addr rte_ether_addr
+#endif
+
+#ifndef ether_hdr
+#define ether_hdr rte_ether_hdr
+#endif
+
+#ifndef ipv4_hdr
+#define ipv4_hdr rte_ipv4_hdr
+#endif
+
+#ifndef ipv6_hdr
+#define ipv6_hdr rte_ipv6_hdr
+#endif
+
+#if !defined(ETHER_TYPE_IPv4) && defined(RTE_ETHER_TYPE_IPV4)
+#define ETHER_TYPE_IPv4 RTE_ETHER_TYPE_IPV4
+#endif
+
+#if !defined(ETHER_TYPE_IPv6) && defined(RTE_ETHER_TYPE_IPV6)
+#define ETHER_TYPE_IPv6 RTE_ETHER_TYPE_IPV6
+#endif
+
+#ifndef ether_addr_octet
+#define ether_addr_octet addr_bytes
+#endif
+
+#ifndef RTE_LCORE_FOREACH_SLAVE
+#define RTE_LCORE_FOREACH_SLAVE RTE_LCORE_FOREACH_WORKER
+#endif
+
+#ifndef rte_get_master_lcore
+#define rte_get_master_lcore rte_get_main_lcore
+#endif
