@@ -76,8 +76,8 @@
 #include <rte_string_fns.h>
 
 #include "bind_classifier.h"
-#include "bind_classifier_rules.h"
 #include "config.h"
+#include "bind_classifier_rules.h"
 #include "glb_fwd_config.h"
 #include "glb_director_config.h"
 #include "log.h"

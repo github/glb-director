@@ -68,9 +68,10 @@
 #define DEFAULT_ETH_DEV 0
 
 /*
- * Compatibility aliases for newer DPDK releases (e.g. Ubuntu Noble) where
- * legacy symbol names are no longer provided.
+ * Compatibility aliases for DPDK API naming differences between older and
+ * newer releases.
  */
+#ifdef RTE_ETHER_TYPE_IPV4
 #ifndef ether_addr
 #define ether_addr rte_ether_addr
 #endif
@@ -97,6 +98,31 @@
 
 #ifndef ether_addr_octet
 #define ether_addr_octet addr_bytes
+#endif
+#else
+#ifndef rte_ether_addr
+#define rte_ether_addr ether_addr
+#endif
+
+#ifndef rte_ether_hdr
+#define rte_ether_hdr ether_hdr
+#endif
+
+#ifndef rte_ipv4_hdr
+#define rte_ipv4_hdr ipv4_hdr
+#endif
+
+#ifndef rte_ipv6_hdr
+#define rte_ipv6_hdr ipv6_hdr
+#endif
+
+#if !defined(RTE_ETHER_TYPE_IPV4) && defined(ETHER_TYPE_IPv4)
+#define RTE_ETHER_TYPE_IPV4 ETHER_TYPE_IPv4
+#endif
+
+#if !defined(RTE_ETHER_TYPE_IPV6) && defined(ETHER_TYPE_IPv6)
+#define RTE_ETHER_TYPE_IPV6 ETHER_TYPE_IPv6
+#endif
 #endif
 
 #ifndef RTE_LCORE_FOREACH_SLAVE
