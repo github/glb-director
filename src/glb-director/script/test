@@ -42,8 +42,21 @@ begin_fold "Building glb-director for testing"
   make clean
   make -C cli clean
 
-  scan-build-10 make
-  scan-build-10 make -C cli
+  if command -v scan-build-10 >/dev/null 2>&1; then
+    SCAN_BUILD=scan-build-10
+  elif command -v scan-build-18 >/dev/null 2>&1; then
+    SCAN_BUILD=scan-build-18
+  elif command -v scan-build >/dev/null 2>&1; then
+    SCAN_BUILD=scan-build
+  elif command -v scan-build-14 >/dev/null 2>&1; then
+    SCAN_BUILD=scan-build-14
+  else
+    echo "scan-build is not installed" >&2
+    exit 1
+  fi
+
+  "$SCAN_BUILD" make
+  "$SCAN_BUILD" make -C cli
 )
 end_fold
 
