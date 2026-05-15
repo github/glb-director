@@ -10,6 +10,9 @@ on:
       - main
       - master
 
+permissions:
+    contents: read
+
 jobs:
   build-images:
     runs-on: ubuntu-latest
@@ -35,6 +38,8 @@ jobs:
           name: build-${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
           retention-days: 1
+
+
 
   test:
     needs: build-images
