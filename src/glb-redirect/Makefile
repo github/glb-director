@@ -35,12 +35,19 @@ IPT_LDFLAGS=-lxtables -shared
 	$(CC) -o $@ $< $(IPT_CFLAGS) $(IPT_LDFLAGS)
 
 mkdeb:
-	rm -rf glb-redirect-iptables-dkms-mkdeb
-	cp -R /etc/dkms/template-dkms-mkdeb/ glb-redirect-iptables-dkms-mkdeb
-	chown : -R glb-redirect-iptables-dkms-mkdeb
+	mkdir -p "$(BUILDDIR)"
+	rm -rf "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
+	cp -R "$(ROOT_DIR)" "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
+	chown : -R "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
 	# Works around this bug: https://ubuntuforums.org/showthread.php?t=2234906
-	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
-	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
-	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
-	dkms mkdeb --source-only
-	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/
+	sed -i '/chmod 644/d' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/Makefile"
+	@if [ -f "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control" ]; then \
+		sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"; \
+		sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"; \
+	fi
+	@if dkms help 2>/dev/null | grep -q 'mkdeb'; then \
+		cd "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb" && dkms mkdeb --source-only; \
+		mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/; \
+	else \
+		echo "dkms mkdeb is not supported on this platform; skipping source deb packaging"; \
+	fi
