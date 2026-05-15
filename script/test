@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v scan-build-10 >/dev/null 2>&1; then
+  SCAN_BUILD=scan-build-10
+elif command -v scan-build >/dev/null 2>&1; then
+  SCAN_BUILD=scan-build
+elif command -v scan-build-14 >/dev/null 2>&1; then
+  SCAN_BUILD=scan-build-14
+else
+  echo "scan-build is not installed" >&2
+  exit 1
+fi
+
+"$SCAN_BUILD" make
