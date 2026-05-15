@@ -1,5 +1,5 @@
-#ifndef _RTE_ATOMIC_COMPAT_H_
-#define _RTE_ATOMIC_COMPAT_H_
+#ifndef GLB_RTE_ATOMIC_COMPAT_H_
+#define GLB_RTE_ATOMIC_COMPAT_H_
 
 #include <stdint.h>
 
