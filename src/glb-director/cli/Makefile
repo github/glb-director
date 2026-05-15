@@ -71,6 +71,9 @@ CFLAGS += -DCLI_MODE
 LDFLAGS += -z relro -z now
 LDFLAGS += -ljansson
 
+DPDK_CFLAGS := $(shell pkg-config --cflags libdpdk)
+DPDK_LIBS := $(shell pkg-config --libs libdpdk)
+
 glb-director-cli: main.c
 	gcc \
 		$(CFLAGS) \
@@ -87,9 +90,8 @@ glb-config-check:
 		-o glb-config-check \
 		-I`pwd`/.. \
 		-I`pwd`/../.. \
-		-I/usr/include/dpdk \
-		-I/usr/include/x86_64-linux-gnu \
-		-ldpdk -lpcap $(LDFLAGS)\
+		$(DPDK_CFLAGS) \
+		-lpcap $(LDFLAGS) $(DPDK_LIBS) \
 		-m64 -mssse3
 
 glb-director-pcap:
@@ -99,10 +101,9 @@ glb-director-pcap:
 		-o glb-director-pcap \
 		-I`pwd`/.. \
 		-I`pwd`/../.. \
-		-I/usr/include/dpdk \
-		-I/usr/include/x86_64-linux-gnu \
+		$(DPDK_CFLAGS) \
 		-lpcap \
-		-DPCAP_MODE $(LDFLAGS)\
+		-DPCAP_MODE $(LDFLAGS) $(DPDK_LIBS) \
 		-m64 -mssse3
 
 glb-director-stub-server:
@@ -112,9 +113,8 @@ glb-director-stub-server:
 		-o glb-director-stub-server \
 		-I`pwd`/.. \
 		-I`pwd`/../.. \
-		-I/usr/include/dpdk \
-		-I/usr/include/x86_64-linux-gnu \
-		-DPCAP_MODE $(LDFLAGS)\
+		$(DPDK_CFLAGS) \
+		-DPCAP_MODE $(LDFLAGS) $(DPDK_LIBS) \
 		-m64 -mssse3
 
 clean:
