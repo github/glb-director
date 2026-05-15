@@ -36,13 +36,11 @@
  */
 
 #include <rte_ip.h>
-#ifdef __has_include
 #if __has_include(<rte_ip4.h>)
 #include <rte_ip4.h>
 #endif
 #if __has_include(<rte_ip6.h>)
 #include <rte_ip6.h>
-#endif
 #endif
 
 enum { PROTO_FIELD_IPV4,
