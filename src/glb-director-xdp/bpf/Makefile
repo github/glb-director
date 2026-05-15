@@ -1,7 +1,7 @@
 all: glb_encap.o glb_encap_trace.o passer.o tailcall.o
 
-CLANG=clang-10
-LLC=llc-10
+CLANG ?= $(shell command -v clang-10 2>/dev/null || command -v clang-20 2>/dev/null || command -v clang-18 2>/dev/null || command -v clang 2>/dev/null)
+LLC ?= $(shell command -v llc-10 2>/dev/null || command -v llc-20 2>/dev/null || command -v llc-18 2>/dev/null || command -v llc 2>/dev/null)
 
 ifeq ($(KVER),)
 KVER=$(shell uname -r)
