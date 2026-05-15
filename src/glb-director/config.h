@@ -31,6 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdint.h>
+
 /* Macros for printing using RTE_LOG */
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 
@@ -38,6 +40,14 @@
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_lcore.h>
+#include <rte_mbuf.h>
+#include <rte_version.h>
+#if __has_include(<rte_mbuf_dyn.h>) && RTE_VERSION >= RTE_VERSION_NUM(23, 3, 0, 0)
+#include <rte_mbuf_dyn.h>
+#define GLB_HAVE_MBUF_USERDATA_DYNFIELD 1
+#else
+#define GLB_HAVE_MBUF_USERDATA_DYNFIELD 0
+#endif
 #endif
 
 /* Max size of a single packet */
@@ -188,6 +198,12 @@
 #endif
 #endif
 
+#if RTE_VERSION >= RTE_VERSION_NUM(18, 11, 0, 0)
+#define GLB_ETH_DEV_COUNT() rte_eth_dev_count_avail()
+#else
+#define GLB_ETH_DEV_COUNT() rte_eth_dev_count()
+#endif
+
 #ifndef RTE_LCORE_FOREACH_SLAVE
 #define RTE_LCORE_FOREACH_SLAVE RTE_LCORE_FOREACH_WORKER
 #endif
@@ -203,5 +219,29 @@
 #define GLB_HAVE_KNI 1
 #else
 #define GLB_HAVE_KNI 0
+#endif
+
+#if GLB_HAVE_MBUF_USERDATA_DYNFIELD
+extern int glb_mbuf_userdata_offset;
+
+static inline void glb_mbuf_set_userdata(struct rte_mbuf *mbuf, uint64_t value)
+{
+	*RTE_MBUF_DYNFIELD(mbuf, glb_mbuf_userdata_offset, uint64_t *) = value;
+}
+
+static inline uint64_t glb_mbuf_get_userdata(const struct rte_mbuf *mbuf)
+{
+	return *RTE_MBUF_DYNFIELD(mbuf, glb_mbuf_userdata_offset, const uint64_t *);
+}
+#else
+static inline void glb_mbuf_set_userdata(struct rte_mbuf *mbuf, uint64_t value)
+{
+	mbuf->udata64 = value;
+}
+
+static inline uint64_t glb_mbuf_get_userdata(const struct rte_mbuf *mbuf)
+{
+	return mbuf->udata64;
+}
 #endif
 #endif /* NO_DPDK */

@@ -105,6 +105,7 @@ char forwarding_table[256];
 int port_num_queues[MAX_KNI_PORTS];
 
 glb_kni *kni_ports[MAX_KNI_PORTS] = {NULL};
+int glb_mbuf_userdata_offset = -1;
 
 /* Use an array of pointers rather than a contiguous array of structs
  * so that the pointers can be allocated separately, keeping them core-local.
@@ -207,6 +208,21 @@ int main(int argc, char **argv)
 	argc -= ret;
 	argv += ret;
 
+#if GLB_HAVE_MBUF_USERDATA_DYNFIELD
+	static const struct rte_mbuf_dynfield glb_mbuf_userdata_dynfield = {
+		.name = "glb_mbuf_userdata",
+		.size = sizeof(uint64_t),
+		.align = __alignof__(uint64_t),
+		.flags = 0,
+	};
+
+	glb_mbuf_userdata_offset =
+	    rte_mbuf_dynfield_register(&glb_mbuf_userdata_dynfield);
+	if (glb_mbuf_userdata_offset < 0) {
+		glb_log_error_and_exit("Could not register mbuf userdata field");
+	}
+#endif
+
 	/* Find any command line options */
 	get_options(config_file, forwarding_table, argc, argv);
 
@@ -227,7 +243,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Find out how many NIC ports we have, validate that it's reasonable */
-	nb_sys_ports = rte_eth_dev_count();
+	nb_sys_ports = GLB_ETH_DEV_COUNT();
 	if (nb_sys_ports == 0) {
 		glb_log_error_and_exit("No supported Ethernet device found");
 		return -1;

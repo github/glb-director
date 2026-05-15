@@ -129,7 +129,8 @@ static inline uint32_t processor_burst_rx_on_flows(struct glb_processor_ctx *ctx
 
 		for (i = 0; i < nb_rx; i++) {
 			// remember which flow this came from
-			pkts_burst[total_rx + i]->udata64 = TARGET_FLOW_PATH(f);
+			glb_mbuf_set_userdata(pkts_burst[total_rx + i],
+					     TARGET_FLOW_PATH(f));
 		}
 
 		rte_atomic64_add(&ctx->metrics.total_packet_count, nb_rx);
@@ -224,7 +225,7 @@ static inline int processor_rx_dist_tx(struct glb_processor_ctx *ctx)
 		// shard out the returned packets over their flow paths
 		for (i = 0; i < nb_ret; i++) {
 			struct rte_mbuf *pkt = pkts_burst[i];
-			int target = pkt->udata64;
+			int target = glb_mbuf_get_userdata(pkt);
 			
 			if (unlikely(target == TARGET_KNI && perform_kni)) {
 				if (perform_kni) {
@@ -324,7 +325,7 @@ static inline int processor_worker(struct glb_processor_ctx *ctx)
 			    rte_lcore_id());
 			for (i = 0; i < num_pkts; i++) {
 				// mark as destined for drop, don't forward
-				pkts_burst[i]->udata64 = TARGET_DROP;
+				glb_mbuf_set_userdata(pkts_burst[i], TARGET_DROP);
 			}
 			rte_atomic64_add(
 			    &ctx->metrics.classification_failures,
@@ -344,7 +345,7 @@ static inline int processor_worker(struct glb_processor_ctx *ctx)
 				    rte_lcore_id(), i, num_pkts);
 #endif
 
-				pkts_burst[i]->udata64 = TARGET_KNI;
+				glb_mbuf_set_userdata(pkts_burst[i], TARGET_KNI);
 				rte_atomic64_inc(&ctx->metrics.kni_packet_count);
 			} else {
 				int table = CLASSIFIED_TABLE(classifications[i]);
@@ -371,7 +372,8 @@ static inline int processor_worker(struct glb_processor_ctx *ctx)
 #endif
 				} else {
 					// free the packet, we're dropping it
-					pkts_burst[i]->udata64 = TARGET_DROP;
+					glb_mbuf_set_userdata(pkts_burst[i],
+							     TARGET_DROP);
 					rte_atomic64_add(&ctx->metrics.encap_failures, 1);
 #ifdef TRACE_PACKET_FLOW
 					glb_log_debug(
@@ -383,7 +385,8 @@ static inline int processor_worker(struct glb_processor_ctx *ctx)
 #ifdef TRACE_PACKET_FLOW
 				glb_log_debug(
 				    "lcore-%u: ->  -> target is %d",
-				    rte_lcore_id(), pkts_burst[i]->udata64);
+				    rte_lcore_id(),
+				    glb_mbuf_get_userdata(pkts_burst[i]));
 #endif
 			}
 		}

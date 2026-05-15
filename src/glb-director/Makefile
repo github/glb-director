@@ -46,7 +46,7 @@ ifeq ($(wildcard $(RTE_SDK)/mk/rte.vars.mk),)
     CFLAGS += $(shell pkg-config --cflags libdpdk)
     CFLAGS += -O3 -g -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
     CFLAGS += -DSTATSD -DSYSTEMD
-    CFLAGS += -I$(SRCDIR)/../
+    CFLAGS += -I$(CURDIR)/..
     LDFLAGS += $(shell pkg-config --libs libdpdk)
     LDFLAGS += -z relro -z now -ljansson -lsystemd
 
@@ -70,7 +70,7 @@ else
     CFLAGS += -O3 -g
     CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
     CFLAGS += -DSTATSD -DSYSTEMD
-    CFLAGS += -I$(SRCDIR)/../
+    CFLAGS += -I$(CURDIR)/..
     LDFLAGS += -z relro -z now -ljansson -lsystemd
 
     CONFIG_RTE_LIBRTE_PMD_XENVIRT = n
