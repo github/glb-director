@@ -80,16 +80,16 @@ struct rte_acl_field_def ipv4_defs[NUM_FIELDS_IPV4] = {
 	.size = sizeof(uint32_t),
 	.field_index = SRC_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_SRC,
-	.offset = offsetof(struct ipv4_hdr, src_addr) -
-		  offsetof(struct ipv4_hdr, next_proto_id),
+	.offset = offsetof(struct rte_ipv4_hdr, src_addr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = DST_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_DST,
-	.offset = offsetof(struct ipv4_hdr, dst_addr) -
-		  offsetof(struct ipv4_hdr, next_proto_id),
+	.offset = offsetof(struct rte_ipv4_hdr, dst_addr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
@@ -97,15 +97,15 @@ struct rte_acl_field_def ipv4_defs[NUM_FIELDS_IPV4] = {
 	.field_index = SRCP_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_PORTS,
 	.offset =
-	    sizeof(struct ipv4_hdr) - offsetof(struct ipv4_hdr, next_proto_id),
+	    sizeof(struct rte_ipv4_hdr) - offsetof(struct rte_ipv4_hdr, next_proto_id),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = DSTP_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_PORTS,
-	.offset = sizeof(struct ipv4_hdr) -
-		  offsetof(struct ipv4_hdr, next_proto_id) + sizeof(uint16_t),
+	.offset = sizeof(struct rte_ipv4_hdr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id) + sizeof(uint16_t),
     },
     // support for ICMP introspection
     {
@@ -113,30 +113,30 @@ struct rte_acl_field_def ipv4_defs[NUM_FIELDS_IPV4] = {
 	.size = sizeof(uint32_t),
 	.field_index = ICMP_INNER_SRC_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_INNER_SRC,
-	.offset = sizeof(struct ipv4_hdr) -
-		  offsetof(struct ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
+	.offset = sizeof(struct rte_ipv4_hdr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over to inner IP header
-		  offsetof(struct ipv4_hdr, src_addr),
+		  offsetof(struct rte_ipv4_hdr, src_addr),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = ICMP_INNER_SRCP_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_INNER_PORTS,
-	.offset = sizeof(struct ipv4_hdr) -
-		  offsetof(struct ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
+	.offset = sizeof(struct rte_ipv4_hdr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over to inner IP header
-		  sizeof(struct ipv4_hdr),
+		  sizeof(struct rte_ipv4_hdr),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = ICMP_INNER_DSTP_FIELD_IPV4,
 	.input_index = RTE_ACL_IPV4_INNER_PORTS,
-	.offset = sizeof(struct ipv4_hdr) -
-		  offsetof(struct ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
+	.offset = sizeof(struct rte_ipv4_hdr) -
+		  offsetof(struct rte_ipv4_hdr, next_proto_id) + sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over to inner IP header
-		  sizeof(struct ipv4_hdr) + sizeof(uint16_t),
+		  sizeof(struct rte_ipv4_hdr) + sizeof(uint16_t),
     },
 };
 
@@ -204,78 +204,78 @@ struct rte_acl_field_def ipv6_defs[NUM_FIELDS_IPV6] = {
 	.size = sizeof(uint32_t),
 	.field_index = SRC1_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_SRC1,
-	.offset = offsetof(struct ipv6_hdr, src_addr) -
-		  offsetof(struct ipv6_hdr, proto),
+	.offset = offsetof(struct rte_ipv6_hdr, src_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = SRC2_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_SRC2,
-	.offset = offsetof(struct ipv6_hdr, src_addr) -
-		  offsetof(struct ipv6_hdr, proto) + sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, src_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = SRC3_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_SRC3,
-	.offset = offsetof(struct ipv6_hdr, src_addr) -
-		  offsetof(struct ipv6_hdr, proto) + 2 * sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, src_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + 2 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = SRC4_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_SRC4,
-	.offset = offsetof(struct ipv6_hdr, src_addr) -
-		  offsetof(struct ipv6_hdr, proto) + 3 * sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, src_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + 3 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = DST1_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_DST1,
-	.offset = offsetof(struct ipv6_hdr, dst_addr) -
-		  offsetof(struct ipv6_hdr, proto),
+	.offset = offsetof(struct rte_ipv6_hdr, dst_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = DST2_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_DST2,
-	.offset = offsetof(struct ipv6_hdr, dst_addr) -
-		  offsetof(struct ipv6_hdr, proto) + sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, dst_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = DST3_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_DST3,
-	.offset = offsetof(struct ipv6_hdr, dst_addr) -
-		  offsetof(struct ipv6_hdr, proto) + 2 * sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, dst_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + 2 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = DST4_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_DST4,
-	.offset = offsetof(struct ipv6_hdr, dst_addr) -
-		  offsetof(struct ipv6_hdr, proto) + 3 * sizeof(uint32_t),
+	.offset = offsetof(struct rte_ipv6_hdr, dst_addr) -
+		  offsetof(struct rte_ipv6_hdr, proto) + 3 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = SRCP_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_PORTS,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto),
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = DSTP_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_PORTS,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint16_t),
     },
 
@@ -285,59 +285,59 @@ struct rte_acl_field_def ipv6_defs[NUM_FIELDS_IPV6] = {
 	.size = sizeof(uint32_t),
 	.field_index = ICMP_INNER_SRC1_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_SRC1,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  offsetof(struct ipv6_hdr, src_addr),
+		  offsetof(struct rte_ipv6_hdr, src_addr),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = ICMP_INNER_SRC2_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_SRC2,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  offsetof(struct ipv6_hdr, src_addr) + sizeof(uint32_t),
+		  offsetof(struct rte_ipv6_hdr, src_addr) + sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = ICMP_INNER_SRC3_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_SRC3,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  offsetof(struct ipv6_hdr, src_addr) + 2 * sizeof(uint32_t),
+		  offsetof(struct rte_ipv6_hdr, src_addr) + 2 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_MASK,
 	.size = sizeof(uint32_t),
 	.field_index = ICMP_INNER_SRC4_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_SRC4,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  offsetof(struct ipv6_hdr, src_addr) + 3 * sizeof(uint32_t),
+		  offsetof(struct rte_ipv6_hdr, src_addr) + 3 * sizeof(uint32_t),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = ICMP_INNER_SRCP_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_PORTS,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  sizeof(struct ipv6_hdr),
+		  sizeof(struct rte_ipv6_hdr),
     },
     {
 	.type = RTE_ACL_FIELD_TYPE_RANGE,
 	.size = sizeof(uint16_t),
 	.field_index = ICMP_INNER_DSTP_FIELD_IPV6,
 	.input_index = RTE_ACL_IPV6_INNER_PORTS,
-	.offset = sizeof(struct ipv6_hdr) - offsetof(struct ipv6_hdr, proto) +
+	.offset = sizeof(struct rte_ipv6_hdr) - offsetof(struct rte_ipv6_hdr, proto) +
 		  sizeof(uint32_t) +
 		  sizeof(uint32_t) + // skip over the ICMPv6 header
-		  sizeof(struct ipv6_hdr) + sizeof(uint16_t),
+		  sizeof(struct rte_ipv6_hdr) + sizeof(uint16_t),
     },
 };
