@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y build-essential dpdk=19.11.14-0ubuntu0.
 RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
 
 # golang
-RUN wget --quiet https://golang.org/dl/go1.24.5.linux-amd64.tar.gz -O- | tar -C /usr/local -zxvf -
+RUN ARCH=$(dpkg --print-architecture) && wget --quiet https://golang.org/dl/go1.24.5.linux-${ARCH}.tar.gz -O- | tar -C /usr/local -zxvf -
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"

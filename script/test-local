@@ -23,7 +23,7 @@ fi
 cd "$HOSTPATH"
 
 echo "==> Building Docker image for ${DISTRO}..."
-docker build --file "${DOCKERFILE}" --tag "${IMAGE}" .
+docker build --platform linux/amd64 --file "${DOCKERFILE}" --tag "${IMAGE}" .
 
 TEST_SUITES=(director director-xdp healthcheck redirect)
 
@@ -31,6 +31,7 @@ for suite in "${TEST_SUITES[@]}"; do
   echo ""
   echo "==> Running test suite: glb-${suite} (${DISTRO})"
   docker run --rm \
+    --platform linux/amd64 \
     --privileged \
     --volume "$(pwd):/workspace" \
     --workdir /workspace \
