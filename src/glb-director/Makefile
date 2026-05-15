@@ -70,7 +70,7 @@ else
     CFLAGS += -O3 -g
     CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
     CFLAGS += -DSTATSD -DSYSTEMD
-    CFLAGS += -I$(CURDIR)/..
+    CFLAGS += -I$(SRCDIR)/..
     LDFLAGS += -z relro -z now -ljansson -lsystemd
 
     CONFIG_RTE_LIBRTE_PMD_XENVIRT = n
