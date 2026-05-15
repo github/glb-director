@@ -47,6 +47,7 @@ mkdeb:
 	fi
 	@if dkms mkdeb --help >/dev/null 2>&1; then \
 		cd "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb" && dkms mkdeb --source-only; \
+		mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb "$(BUILDDIR)/" 2>/dev/null || true; \
 	else \
 		echo "dkms mkdeb is not supported on this platform; skipping source deb packaging"; \
 	fi
