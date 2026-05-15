@@ -2,11 +2,6 @@ FROM ubuntu:focal
 
 RUN apt-get update && apt-get -y install curl git
 
-# Python testing dependencies
-RUN apt-get update && apt-get install -y python3-pip
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
-
 # DPDK 
 RUN echo "deb http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
 ARG DEBIAN_FRONTEND=noninteractive
