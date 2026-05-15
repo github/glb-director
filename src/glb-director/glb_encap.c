@@ -131,8 +131,13 @@ int glb_encapsulate_packet(struct ether_hdr *eth_hdr, glb_route_context *route_c
 	uint32_t first_hop_ip = route_context->ipv4_hops[0];
 	uint32_t remaining_hop_count = route_context->hop_count - 1;
 
+#ifdef RTE_ETHER_TYPE_IPV4
+	eth_hdr->dst_addr = g_director_config->gateway_ether_addr;
+	eth_hdr->src_addr = g_director_config->local_ether_addr;
+#else
 	eth_hdr->d_addr = g_director_config->gateway_ether_addr;
 	eth_hdr->s_addr = g_director_config->local_ether_addr;
+#endif
 	eth_hdr->ether_type = htons(ETHER_TYPE_IPv4);
 
 	ipv4_hdr->version = PDNET_IPV4_VERSION;

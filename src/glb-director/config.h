@@ -102,6 +102,48 @@
 #ifndef ether_addr_octet
 #define ether_addr_octet addr_bytes
 #endif
+
+#ifndef tcp_hdr
+#define tcp_hdr rte_tcp_hdr
+#endif
+
+#ifndef udp_hdr
+#define udp_hdr rte_udp_hdr
+#endif
+
+#ifndef ether_format_addr
+#define ether_format_addr rte_ether_format_addr
+#endif
+
+/* mbuf TX flags renamed in DPDK 21.11 */
+#ifndef PKT_TX_IPV4
+#define PKT_TX_IPV4 RTE_MBUF_F_TX_IPV4
+#endif
+
+#ifndef PKT_TX_IP_CKSUM
+#define PKT_TX_IP_CKSUM RTE_MBUF_F_TX_IP_CKSUM
+#endif
+
+#ifndef PKT_TX_UDP_CKSUM
+#define PKT_TX_UDP_CKSUM RTE_MBUF_F_TX_UDP_CKSUM
+#endif
+
+/* Ethernet device config constants renamed in DPDK 21.11 */
+#ifndef ETH_MQ_RX_RSS
+#define ETH_MQ_RX_RSS RTE_ETH_MQ_RX_RSS
+#endif
+
+#ifndef ETH_MQ_TX_NONE
+#define ETH_MQ_TX_NONE RTE_ETH_MQ_TX_NONE
+#endif
+
+#ifndef ETH_RSS_UDP
+#define ETH_RSS_UDP RTE_ETH_RSS_UDP
+#endif
+
+#ifndef ETH_RSS_TCP
+#define ETH_RSS_TCP RTE_ETH_RSS_TCP
+#endif
 #else
 #ifndef rte_ether_addr
 #define rte_ether_addr ether_addr
@@ -126,6 +168,18 @@
 #if !defined(RTE_ETHER_TYPE_IPV6) && defined(ETHER_TYPE_IPv6)
 #define RTE_ETHER_TYPE_IPV6 ETHER_TYPE_IPv6
 #endif
+
+#ifndef rte_tcp_hdr
+#define rte_tcp_hdr tcp_hdr
+#endif
+
+#ifndef rte_udp_hdr
+#define rte_udp_hdr udp_hdr
+#endif
+
+#ifndef rte_ether_format_addr
+#define rte_ether_format_addr ether_format_addr
+#endif
 #endif
 
 #ifndef RTE_LCORE_FOREACH_SLAVE
@@ -136,5 +190,12 @@
 #ifndef rte_get_master_lcore
 #define rte_get_master_lcore rte_get_main_lcore
 #endif
+#endif
+
+/* KNI was removed in DPDK 23.11. GLB_HAVE_KNI gates all KNI-dependent code. */
+#if __has_include(<rte_kni.h>)
+#define GLB_HAVE_KNI 1
+#else
+#define GLB_HAVE_KNI 0
 #endif
 #endif /* NO_DPDK */

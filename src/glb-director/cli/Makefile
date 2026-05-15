@@ -42,7 +42,6 @@ PCAP_SRCS = pcap_mode.c \
 	../glb_fwd_config.c \
 	../glb_director_config.c \
 	../glb_encap.c \
-	../cmdline_parse.c \
 	../cmdline_parse_etheraddr.c \
 	../glb_encap_pcap.c \
 	../siphash24.c \
@@ -52,7 +51,6 @@ STUB_SRCS = stub_server.c \
 	../glb_fwd_config.c \
 	../glb_director_config.c \
 	../glb_encap.c \
-	../cmdline_parse.c \
 	../cmdline_parse_etheraddr.c \
 	../glb_encap_pcap.c \
 	../siphash24.c \

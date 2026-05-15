@@ -70,7 +70,9 @@
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_memzone.h>
+#if __has_include(<rte_pci.h>)
 #include <rte_pci.h>
+#endif
 #include <rte_per_lcore.h>
 #include <rte_ring.h>
 #include <rte_string_fns.h>

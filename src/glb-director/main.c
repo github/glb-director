@@ -63,7 +63,9 @@
 #include <rte_ether.h>
 #include <rte_interrupts.h>
 #include <rte_ip.h>
+#if __has_include(<rte_kni.h>)
 #include <rte_kni.h>
+#endif
 #include <rte_launch.h>
 #include <rte_lcore.h>
 #include <rte_log.h>
@@ -73,11 +75,14 @@
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_memzone.h>
+#if __has_include(<rte_pci.h>)
 #include <rte_pci.h>
+#endif
 #include <rte_per_lcore.h>
 #include <rte_ring.h>
 #include <rte_string_fns.h>
 #include <rte_udp.h>
+#include <rte_version.h>
 
 #ifdef SYSTEMD
 #include <systemd/sd-daemon.h>
@@ -111,11 +116,13 @@ struct rte_mempool *glb_processor_msg_pool = NULL;
 struct rte_eth_conf port_conf = {
     .rxmode =
 	{
+#if RTE_VERSION < RTE_VERSION_NUM(22, 11, 0, 0)
 	    .header_split = 0,   /* Header Split disabled */
 	    .hw_ip_checksum = 1, /* IP checksum offload disabled */
 	    .hw_vlan_filter = 0, /* VLAN filtering disabled */
 	    .jumbo_frame = 0,    /* Jumbo Frame Support disabled */
 	    .hw_strip_crc = 1,   /* CRC stripped by hardware */
+#endif
 	    .mq_mode = ETH_MQ_RX_RSS,
 	},
     .txmode =
@@ -220,7 +227,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Find out how many NIC ports we have, validate that it's reasonable */
-	nb_sys_ports = rte_eth_dev_count();
+	nb_sys_ports = rte_eth_dev_count_avail();
 	if (nb_sys_ports == 0) {
 		glb_log_error_and_exit("No supported Ethernet device found");
 		return -1;
@@ -274,9 +281,11 @@ int main(int argc, char **argv)
 		init_port(i, physical_num_queues, pktmbuf_pool);
 	}
 
+#if GLB_HAVE_KNI
 	if (g_director_config->kni_enabled) {
 		rte_kni_init(nb_sys_ports);
 	}
+#endif
 
 	/* Pre-allocate the control message mbuf pool */
 	glb_processor_msg_pool = rte_mempool_create(
@@ -355,6 +364,7 @@ int main(int argc, char **argv)
 		if (core != rte_get_master_lcore()) {
 			glb_log_info("lcore %u setup with workloads 0x%04x", core, ctx->lcore_config.workloads);
 
+#if GLB_HAVE_KNI
 			if ((ctx->lcore_config.workloads & CORE_WORKLOAD_KNI) != 0) {
 				for (kni_index = 0; kni_index < nb_sys_ports; kni_index++) {
 					kni_ports[kni_index] = glb_kni_new(kni_index, 0, core, pktmbuf_pool);
@@ -367,6 +377,7 @@ int main(int argc, char **argv)
 					}
 				}
 			}
+#endif
 
 			if ((ctx->lcore_config.workloads & CORE_WORKLOAD_DIST) != 0) {
 				// create the distributor to be linked up to workers on a second pass below
