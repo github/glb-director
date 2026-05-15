@@ -129,6 +129,8 @@
 #define RTE_LCORE_FOREACH_SLAVE RTE_LCORE_FOREACH_WORKER
 #endif
 
+#ifdef RTE_LCORE_FOREACH_WORKER
 #ifndef rte_get_master_lcore
 #define rte_get_master_lcore rte_get_main_lcore
+#endif
 #endif
