@@ -14,7 +14,7 @@ RUN apt-get install --assume-yes \
     pkg-config \
     libjansson-dev \
     libsystemd-dev \
-    clang-tools-10
+    clang-tools-18
 
 # iptables / DKMS
 ARG DEBIAN_FRONTEND=noninteractive
