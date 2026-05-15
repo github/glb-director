@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e
+
+DISTRO="${1}"
+
+if [[ -z "$DISTRO" ]]; then
+  echo "Usage: $0 <distro>"
+  echo "  e.g. $0 focal"
+  echo "  e.g. $0 noble"
+  exit 1
+fi
+
+HOSTPATH=$(cd "$(dirname "$0")/.." && pwd)
+IMAGE="glb-director-build-${DISTRO}:latest"
+DOCKERFILE="script/Dockerfile.${DISTRO}"
+
+if [[ ! -f "${HOSTPATH}/${DOCKERFILE}" ]]; then
+  echo "ERROR: Dockerfile not found: ${DOCKERFILE}"
+  exit 1
+fi
+
+cd "$HOSTPATH"
+
+echo "==> Building Docker image for ${DISTRO}..."
+docker build --file "${DOCKERFILE}" --tag "${IMAGE}" .
+
+TEST_SUITES=(director director-xdp healthcheck redirect)
+
+for suite in "${TEST_SUITES[@]}"; do
+  echo ""
+  echo "==> Running test suite: glb-${suite} (${DISTRO})"
+  docker run --rm \
+    --privileged \
+    --volume "$(pwd):/workspace" \
+    --workdir /workspace \
+    "${IMAGE}" \
+    bash -c "cd /workspace/src/glb-${suite} && script/test"
+done
+
+echo ""
+echo "==> All test suites passed for ${DISTRO}."

@@ -1,9 +1,11 @@
 FROM ubuntu:noble
 
-RUN apt-get update && apt-get -y install curl git
-
-# DPDK 
 ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get -y install curl git software-properties-common
+RUN add-apt-repository universe
+
+# DPDK
 RUN apt-get update
 RUN apt-get install --assume-yes \
     build-essential \
@@ -17,7 +19,6 @@ RUN apt-get install --assume-yes \
     clang-tools-18
 
 # iptables / DKMS
-ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install --assume-yes --fix-broken \
     wget \
@@ -40,6 +41,10 @@ RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
 RUN gem install --version 2.7.6 dotenv
 RUN gem install ffi -f
 RUN gem install rake fpm
+
+# Python / nosetests for scapy tests
+RUN apt-get update && apt-get install -y python3 python3-pip python3-nose python3-scapy
+RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf $(which nosetests3) /usr/local/bin/nosetests
 
 # XDP
 # linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
