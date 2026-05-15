@@ -18,6 +18,7 @@ endif
 		-Werror \
 		-include /usr/src/linux-headers-$(KVER:-amd64=-common)/include/linux/kconfig.h \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/uapi \
+		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/generated \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
