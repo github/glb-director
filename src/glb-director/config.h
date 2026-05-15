@@ -34,9 +34,11 @@
 /* Macros for printing using RTE_LOG */
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 
+#ifndef NO_DPDK
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <rte_lcore.h>
+#endif
 
 /* Max size of a single packet */
 #define MAX_PACKET_SZ 9220
@@ -71,6 +73,7 @@
  * Compatibility aliases for DPDK API naming differences between older and
  * newer releases.
  */
+#ifndef NO_DPDK
 #ifdef RTE_ETHER_TYPE_IPV4
 #ifndef ether_addr
 #define ether_addr rte_ether_addr
@@ -134,3 +137,4 @@
 #define rte_get_master_lcore rte_get_main_lcore
 #endif
 #endif
+#endif /* NO_DPDK */
