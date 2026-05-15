@@ -75,6 +75,9 @@
  */
 #ifndef NO_DPDK
 #ifdef RTE_ETHER_TYPE_IPV4
+#define GLB_ETHER_HDR_DST_ADDR dst_addr
+#define GLB_ETHER_HDR_SRC_ADDR src_addr
+
 #ifndef ether_addr
 #define ether_addr rte_ether_addr
 #endif
@@ -145,6 +148,9 @@
 #define ETH_RSS_TCP RTE_ETH_RSS_TCP
 #endif
 #else
+#define GLB_ETHER_HDR_DST_ADDR d_addr
+#define GLB_ETHER_HDR_SRC_ADDR s_addr
+
 #ifndef rte_ether_addr
 #define rte_ether_addr ether_addr
 #endif
