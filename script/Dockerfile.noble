@@ -13,7 +13,8 @@ RUN apt-get install --assume-yes \
     wget \
     pkg-config \
     libjansson-dev \
-    libsystemd-dev
+    libsystemd-dev \
+    clang-tools-10
 
 # iptables / DKMS
 ARG DEBIAN_FRONTEND=noninteractive
