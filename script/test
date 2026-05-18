@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Runs a Clang static analysis build (scan-build) over the project to detect
+# potential bugs at compile time. Automatically detects the available version
+# of scan-build installed in the environment.
 set -euo pipefail
 
 if command -v scan-build-10 >/dev/null 2>&1; then

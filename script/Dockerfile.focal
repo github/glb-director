@@ -2,10 +2,6 @@ FROM ubuntu:focal
 
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
-RUN apt-get update && apt-get -y install curl git
-
-# DPDK 
-RUN echo "deb http://archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get -y install curl git software-properties-common
@@ -16,7 +12,7 @@ RUN echo "deb [trusted=yes] http://dk.archive.ubuntu.com/ubuntu/ bionic main uni
 RUN apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev clang-tools-10
 
 # iptables / DKMS
-RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
+RUN apt-get install -y -f dkms debhelper libxtables-dev
 
 # golang
 RUN ARCH=$(dpkg --print-architecture) && wget --quiet https://golang.org/dl/go1.24.5.linux-${ARCH}.tar.gz -O- | tar -C /usr/local -zxvf -
@@ -25,7 +21,7 @@ ENV GOPATH /go
 ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
 
 # fpm for packaging
-RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential
+RUN apt-get update && apt-get install -y ruby ruby-dev rubygems
 
 # See fpm dependency breakage issue: https://github.com/jordansissel/fpm/issues/1918
 RUN gem install --version 2.7.6 dotenv
@@ -39,7 +35,6 @@ RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf $(which nosetests3) /usr/l
 
 # XDP
 # linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
-RUN apt-get update && apt install -y apt-transport-https curl software-properties-common
 RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-10
 
 # Hack because the kernel headers are not installed in the right place (linuxkit vs generic)
