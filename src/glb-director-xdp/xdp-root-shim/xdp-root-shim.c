@@ -38,49 +38,6 @@
 #include <sys/resource.h>
 #include <systemd/sd-daemon.h>
 
-static int load_xdp_program(const char *tailcall_elf_path, struct bpf_object **shim_obj, int *prog_fd) {
-#if defined(LIBBPF_MAJOR_VERSION) && LIBBPF_MAJOR_VERSION >= 1
-    struct bpf_program *shim_prog;
-
-    *shim_obj = bpf_object__open_file(tailcall_elf_path, NULL);
-    if (libbpf_get_error(*shim_obj)) {
-        *shim_obj = NULL;
-        return -1;
-    }
-
-    if (bpf_object__load(*shim_obj) != 0) {
-        bpf_object__close(*shim_obj);
-        *shim_obj = NULL;
-        return -1;
-    }
-
-    shim_prog = bpf_object__find_program_by_name(*shim_obj, "xdp_root");
-    if (shim_prog == NULL) {
-        bpf_object__close(*shim_obj);
-        *shim_obj = NULL;
-        return -1;
-    }
-
-    *prog_fd = bpf_program__fd(shim_prog);
-    return *prog_fd < 0 ? -1 : 0;
-#else
-    struct bpf_prog_load_attr prog_load_attr = {
-        .prog_type = BPF_PROG_TYPE_XDP,
-        .file = tailcall_elf_path,
-    };
-
-    return bpf_prog_load_xattr(&prog_load_attr, shim_obj, prog_fd);
-#endif
-}
-
-static int attach_xdp_program(int iface_index, int prog_fd) {
-#if defined(LIBBPF_MAJOR_VERSION) && LIBBPF_MAJOR_VERSION >= 1
-    return bpf_xdp_attach(iface_index, prog_fd, 0, NULL);
-#else
-    return bpf_set_link_xdp_fd(iface_index, prog_fd, 0);
-#endif
-}
-
 int main(int argc, char **argv) {
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <tailcall_elf_path> <bpffs_path> <interface>\n", argv[0]);
@@ -113,11 +70,16 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* load the tailcall bpf */
+    struct bpf_prog_load_attr prog_load_attr = {
+        .prog_type = BPF_PROG_TYPE_XDP,
+        .file = tailcall_elf_path,
+    };
     struct bpf_object *shim_obj;
     int prog_fd;
 
-    if (load_xdp_program(tailcall_elf_path, &shim_obj, &prog_fd) != 0) {
-        fprintf(stderr, "Could not load '%s'\n", tailcall_elf_path);
+    if (bpf_prog_load_xattr(&prog_load_attr, &shim_obj, &prog_fd)){
+        fprintf(stderr, "Could not load '%s'\n", prog_load_attr.file);
         return 1;
     }
 
@@ -131,7 +93,7 @@ int main(int argc, char **argv) {
     }
     
     /* bind it to the interface with XDP */
-    if (attach_xdp_program(iface_index, prog_fd) < 0) {
+    if (bpf_set_link_xdp_fd(iface_index, prog_fd, 0) < 0) {
         fprintf(stderr, "Could not attach XDP program to interface '%s'\n", iface_name);
         return 1;
     }

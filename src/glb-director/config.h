@@ -31,6 +31,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _GLB_CONFIG_H_
+#define _GLB_CONFIG_H_
+
 #include <stdint.h>
 
 /* Macros for printing using RTE_LOG */
@@ -245,3 +248,5 @@ static inline uint64_t glb_mbuf_get_userdata(const struct rte_mbuf *mbuf)
 }
 #endif
 #endif /* NO_DPDK */
+
+#endif /* _GLB_CONFIG_H_ */
