@@ -31,10 +31,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-
-#if GLB_HAVE_KNI
-
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
@@ -370,5 +366,3 @@ static void handle_kni_to_nic(unsigned port_id, struct rte_kni *kni,
 			    "lcore-%u: -> %d packets (%d queued) burst from KNI to port %d queue %d",
 			    rte_lcore_id(), nb_rx, nb_tx, port_id, tx_queue);
 }
-
-#endif /* GLB_HAVE_KNI */

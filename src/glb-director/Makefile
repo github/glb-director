@@ -33,47 +33,31 @@
 RTE_SDK ?= /usr/share/dpdk
 RTE_TARGET ?= x86_64-default-linuxapp-gcc
 
-ifeq ($(wildcard $(RTE_SDK)/mk/rte.vars.mk),)
-    # Modern DPDK - use pkg-config
-    $(info Using modern DPDK build via pkg-config)
+include $(RTE_SDK)/mk/rte.vars.mk
 
-    APP = glb-director
-    SRCS-y := main.c bind_classifier.c glb_kni.c glb_fwd_config.c \
-        glb_encap.c glb_encap_dpdk.c glb_control_loop.c glb_processor_loop.c \
-        siphash24.c glb_director_config.c statsd-client.c shared_opt.c
+# binary name
+APP = glb-director
 
-    CFLAGS += $(shell pkg-config --cflags libdpdk)
-    CFLAGS += -O3 -g -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
-    CFLAGS += -DSTATSD -DSYSTEMD
-    CFLAGS += -I$(CURDIR)/..
-    LDFLAGS += $(shell pkg-config --libs libdpdk)
-    LDFLAGS += -z relro -z now -ljansson -lsystemd
+# all source are stored in SRCS-y
+SRCS-y := main.c bind_classifier.c glb_kni.c glb_fwd_config.c \
+glb_encap.c glb_encap_dpdk.c glb_control_loop.c glb_processor_loop.c \
+siphash24.c glb_director_config.c statsd-client.c shared_opt.c
 
-    build/app/$(APP): $(SRCS-y)
-	mkdir -p build/app
-	$(CC) $(CFLAGS) -o $@ $(SRCS-y) $(LDFLAGS)
+#WERROR_FLAGS += -Werror
 
-    clean:
-	rm -rf build
+CFLAGS += -O3 -g
+CFLAGS += $(WERROR_FLAGS)
+CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
+CFLAGS += -DSTATSD
+CFLAGS += -DSYSTEMD
+#CFLAGS += -DGLB_DUMP_FULL_PACKET
+CFLAGS += -I$(SRCDIR)/../ # for <glb-hashing/...>
 
-    .PHONY: clean
-else
-    # Legacy DPDK build system
-    include $(RTE_SDK)/mk/rte.vars.mk
+LDFLAGS += -z relro -z now
+LDFLAGS += -ljansson
+LDFLAGS += -lsystemd
 
-    APP = glb-director
-    SRCS-y := main.c bind_classifier.c glb_kni.c glb_fwd_config.c \
-        glb_encap.c glb_encap_dpdk.c glb_control_loop.c glb_processor_loop.c \
-        siphash24.c glb_director_config.c statsd-client.c shared_opt.c
+# disable since libxenstore.so isn't linked properly
+CONFIG_RTE_LIBRTE_PMD_XENVIRT = n
 
-    CFLAGS += -O3 -g
-    CFLAGS += $(WERROR_FLAGS)
-    CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
-    CFLAGS += -DSTATSD -DSYSTEMD
-    CFLAGS += -I$(SRCDIR)/..
-    LDFLAGS += -z relro -z now -ljansson -lsystemd
-
-    CONFIG_RTE_LIBRTE_PMD_XENVIRT = n
-
-    include $(RTE_SDK)/mk/rte.extapp.mk
-endif
+include $(RTE_SDK)/mk/rte.extapp.mk

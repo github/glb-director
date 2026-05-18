@@ -2,7 +2,6 @@ KDIR?=/usr/src/linux-headers-$(shell uname -r)
 BUILDDIR?=.
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-DKMS_TEMPLATE_DIR ?= $(ROOT_DIR)
 
 DKMS_MOD_VER:=$(shell grep 'PACKAGE_VERSION' dkms.conf | cut -d'=' -f2)
 
@@ -35,17 +34,13 @@ IPT_LDFLAGS=-lxtables -shared
 %.so: %.c
 	$(CC) -o $@ $< $(IPT_CFLAGS) $(IPT_LDFLAGS)
 
-DKMS_TEMPLATE_DIR ?= $(ROOT_DIR)
-
 mkdeb:
-	rm -rf "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
-	@test -n "$(DKMS_TEMPLATE_DIR)" && test -d "$(DKMS_TEMPLATE_DIR)" || \
-		(echo "DKMS_TEMPLATE_DIR is unset or does not exist: '$(DKMS_TEMPLATE_DIR)'" >&2; exit 1)
-	cp -R "$(DKMS_TEMPLATE_DIR)" "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
-	chown : -R "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb"
-	sed -i '/chmod 644/d' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/Makefile"
-	if [ -f "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control" ]; then \
-		sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"; \
-		sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb/debian/control"; \
-	fi
-	cd "$(BUILDDIR)/glb-redirect-iptables-dkms-mkdeb" && dkms mkdeb --source-only
+	rm -rf glb-redirect-iptables-dkms-mkdeb
+	cp -R /etc/dkms/template-dkms-mkdeb/ glb-redirect-iptables-dkms-mkdeb
+	chown : -R glb-redirect-iptables-dkms-mkdeb
+	# Works around this bug: https://ubuntuforums.org/showthread.php?t=2234906
+	sed -i '/chmod 644/d' glb-redirect-iptables-dkms-mkdeb/Makefile
+	sed -i '/^Depends:/ s/$$/, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10/' glb-redirect-iptables-dkms-mkdeb/debian/control
+	sed -i 's/^Maintainer: .*/Maintainer: GitHub <opensource+glb-director@github.com>/' glb-redirect-iptables-dkms-mkdeb/debian/control
+	dkms mkdeb --source-only
+	mv ../glb-redirect-iptables-dkms_$(DKMS_MOD_VER)_*.deb $(BUILDDIR)/

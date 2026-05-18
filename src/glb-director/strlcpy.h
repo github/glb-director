@@ -1,8 +1,5 @@
 /*	$OpenBSD: strlcpy.c,v 1.11 2006/05/05 15:27:38 millert Exp $	*/
 
-#ifndef GLB_STRLCPY_H
-#define GLB_STRLCPY_H
-
 /*-
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  *
@@ -49,5 +46,3 @@ strlcpy(char * __restrict dst, const char * __restrict src, size_t siz)
 
 	return(s - src - 1);	/* count does not include NUL */
 }
-
-#endif
