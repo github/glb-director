@@ -30,7 +30,6 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Default SDK and target, can be overriden by command line or environment
-# Check if legacy DPDK build system exists
 RTE_SDK ?= /usr/share/dpdk
 RTE_TARGET ?= x86_64-default-linuxapp-gcc
 
@@ -51,11 +50,11 @@ ifeq ($(wildcard $(RTE_SDK)/mk/rte.vars.mk),)
     LDFLAGS += -z relro -z now -ljansson -lsystemd
 
     build/app/$(APP): $(SRCS-y)
-		mkdir -p build/app
-		$(CC) $(CFLAGS) -o $@ $(SRCS-y) $(LDFLAGS)
+	mkdir -p build/app
+	$(CC) $(CFLAGS) -o $@ $(SRCS-y) $(LDFLAGS)
 
     clean:
-		rm -rf build
+	rm -rf build
 
     .PHONY: clean
 else
@@ -68,6 +67,7 @@ else
         siphash24.c glb_director_config.c statsd-client.c shared_opt.c
 
     CFLAGS += -O3 -g
+    CFLAGS += $(WERROR_FLAGS)
     CFLAGS += -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
     CFLAGS += -DSTATSD -DSYSTEMD
     CFLAGS += -I$(SRCDIR)/..

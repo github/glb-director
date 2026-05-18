@@ -301,6 +301,10 @@ int main(int argc, char **argv)
 	if (g_director_config->kni_enabled) {
 		rte_kni_init(nb_sys_ports);
 	}
+#else
+	if (g_director_config->kni_enabled) {
+		glb_log_info("WARNING: KNI is enabled in config but not available in this DPDK version. KNI functionality will be disabled.");
+	}
 #endif
 
 	/* Pre-allocate the control message mbuf pool */
