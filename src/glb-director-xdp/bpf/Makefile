@@ -16,6 +16,7 @@ endif
 		-Wno-unknown-warning-option \
 		-Wno-pointer-sign \
 		-Werror \
+		-include include/compat/types.h \
 		-include /usr/src/linux-headers-$(KVER:-amd64=-common)/include/linux/kconfig.h \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/generated \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/generated/uapi \
