@@ -17,8 +17,10 @@
 
 from rendezvous_table import GLBRendezvousTable
 
-def assert_equals(a, b):
-    assert a == b, "%r != %r" % (a, b)
+def assert_equals(a, b, msg=None):
+    if msg is None:
+        msg = "%r != %r" % (a, b)
+    assert a == b, msg
 import glob
 import json, subprocess, struct, socket, os, tempfile
 
