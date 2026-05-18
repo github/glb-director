@@ -61,9 +61,7 @@
 #include <rte_ether.h>
 #include <rte_interrupts.h>
 #include <rte_ip.h>
-#if __has_include(<rte_kni.h>)
 #include <rte_kni.h>
-#endif
 #include <rte_launch.h>
 #include <rte_lcore.h>
 #include <rte_log.h>
@@ -73,15 +71,13 @@
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_memzone.h>
-#if __has_include(<rte_pci.h>)
 #include <rte_pci.h>
-#endif
 #include <rte_per_lcore.h>
 #include <rte_ring.h>
 #include <rte_string_fns.h>
 #include <rte_version.h>
 
-#if __has_include(<rte_bus_pci.h>)
+#if RTE_VERSION >= RTE_VERSION_NUM(17, 11, 0, 1)
 #include <rte_bus_pci.h>
 #endif
 
@@ -89,8 +85,6 @@
 #include "glb_kni.h"
 #include "log.h"
 #include "util.h"
-
-#if GLB_HAVE_KNI
 
 #if RTE_VERSION > RTE_VERSION_NUM(17,11,0,0)
 typedef uint16_t port_id_t;
@@ -372,32 +366,3 @@ static void handle_kni_to_nic(unsigned port_id, struct rte_kni *kni,
 			    "lcore-%u: -> %d packets (%d queued) burst from KNI to port %d queue %d",
 			    rte_lcore_id(), nb_rx, nb_tx, port_id, tx_queue);
 }
-
-#else /* !GLB_HAVE_KNI — provide no-op stubs */
-
-struct glb_kni_ {
-	/* empty stub when KNI is not available */
-};
-
-glb_kni *glb_kni_new(uint8_t physical_port_id __attribute__((unused)),
-		     uint16_t rx_tx_queue_id __attribute__((unused)),
-		     unsigned owner_lcore_id __attribute__((unused)),
-		     struct rte_mempool *pktmbuf_pool __attribute__((unused)))
-{
-	return NULL;
-}
-
-void glb_kni_release(glb_kni *gk __attribute__((unused))) { }
-
-unsigned glb_kni_safe_tx_burst(glb_kni *gk __attribute__((unused)),
-			       struct rte_mbuf **kni_tx_burst __attribute__((unused)),
-			       unsigned tx_burst_size __attribute__((unused)))
-{
-	return 0;
-}
-
-void glb_kni_lcore_flush(glb_kni *gk __attribute__((unused))) { }
-
-void glb_kni_handle_request(glb_kni *gk __attribute__((unused))) { }
-
-#endif /* GLB_HAVE_KNI */

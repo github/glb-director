@@ -38,13 +38,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 #include "log.h"
-
-bool debug = false;
-
 
 #define GLB_BACKEND_HEALTH_DOWN 0
 #define GLB_BACKEND_HEALTH_UP 1
