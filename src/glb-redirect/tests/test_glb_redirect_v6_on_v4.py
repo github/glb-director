@@ -15,7 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
-from nose.tools import assert_equals
+def assert_equals(a, b):
+    assert a == b, "%r != %r" % (a, b)
 from scapy.all import IP, IPv6, UDP, TCP, ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6PacketTooBig, sniff, send, conf, L3RawSocket6
 from glb_scapy import GLBGUEChainedRouting, GLBGUE
 from glb_test_utils import GLBTestHelpers

@@ -43,14 +43,17 @@ RUN gem install ffi -f
 RUN gem install rake fpm
 
 # Python / nosetests for scapy tests
-RUN apt-get update && apt-get install -y python3 python3-pip python3-nose python3-scapy
-RUN pip3 install --break-system-packages siphash
+RUN apt-get update && apt-get install -y python3 python3-pip python3-nose python3-scapy netcat-openbsd
+RUN pip3 install --break-system-packages siphash pyroute2 netaddr
 RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf $(which nosetests3) /usr/local/bin/nosetests
 
 # XDP
 # linux-libc-dev must be upgraded to get a bpf.h that matches what we use. the rest match what we do in Vagrant for testing.
 RUN apt-get update && apt install -y apt-transport-https curl software-properties-common
 RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-20
+
+# libbpf.so.0 compat symlink (noble ships libbpf.so.1 but xdp-root-shim links against .0)
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libbpf.so.1 /usr/lib/x86_64-linux-gnu/libbpf.so.0
 
 # Hack because the kernel headers are not installed in the right place (linuxkit vs generic)
 RUN ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname -r)

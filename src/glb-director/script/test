@@ -62,31 +62,40 @@ end_fold
 
 begin_fold "Running scapy packet tests against glb-director"
 (
-  PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
+  if [ -e /dev/kni ]; then
+    PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v -a '!director_type' -a 'director_type=dpdk'
+  else
+    echo "Skipping DPDK director tests (no /dev/kni available, running non-DPDK tests only)"
+    PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH nosetests -v tests/test_cli_tool.py tests/test_rendezvous_table.py
+  fi
 )
 end_fold
 
-begin_fold "Running glb-director config tests"
-(
-  bash tests/config_check.sh
-)
-end_fold
+if [ -e /dev/kni ] || grep -q huge /proc/mounts 2>/dev/null; then
+  begin_fold "Running glb-director config tests"
+  (
+    bash tests/config_check.sh
+  )
+  end_fold
 
-begin_fold "Running pcap tests"
-(
-  # needs hugepages run after other tests since its already set up
-  bash tests/pcap_tests.sh
-)
-end_fold
+  begin_fold "Running pcap tests"
+  (
+    # needs hugepages run after other tests since its already set up
+    bash tests/pcap_tests.sh
+  )
+  end_fold
 
-begin_fold "valgrind tests"
-(
-  bash tests/valgrind_check.sh
-)
-end_fold
+  begin_fold "valgrind tests"
+  (
+    bash tests/valgrind_check.sh
+  )
+  end_fold
 
-begin_fold "stub server tests"
-(
-  bash tests/stub_server_tests.sh
-)
-end_fold
+  begin_fold "stub server tests"
+  (
+    bash tests/stub_server_tests.sh
+  )
+  end_fold
+else
+  echo "Skipping config_check/pcap/valgrind/stub_server tests (no DPDK environment available)"
+fi

@@ -17,7 +17,8 @@
 
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
-from nose.tools import assert_equals
+def assert_equals(a, b):
+    assert a == b, "%r != %r" % (a, b)
 import socket, struct, time
 
 class TestGLBClassifyV4(GLBDirectorTestBase):

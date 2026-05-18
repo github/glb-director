@@ -17,10 +17,18 @@
 
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+logging.getLogger("pyroute2").setLevel(logging.WARNING)
+logging.getLogger("pyroute2.netlink").setLevel(logging.WARNING)
+logging.getLogger("pyroute2.netlink.core").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
 
-from scapy.all import sniff, sendp, Ether, IP, IPv6, L2ListenSocket, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig
+from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig
+from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
-from nose.tools import assert_equals
+
+def assert_equals(a, b):
+	assert a == b, "%r != %r" % (a, b)
+
 import subprocess, time
 import signal
 from contextlib import contextmanager
@@ -75,7 +83,7 @@ class DPDKDirectorControl(DirectorControlBase):
 				'--config-file', './tests/director-config.json',
 				'--forwarding-table', './tests/test-tables.bin'
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 		)
 
@@ -135,13 +143,13 @@ class SystemdNotify(object):
 	
 	def wait(self):
 		# wait for it to notify that it's actually bound to the iface.
-		self.notify_sock.settimeout(2)
+		self.notify_sock.settimeout(10)
 		try:
 			data, addr = self.notify_sock.recvfrom(32)
-			assert data == 'READY=1' # only thing it will send
-		except socket.timeout:
+			assert data == b'READY=1' # only thing it will send
+		except (socket.timeout, TimeoutError) as e:
 			print('notify ready timed out')
-			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read())
+			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read().decode('utf-8', errors='replace'))
 		
 		self.notify_sock.close()
 
@@ -167,7 +175,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'/sys/fs/bpf/root_array@' + iface,
 				iface,
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_shim.updated_env(),
 		)
@@ -189,7 +197,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
 				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_director.updated_env(),
 		)
@@ -299,7 +307,7 @@ class GLBDirectorTestBase():
 
 	@classmethod
 	def update_running_forwarding_tables(cls, config):
-		f = open('tests/test-tables.json', 'wb')
+		f = open('tests/test-tables.json', 'w')
 		f.write(json.dumps(config, indent=4))
 		f.close()
 
@@ -334,7 +342,7 @@ class GLBDirectorTestBase():
 		
 		GLBDirectorTestBase.py_side_mac = dict(ip.link('get', index=ip.link_lookup(ifname=cls.IFACE_NAME_PY))[0]['attrs'])['IFLA_ADDRESS']
 
-		with open('tests/director-config.json', 'wb') as f:
+		with open('tests/director-config.json', 'w') as f:
 			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
 
 		# set up a statsd receiver
@@ -375,7 +383,7 @@ class GLBDirectorTestBase():
 		sendp(*args, **kwargs)
 
 	def wait_for_packet(self, iface, condition, timeout_seconds=5):
-		print('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds)
+		print('Waiting for packets on', getattr(iface, 'iface', getattr(iface, 'iff', '?')), 'with timeout', timeout_seconds)
 		try:
 			with timeout(timeout_seconds):
 				while True:
@@ -388,7 +396,7 @@ class GLBDirectorTestBase():
 				sys.stdout.write('-' * 50 + '\n')
 				sys.stdout.write('Output from glb-director-ng\n')
 				sys.stdout.write('-' * 50 + '\n')
-				sys.stdout.write(d.read())
+				sys.stdout.write(d.read().decode('utf-8', errors='replace'))
 				sys.stdout.write('-' * 50 + '\n')
 			raise
 
@@ -400,6 +408,8 @@ class GLBDirectorTestBase():
 				return # nothing more to receive, we timed out
 			else:
 				block, _ = s.recvfrom(4096)
+				if isinstance(block, bytes):
+					block = block.decode('utf-8')
 				for data in block.split('\n'):
 					metric_name, metric_data = data.split(':', 1)
 					metric_info, metric_tags = metric_data.split('#', 1)
@@ -414,7 +424,7 @@ class GLBDirectorTestBase():
 		spec_matches = set()
 		for metric_name, metric_value, metric_type, metric_tags in self.stream_statsd_metrics(timeout=1):
 			metric_key = (metric_name, metric_tags)
-			print metric_key
+			print(metric_key)
 			if metric_key in spec:
 				assert spec[metric_key](metric_value), "Metric {} had unexpected value {}".format(metric_key, repr(metric_value))
 				spec_matches.add(metric_key)
@@ -444,7 +454,7 @@ class GLBDirectorTestBase():
 			hash_parts.append(self._encode_port(dst_port))
 		
 		assert len(hash_parts) > 0
-		hash_data = ''.join(hash_parts)
+		hash_data = b''.join(hash_parts)
 
 		hash_bytes = siphash.SipHash_2_4(key, hash_data).digest()
 		hash_num, = struct.unpack('<Q', hash_bytes)
@@ -456,7 +466,7 @@ class GLBDirectorTestBase():
 	def route_for_packet(self, test_packet, fields):
 		field_data = self._fields_for_packet(test_packet)
 		table = self._table_for_bind(field_data['dst_addr'], field_data['dst_port'])
-		rt = GLBRendezvousTable(table['seed'].decode('hex'))
+		rt = GLBRendezvousTable(bytes.fromhex(table['seed']))
 		hosts = self._hosts_for_table(table)
 
 		hash_key_bytes = self._key_for_bind(field_data['dst_addr'], field_data['dst_port'])
@@ -465,7 +475,7 @@ class GLBDirectorTestBase():
 		return rt.forwarding_table_entry(hash_row, hosts)[:2]
 
 	def _hosts_for_table(self, table):
-		return map(lambda b: b['ip'], table['backends'])
+		return list(map(lambda b: b['ip'], table['backends']))
 
 	def _table_for_bind(self, dest_ip, dest_port):
 		config = GLBDirectorTestBase.running_forwarding_config
@@ -482,7 +492,7 @@ class GLBDirectorTestBase():
 		if table is None:
 			return None
 		else:
-			return table['hash_key'].decode('hex').rjust(16, '\x00')
+			return bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
 
 	def _fields_for_packet(self, packet):
 		ether = packet

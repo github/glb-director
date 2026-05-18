@@ -15,4 +15,4 @@
 # You should have received a copy of the GNU General Public License
 # along with scapy-glb-gue.  If not, see <https://www.gnu.org/licenses/>.
 
-from glb_gue_scapy import GLBGUEChainedRouting, GLBGUE
+from .glb_gue_scapy import GLBGUEChainedRouting, GLBGUE

@@ -17,7 +17,8 @@
 
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMPv6PacketTooBig, ICMPv6EchoRequest
-from nose.tools import assert_equals
+def assert_equals(a, b):
+    assert a == b, "%r != %r" % (a, b)
 from nose.plugins.attrib import attr
 import socket, struct
 
@@ -45,7 +46,7 @@ class TestGLBClassifyV6(GLBDirectorTestBase):
 		assert_equals(glb_gue.private_data[0].hops, ['6.7.8.9'])
 
 		inner_ip = glb_gue.payload
-		print repr(inner_ip)
+		print(repr(inner_ip))
 		assert isinstance(inner_ip, IPv6) # Expecting the inner IPv6 packet
 		assert_equals(inner_ip.src, 'fd91:79d3:d621::1234')
 		assert_equals(inner_ip.dst, 'fdb4:98ce:52d4::42')

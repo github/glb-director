@@ -16,7 +16,8 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from rendezvous_table import GLBRendezvousTable
-from nose.tools import assert_equals
+def assert_equals(a, b):
+    assert a == b, "%r != %r" % (a, b)
 import json, subprocess, struct, socket
 
 class TestGLBBinaryCLI():
@@ -57,17 +58,17 @@ class TestGLBBinaryCLI():
 	def write_example_config(self):
 		config = self.get_example_config()
 
-		with open('tests/test-config.json', 'wb') as f:
+		with open('tests/test-config.json', 'w') as f:
 			f.write(json.dumps(config, indent=4))
 			f.close()
 
 	def get_example_table_reference_implementation(self, table_index):
 		table_config = self.get_example_config()['tables'][table_index]
-		return GLBRendezvousTable(table_config['seed'].decode('hex'))
+		return GLBRendezvousTable(bytes.fromhex(table_config['seed']))
 
 	def get_example_table_hosts(self, table_index):
 		table_config = self.get_example_config()['tables'][table_index]
-		return map(lambda b: b['ip'], table_config['backends'])
+		return list(map(lambda b: b['ip'], table_config['backends']))
 
 	def test_generate_configs(self):
 		self.write_example_config()
@@ -75,7 +76,7 @@ class TestGLBBinaryCLI():
 		subprocess.check_call(['cli/glb-director-cli', 'build-config', 'tests/test-config.json', 'tests/test-config.bin'])
 
 		f = open('tests/test-config.bin', 'rb')
-		assert_equals(f.read(4), 'GLBD')
+		assert_equals(f.read(4), b'GLBD')
 
 		num_table_entries = 0x10000
 		max_num_backends = 0x100
@@ -109,7 +110,7 @@ class TestGLBBinaryCLI():
 						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET6, backend['ip']))
 					else:
 						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, '\x00'))
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00'))
 					assert_equals(be_state, 1)
 					assert_equals(be_health, 1)
 
@@ -128,14 +129,14 @@ class TestGLBBinaryCLI():
 						assert_equals(ip_bits, 128)
 					else:
 						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, '\x00'))
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00'))
 						assert_equals(ip_bits, 32)
 					assert_equals(bind_port_start, bind['port'])
 					assert_equals(bind_port_end, bind['port'])
 					assert_equals(bind_proto, 6 if bind['proto'] == 'tcp' else 17)
 
 			# validate hash key for source hashing
-			assert_equals(f.read(16), table['hash_key'].decode('hex').rjust(16, '\x00'))
+			assert_equals(f.read(16), bytes.fromhex(table['hash_key']).rjust(16, b'\x00'))
 
 			# validate table entries
 			for table_index in range(num_table_entries):

@@ -40,9 +40,28 @@ export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 
 . ../../script/helpers/folding.sh
 
+# Ensure BPF filesystem is mounted (needed for XDP map pinning)
+if ! mount | grep -q 'type bpf'; then
+  mount -t bpf bpf /sys/fs/bpf || true
+fi
+
+# If kernel headers for the running kernel aren't available, find what we have
+if [ ! -d "/usr/src/linux-headers-$(uname -r)" ]; then
+  AVAILABLE_HEADERS=$(ls -d /usr/src/linux-headers-*-generic 2>/dev/null | head -1 || true)
+  if [ -n "$AVAILABLE_HEADERS" ]; then
+    # Extract the version from the available headers path
+    AVAILABLE_KVER=$(basename "$AVAILABLE_HEADERS")
+    AVAILABLE_KVER="${AVAILABLE_KVER#linux-headers-}"
+    export KVER="$AVAILABLE_KVER"
+    echo "Using kernel headers version: $KVER"
+  fi
+fi
+
 begin_fold "Building glb-director-xdp for testing"
 (
   make -j4 -C ../glb-director/cli
+  make clean
+  rm -f xdp-root-shim/xdp-root-shim
   make # scan-build bricks go
 )
 end_fold
