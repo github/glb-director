@@ -36,7 +36,7 @@
 #include <time.h>
 
 #define MAX_MESSAGE_SZ 1024
-extern bool debug;
+bool debug;
 
 // outputs formatted logs to stdout or stderr
 
