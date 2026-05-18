@@ -28,7 +28,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-all: glb-director-cli glb-config-check glb-director-pcap glb-director-stub-server
+all: glb-director-cli glb-config-check glb-director-pcap glb-director-stub-server test-check-config
 
 CHECK_SRCS = config_check.c \
 	../glb_control_loop.c \
@@ -117,5 +117,16 @@ glb-director-stub-server:
 		-DPCAP_MODE $(LDFLAGS)\
 		-m64 -mssse3
 
+test-check-config: ../tests/test_check_config.c ../glb_fwd_config.c ../siphash24.c
+	gcc \
+		$(CFLAGS) \
+		-DNO_DPDK \
+		-I`pwd`/.. \
+		-I`pwd`/../.. \
+		../tests/test_check_config.c \
+		../glb_fwd_config.c \
+		../siphash24.c $(LDFLAGS)\
+		-o test-check-config
+
 clean:
-	rm -rf glb-director-cli glb-config-check glb-director-pcap glb-director-stub-server
+	rm -rf glb-director-cli glb-config-check glb-director-pcap glb-director-stub-server test-check-config
