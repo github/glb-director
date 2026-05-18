@@ -16,9 +16,12 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from rendezvous_table import GLBRendezvousTable
+
 def assert_equals(a, b):
     assert a == b, "%r != %r" % (a, b)
-import json, subprocess, struct, socket
+import glob
+import json, subprocess, struct, socket, os, tempfile
+
 
 class TestGLBBinaryCLI():
 	def get_example_config(self):
@@ -60,7 +63,6 @@ class TestGLBBinaryCLI():
 
 		with open('tests/test-config.json', 'w') as f:
 			f.write(json.dumps(config, indent=4))
-			f.close()
 
 	def get_example_table_reference_implementation(self, table_index):
 		table_config = self.get_example_config()['tables'][table_index]
@@ -154,3 +156,100 @@ class TestGLBBinaryCLI():
 		# table = GLBRendezvousTable(forwarding_table_seed)
 		# assert_equals(table.calculate_forwarding_table_row_seed(0x0000).encode('hex'), '491c53a72df4c837')
 		# assert_equals(table.calculate_forwarding_table_row_seed(0xffff).encode('hex'), 'f223c0cc65161620')
+
+	def test_atomic_write_no_temp_file_remains(self):
+		"""Verify that no temporary file is left behind after a successful build."""
+		self.write_example_config()
+		output_dir = 'tests'
+		output_file = os.path.join(output_dir, 'test-config.bin')
+
+		# Remove output file if it exists
+		if os.path.exists(output_file):
+			os.unlink(output_file)
+
+		subprocess.check_call([
+			'cli/glb-director-cli', 'build-config',
+			'tests/test-config.json', output_file
+		])
+
+		# The output file should exist
+		assert os.path.exists(output_file), "Output file should exist after build"
+
+		# No temp files should remain in the output directory
+		tmp_files = glob.glob(os.path.join(output_dir, '.glb-table-*'))
+		assert_equals(len(tmp_files), 0,
+			"No temporary files should remain after successful build")
+
+	def test_atomic_write_preserves_existing_on_failure(self):
+		"""Verify that an existing valid file is not corrupted by a failed build."""
+		self.write_example_config()
+		output_file = 'tests/test-config.bin'
+
+		# First, create a valid binary
+		subprocess.check_call([
+			'cli/glb-director-cli', 'build-config',
+			'tests/test-config.json', output_file
+		])
+
+		# Record the content of the valid file
+		with open(output_file, 'rb') as f:
+			valid_content = f.read()
+
+		# Now write a bad JSON config (missing backends)
+		bad_config = {
+			"tables": [{
+				"hash_key": "12345678901234561234567890123456",
+				"seed": "34567890123456783456789012345678",
+				"binds": [
+					{ "ip": "1.1.1.1", "proto": "tcp", "port": 80 }
+				]
+				# missing "backends" key
+			}]
+		}
+		with open('tests/test-bad-config.json', 'w') as f:
+			f.write(json.dumps(bad_config, indent=4))
+		result = subprocess.call([
+			'cli/glb-director-cli', 'build-config',
+			'tests/test-bad-config.json', output_file
+		])
+		assert result != 0, "Build should fail with bad config"
+
+		# The original file should be unchanged
+		with open(output_file, 'rb') as f:
+			assert_equals(f.read(), valid_content,
+				"Original file should not be modified on failure")
+
+		# Clean up
+		os.unlink('tests/test-bad-config.json')
+
+	def test_atomic_write_cleans_temp_on_failure(self):
+		"""Verify that temp files are cleaned up when the build fails."""
+		output_dir = 'tests'
+
+		bad_config = {
+			"tables": [{
+				"hash_key": "12345678901234561234567890123456",
+				"seed": "34567890123456783456789012345678",
+				"binds": [
+					{ "ip": "1.1.1.1", "proto": "tcp", "port": 80 }
+				]
+				# missing "backends" key
+			}]
+		}
+		with open('tests/test-bad-config.json', 'w') as f:
+			f.write(json.dumps(bad_config, indent=4))
+
+		subprocess.call([
+			'cli/glb-director-cli', 'build-config',
+			'tests/test-bad-config.json', 'tests/test-bad-output.bin'
+		])
+
+		# No temp files should remain
+		tmp_files = glob.glob(os.path.join(output_dir, '.glb-table-*'))
+		assert_equals(len(tmp_files), 0,
+			"No temporary files should remain after failed build")
+
+		# Clean up
+		os.unlink('tests/test-bad-config.json')
+		if os.path.exists('tests/test-bad-output.bin'):
+			os.unlink('tests/test-bad-output.bin')

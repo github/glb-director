@@ -297,9 +297,31 @@ int check_config(struct glb_fwd_config_ctx *ctx)
 		return 1;
 	}
 
+	if (ctx->raw_config->num_tables == 0) {
+		glb_log_error(
+		    "glb-config loading failed: forwarding table has 0 tables");
+		return 1;
+	}
+
 	for (i = 0; i < ctx->raw_config->num_tables; i++) {
 		struct glb_fwd_config_content_table *table =
 		    &ctx->raw_config->tables[i];
+
+		if (table->num_backends == 0) {
+			glb_log_error(
+			    "glb-config loading failed: table %d has 0 "
+			    "backends",
+			    i);
+			return 1;
+		}
+
+		if (table->num_binds == 0) {
+			glb_log_error(
+			    "glb-config loading failed: table %d has 0 "
+			    "binds",
+			    i);
+			return 1;
+		}
 
 		if (table->num_binds > GLB_FMT_MAX_NUM_BINDS) {
 			glb_log_error(
