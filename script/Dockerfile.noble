@@ -61,3 +61,6 @@ RUN ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname
 # Hack for C99 math
 RUN sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h 
 RUN sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
+
+# Hack for size_t in kcsan-checks.h
+RUN sed -i '1s/^/typedef unsigned long size_t;\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kcsan-checks.h
