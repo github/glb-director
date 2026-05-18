@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM --platform=linux/amd64 ubuntu:focal
 
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
@@ -8,7 +8,7 @@ RUN apt-get update && apt-get -y install curl git software-properties-common
 RUN add-apt-repository universe
 
 # DPDK (use 17.11 from bionic for API compatibility)
-RUN echo "deb [trusted=yes] http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
+RUN echo "deb [trusted=yes arch=amd64] http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
 RUN apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev clang-tools-10
 
 # iptables / DKMS
