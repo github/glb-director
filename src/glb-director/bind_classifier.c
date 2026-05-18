@@ -70,16 +70,14 @@
 #include <rte_memory.h>
 #include <rte_mempool.h>
 #include <rte_memzone.h>
-#if __has_include(<rte_pci.h>)
 #include <rte_pci.h>
-#endif
 #include <rte_per_lcore.h>
 #include <rte_ring.h>
 #include <rte_string_fns.h>
 
 #include "bind_classifier.h"
-#include "config.h"
 #include "bind_classifier_rules.h"
+#include "config.h"
 #include "glb_fwd_config.h"
 #include "glb_director_config.h"
 #include "log.h"
