@@ -5,8 +5,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get -y install curl git software-properties-common
 RUN add-apt-repository universe
 
-# DPDK 
-RUN apt-get update && apt-get install -y build-essential dpdk=19.11.14-0ubuntu0.20.04.1 dpdk-dev=19.11.14-0ubuntu0.20.04.1 libdpdk-dev=19.11.14-0ubuntu0.20.04.1 wget pkg-config libjansson-dev libsystemd-dev clang-tools-10
+# DPDK (use 17.11 from bionic for API compatibility)
+RUN echo "deb [trusted=yes] http://dk.archive.ubuntu.com/ubuntu/ bionic main universe" >> /etc/apt/sources.list
+RUN apt-get update && apt-get install -y build-essential dpdk=17.11.1-6 dpdk-dev=17.11.1-6 libdpdk-dev=17.11.1-6 wget pkg-config libjansson-dev libsystemd-dev clang-tools-10
 
 # iptables / DKMS
 RUN apt-get update && apt-get install -y -f wget pkg-config libsystemd-dev dkms debhelper libxtables-dev
@@ -27,6 +28,7 @@ RUN gem install rake fpm
 
 # Python / nosetests for scapy tests
 RUN apt-get update && apt-get install -y python3 python3-pip python3-nose python3-scapy
+RUN pip3 install siphash
 RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf $(which nosetests3) /usr/local/bin/nosetests
 
 # XDP
