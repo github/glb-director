@@ -35,7 +35,6 @@
 #define GLB_KNI_H
 
 #include <rte_mbuf.h>
-#include "config.h"
 
 typedef struct glb_kni_ glb_kni;
 

@@ -17,12 +17,10 @@ endif
 		-Wno-pointer-sign \
 		-Werror \
 		-include /usr/src/linux-headers-$(KVER:-amd64=-common)/include/linux/kconfig.h \
-		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include \
-		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/generated \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/uapi \
-		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/generated/uapi \
+		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/arch/x86/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
-		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/generated/uapi \
+		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include \
 		-I /usr/src/linux-headers-$(KVER)/include \
 		-I include/ \
