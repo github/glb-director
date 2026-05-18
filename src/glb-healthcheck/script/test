@@ -33,6 +33,7 @@
 set -e
 ROOTDIR=$(dirname $0)/..
 cd $ROOTDIR
+export GOFLAGS="${GOFLAGS:+$GOFLAGS }-buildvcs=false"
 
 echo 'Building...'
 go build
