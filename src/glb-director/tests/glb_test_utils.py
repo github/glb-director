@@ -419,11 +419,19 @@ class GLBDirectorTestBase():
 	def teardown_class(cls):
 		ip = IPRoute()
 
-		# tear down the veth pair
-		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
+		# Detach any XDP programs first; otherwise `ip link del` returns
+		# ENOTSUP (95, "Operation not supported"). This is harmless when
+		# nothing is attached.
+		for iface in (cls.IFACE_NAME_PY, cls.IFACE_NAME_DIRECTOR):
+			subprocess.call(['ip', 'link', 'set', 'dev', iface, 'xdp', 'off'],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+		# tear down the veth pair (removing one end removes both, but be
+		# defensive in case only one side exists)
+		if len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) > 0:
 			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
+			ip.link('remove', ifname=cls.IFACE_NAME_PY)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
 
@@ -434,7 +442,10 @@ class GLBDirectorTestBase():
 		sendp(*args, **kwargs)
 
 	def wait_for_packet(self, iface, condition, timeout_seconds=5):
-		print(('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds))
+		# Newer scapy L2ListenSocket no longer exposes `.iff`; fall back to
+		# `.iface` and finally repr() so the print never crashes the test.
+		iface_name = getattr(iface, 'iff', None) or getattr(iface, 'iface', None) or repr(iface)
+		print(('Waiting for packets on', iface_name, 'with timeout', timeout_seconds))
 		try:
 			with timeout(timeout_seconds):
 				while True:
@@ -443,12 +454,16 @@ class GLBDirectorTestBase():
 					if condition(packet):
 						return packet
 		except:
-			with open('director-output.txt', 'rb') as d:
-				sys.stdout.write('-' * 50 + '\n')
-				sys.stdout.write('Output from glb-director-ng\n')
-				sys.stdout.write('-' * 50 + '\n')
-				sys.stdout.write(d.read())
-				sys.stdout.write('-' * 50 + '\n')
+			try:
+				with open('director-output.txt', 'rb') as d:
+					captured = d.read().decode('utf-8', errors='replace')
+			except OSError as e:
+				captured = '<no director-output.txt: {}>'.format(e)
+			sys.stdout.write('-' * 50 + '\n')
+			sys.stdout.write('Output from glb-director-ng\n')
+			sys.stdout.write('-' * 50 + '\n')
+			sys.stdout.write(captured)
+			sys.stdout.write('-' * 50 + '\n')
 			raise
 
 	def stream_statsd_metrics(self, timeout=0):
@@ -503,7 +518,7 @@ class GLBDirectorTestBase():
 			hash_parts.append(self._encode_port(dst_port))
 		
 		assert len(hash_parts) > 0
-		hash_data = ''.join(hash_parts)
+		hash_data = b''.join(hash_parts)
 
 		hash_bytes = siphash.SipHash_2_4(key, hash_data).digest()
 		hash_num, = struct.unpack('<Q', hash_bytes)
