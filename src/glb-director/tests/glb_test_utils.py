@@ -411,6 +411,21 @@ class GLBDirectorTestBase():
 		GLBDirectorTestBase.backend.setup(iface=cls.IFACE_NAME_DIRECTOR)
 		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
 
+		# Scapy caches name->ifindex in conf.ifaces. Between test classes we
+		# tear down and recreate the veth pair, which assigns a new ifindex
+		# under the same name -- the stale cache then makes
+		# setsockopt(SOL_PACKET, PACKET_MR_PROMISC, ...) fail with ENODEV
+		# ("No such device"). Force a refresh before opening sockets.
+		try:
+			conf.ifaces.reload()
+		except Exception:
+			# Older scapy versions don't expose reload(); fall back to
+			# clearing the cache directly so it gets rebuilt on next lookup.
+			try:
+				conf.ifaces.data.clear()  # type: ignore[attr-defined]
+			except Exception:
+				pass
+
 		# prepare our listener for return traffic from director
 		GLBDirectorTestBase.eth_tx = L2ListenSocket(iface=cls.IFACE_NAME_PY, promisc=True)
 		GLBDirectorTestBase.kni_tx = GLBDirectorTestBase.backend.kni()
