@@ -1,0 +1,72 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+    contents: read
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [focal]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build image
+        run: |
+          docker build --file script/Dockerfile.${{ matrix.distro }} --tag glb-director-build-${{ matrix.distro }}:latest .
+          docker save glb-director-build-${{ matrix.distro }}:latest --output glb-director-build-${{ matrix.distro }}.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.distro }}
+          path: glb-director-build-${{ matrix.distro }}.tar
+          retention-days: 1
+
+
+
+  test:
+    needs: build-images
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-suite: [director, director-xdp, healthcheck, redirect]
+        distro: [focal]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.distro }}
+      
+      - name: Load Docker image
+        run: |
+          docker load --input glb-director-build-${{ matrix.distro }}.tar
+
+      - name: Run test suite in container
+        run: |
+          docker run --rm \
+            --privileged \
+            --volume $(pwd):/workspace \
+            --workdir /workspace \
+            glb-director-build-${{ matrix.distro }}:latest \
+            bash -c "cd /workspace/src/glb-${{ matrix.test-suite }} && script/test"
