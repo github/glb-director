@@ -48,7 +48,7 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 RUN apt-get update && apt-get install -y valgrind
 
 # netcat and jq are required by the glb-healthcheck test suite
-RUN apt-get update && apt-get install -y netcat jq
+RUN apt-get update && apt-get install -y netcat jq tcpdump
 
 # DPDK KNI kernel module. Needed at test runtime (`modprobe rte_kni`).
 # Building the .ko requires the running kernel's headers and is therefore

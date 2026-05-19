@@ -22,6 +22,7 @@ from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind
 from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
 from nose.tools import assert_equals
+from nose.plugins.skip import SkipTest
 import subprocess, time
 import signal
 from contextlib import contextmanager
@@ -61,7 +62,14 @@ class DirectorControlBase(object):
 
 class DPDKDirectorControl(DirectorControlBase):
 	def __init__(self):
-		assert os.path.exists('/dev/kni'), "KNI kernel module not loaded"
+		if not os.path.exists('/dev/kni'):
+			# The DPDK director requires the rte_kni out-of-tree kernel module
+			# (/dev/kni). When running in environments where it can't be loaded
+			# (e.g. Docker Desktop on macOS / linuxkit kernels), skip rather
+			# than fail so the suite can still be exercised locally.
+			raise SkipTest("rte_kni kernel module not loaded (/dev/kni missing); "
+				"skipping DPDK director tests. Run on a Linux host with rte_kni "
+				"available to execute these tests.")
 
 		self.director = None
 	
@@ -117,7 +125,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			self.director.send_signal(signal.SIGUSR1)
 	
 	def kni(self):
-		return L2Socket(iface=GLBDirectorTestBase.IFACE_NAME_KNI, promisc=True)
+		return L2ListenSocket(iface=GLBDirectorTestBase.IFACE_NAME_KNI, promisc=True)
 
 class SystemdNotify(object):
 	def __init__(self, unix_path):
@@ -354,7 +362,7 @@ class GLBDirectorTestBase():
 		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
 
 		# prepare our listener for return traffic from director
-		GLBDirectorTestBase.eth_tx = L2Socket(iface=cls.IFACE_NAME_PY, promisc=True)
+		GLBDirectorTestBase.eth_tx = L2ListenSocket(iface=cls.IFACE_NAME_PY, promisc=True)
 		GLBDirectorTestBase.kni_tx = GLBDirectorTestBase.backend.kni()
 
 	@classmethod
