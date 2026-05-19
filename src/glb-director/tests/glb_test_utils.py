@@ -84,7 +84,7 @@ class DPDKDirectorControl(DirectorControlBase):
 				'--config-file', './tests/director-config.json',
 				'--forwarding-table', './tests/test-tables.bin'
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 		)
 
@@ -176,7 +176,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'/sys/fs/bpf/root_array@' + iface,
 				iface,
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_shim.updated_env(),
 		)
@@ -198,7 +198,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
 				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_director.updated_env(),
 		)
