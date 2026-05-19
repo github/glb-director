@@ -63,7 +63,9 @@
 #include <rte_ether.h>
 #include <rte_interrupts.h>
 #include <rte_ip.h>
+#if __has_include(<rte_kni.h>)
 #include <rte_kni.h>
+#endif
 #include <rte_launch.h>
 #include <rte_lcore.h>
 #include <rte_log.h>
@@ -94,12 +96,18 @@
 #include "shared_opt.h"
 #include "util.h"
 
+#include <rte_version.h>
+
 char config_file[256];
 char forwarding_table[256];
 
 int port_num_queues[MAX_KNI_PORTS];
 
 glb_kni *kni_ports[MAX_KNI_PORTS] = {NULL};
+
+#if GLB_HAVE_MBUF_USERDATA_DYNFIELD
+int glb_mbuf_userdata_offset = -1;
+#endif
 
 /* Use an array of pointers rather than a contiguous array of structs
  * so that the pointers can be allocated separately, keeping them core-local.
@@ -111,11 +119,13 @@ struct rte_mempool *glb_processor_msg_pool = NULL;
 struct rte_eth_conf port_conf = {
     .rxmode =
 	{
+#if RTE_VERSION < RTE_VERSION_NUM(22, 11, 0, 0)
 	    .header_split = 0,   /* Header Split disabled */
 	    .hw_ip_checksum = 1, /* IP checksum offload disabled */
 	    .hw_vlan_filter = 0, /* VLAN filtering disabled */
 	    .jumbo_frame = 0,    /* Jumbo Frame Support disabled */
 	    .hw_strip_crc = 1,   /* CRC stripped by hardware */
+#endif
 	    .mq_mode = ETH_MQ_RX_RSS,
 	},
     .txmode =
@@ -200,6 +210,21 @@ int main(int argc, char **argv)
 	argc -= ret;
 	argv += ret;
 
+#if GLB_HAVE_MBUF_USERDATA_DYNFIELD
+	static const struct rte_mbuf_dynfield glb_mbuf_userdata_dynfield = {
+		.name = "glb_mbuf_userdata",
+		.size = sizeof(uint64_t),
+		.align = __alignof__(uint64_t),
+		.flags = 0,
+	};
+
+	glb_mbuf_userdata_offset =
+	    rte_mbuf_dynfield_register(&glb_mbuf_userdata_dynfield);
+	if (glb_mbuf_userdata_offset < 0) {
+		glb_log_error_and_exit("Could not register mbuf userdata field");
+	}
+#endif
+
 	/* Find any command line options */
 	get_options(config_file, forwarding_table, argc, argv);
 
@@ -220,7 +245,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Find out how many NIC ports we have, validate that it's reasonable */
-	nb_sys_ports = rte_eth_dev_count();
+	nb_sys_ports = GLB_ETH_DEV_COUNT();
 	if (nb_sys_ports == 0) {
 		glb_log_error_and_exit("No supported Ethernet device found");
 		return -1;
@@ -275,7 +300,11 @@ int main(int argc, char **argv)
 	}
 
 	if (g_director_config->kni_enabled) {
+#if __has_include(<rte_kni.h>)
 		rte_kni_init(nb_sys_ports);
+#else
+		glb_log_info("WARNING: KNI is enabled in config but not available in this DPDK version.");
+#endif
 	}
 
 	/* Pre-allocate the control message mbuf pool */

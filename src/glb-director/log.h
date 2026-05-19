@@ -30,13 +30,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _GLB_LOG_H
+#define _GLB_LOG_H
+
 #include <jansson.h>
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
 
 #define MAX_MESSAGE_SZ 1024
-bool debug;
+extern bool debug;
 
 // outputs formatted logs to stdout or stderr
 
@@ -165,3 +168,5 @@ inline static void glb_log_error_and_exit(const char *format, ...)
 
 	exit(1);
 }
+
+#endif /* _GLB_LOG_H */

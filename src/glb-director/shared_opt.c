@@ -33,6 +33,8 @@
 #include "shared_opt.h"
 #include <getopt.h>
 
+bool debug = false;
+
 /* parses --config-file, --forwarding-table, and --debug cli options */
 
 void get_options(char *config_file, char *forwarding_table, int argc,
@@ -40,7 +42,6 @@ void get_options(char *config_file, char *forwarding_table, int argc,
 {
 
 	int opt_index, opt;
-	debug = false;
 
 	static struct option long_options[] = {
 	    {"config-file", required_argument, NULL, 'c'},

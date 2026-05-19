@@ -33,6 +33,32 @@
 RTE_SDK ?= /usr/share/dpdk
 RTE_TARGET ?= x86_64-default-linuxapp-gcc
 
+ifeq ($(wildcard $(RTE_SDK)/mk/rte.vars.mk),)
+# Modern DPDK (no legacy make fragments): use pkg-config
+APP = glb-director
+
+SRCS-y := main.c bind_classifier.c glb_kni.c glb_fwd_config.c \
+glb_encap.c glb_encap_dpdk.c glb_control_loop.c glb_processor_loop.c \
+siphash24.c glb_director_config.c statsd-client.c shared_opt.c
+
+CFLAGS += $(shell pkg-config --cflags libdpdk)
+CFLAGS += -O3 -g -pie -fPIE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1 -fstack-protector-strong
+CFLAGS += -DSTATSD -DSYSTEMD
+CFLAGS += -I$(CURDIR)/..
+LDFLAGS += $(shell pkg-config --libs libdpdk)
+LDFLAGS += -z relro -z now -ljansson -lsystemd
+
+build/app/$(APP): $(SRCS-y)
+	mkdir -p build/app
+	$(CC) $(CFLAGS) -o $@ $(SRCS-y) $(LDFLAGS)
+
+all: build/app/$(APP)
+
+clean:
+	rm -rf build
+
+.PHONY: all clean
+else
 include $(RTE_SDK)/mk/rte.vars.mk
 
 # binary name
@@ -61,3 +87,4 @@ LDFLAGS += -lsystemd
 CONFIG_RTE_LIBRTE_PMD_XENVIRT = n
 
 include $(RTE_SDK)/mk/rte.extapp.mk
+endif

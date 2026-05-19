@@ -31,6 +31,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
+#if GLB_HAVE_KNI
+
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
@@ -366,3 +370,53 @@ static void handle_kni_to_nic(unsigned port_id, struct rte_kni *kni,
 			    "lcore-%u: -> %d packets (%d queued) burst from KNI to port %d queue %d",
 			    rte_lcore_id(), nb_rx, nb_tx, port_id, tx_queue);
 }
+
+#else  /* !GLB_HAVE_KNI */
+
+#include <stdint.h>
+#include <stdlib.h>
+#include "glb_kni.h"
+#include "log.h"
+
+/* KNI was removed in DPDK 23.11. Provide stubs that fail gracefully. */
+
+struct glb_kni_ {
+	int unused;
+};
+
+glb_kni *glb_kni_new(uint8_t physical_port_id, uint16_t rx_tx_queue_id,
+     unsigned owner_lcore_id, struct rte_mempool *pktmbuf_pool)
+{
+	(void)physical_port_id;
+	(void)rx_tx_queue_id;
+	(void)owner_lcore_id;
+	(void)pktmbuf_pool;
+	glb_log_error("KNI support not available in this build of DPDK");
+	return NULL;
+}
+
+unsigned glb_kni_safe_tx_burst(glb_kni *gk, struct rte_mbuf **kni_tx_burst,
+       unsigned tx_burst_size)
+{
+	(void)gk;
+	(void)kni_tx_burst;
+	(void)tx_burst_size;
+	return 0;
+}
+
+void glb_kni_lcore_flush(glb_kni *gk)
+{
+	(void)gk;
+}
+
+void glb_kni_handle_request(glb_kni *gk)
+{
+	(void)gk;
+}
+
+void glb_kni_release(glb_kni *gk)
+{
+	free(gk);
+}
+
+#endif  /* GLB_HAVE_KNI */

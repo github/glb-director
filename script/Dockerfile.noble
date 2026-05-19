@@ -25,6 +25,9 @@ RUN apt-get install --assume-yes --fix-broken \
     pkg-config \
     libsystemd-dev \
     dkms \
+    dh-dkms \
+    dpkg-dev \
+    fakeroot \
     debhelper \
     libxtables-dev
 

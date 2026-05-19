@@ -71,6 +71,7 @@
 #include <netinet/in.h>
 
 #include <rte_string_fns.h>
+#include <rte_version.h>
 
 #include "cmdline.h"
 #include "cmdline_parse.h"
@@ -85,6 +86,13 @@
 #endif
 
 #define CMDLINE_BUFFER_SIZE 64
+
+/* struct cmdline became opaque in DPDK 22.11; use the accessor if available */
+#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 0)
+#define CMDLINE_CTX(cl) cmdline_get_ctx(cl)
+#else
+#define CMDLINE_CTX(cl) ((cl)->ctx)
+#endif
 
 /* isblank() needs _XOPEN_SOURCE >= 600 || _ISOC99_SOURCE, so use our
  * own. */
@@ -262,7 +270,7 @@ int cmdline_parse(struct cmdline *cl, const char *buf)
 	if (!cl || !buf)
 		return CMDLINE_PARSE_BAD_ARGS;
 
-	ctx = cl->ctx;
+	ctx = CMDLINE_CTX(cl);
 
 	/*
 	 * - look if the buffer contains at least one line
@@ -379,7 +387,7 @@ int cmdline_complete(struct cmdline *cl, const char *buf, int *state, char *dst,
 	if (!cl || !buf || !state || !dst)
 		return -1;
 
-	ctx = cl->ctx;
+	ctx = CMDLINE_CTX(cl);
 
 	debug_printf("%s called\n", __func__);
 	memset(&token_hdr, 0, sizeof(token_hdr));
