@@ -417,26 +417,46 @@ class GLBDirectorTestBase():
 
 	@classmethod
 	def teardown_class(cls):
-		ip = IPRoute()
+		# Stop the director / xdp-root-shim FIRST. While the xdp-root-shim is
+		# still running it holds pinned BPF programs attached to the veth,
+		# and the kernel refuses RTM_DELLINK on the device with
+		# ENOTSUP (95, "Operation not supported").
+		try:
+			GLBDirectorTestBase.backend.cleanup()
+		except Exception as e:
+			print('backend.cleanup() raised during teardown: {}'.format(e))
 
-		# Detach any XDP programs first; otherwise `ip link del` returns
-		# ENOTSUP (95, "Operation not supported"). This is harmless when
-		# nothing is attached.
+		# Detach any XDP programs that may still be present (e.g. the
+		# passer.o we attached to the py-side of the veth).
 		for iface in (cls.IFACE_NAME_PY, cls.IFACE_NAME_DIRECTOR):
 			subprocess.call(['ip', 'link', 'set', 'dev', iface, 'xdp', 'off'],
 				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-		# tear down the veth pair (removing one end removes both, but be
-		# defensive in case only one side exists)
-		if len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
-		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_PY)
+		# Also unpin anything the xdp-root-shim may have left behind in bpffs;
+		# stale pinned maps on the iface can also cause ENOTSUP on dellink.
+		for iface in (cls.IFACE_NAME_PY, cls.IFACE_NAME_DIRECTOR):
+			pin = '/sys/fs/bpf/root_array@' + iface
+			try:
+				if os.path.exists(pin):
+					os.unlink(pin)
+			except OSError as e:
+				print('Failed to unpin {}: {}'.format(pin, e))
+
+		# Tear down the veth pair. Use `ip link del` via subprocess; the
+		# pyroute2 path returns ENOTSUP on some kernels even when the
+		# equivalent userspace command works. Removing either end of a veth
+		# removes both, but try each in case only one side exists.
+		ip = IPRoute()
+		for iface in (cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY):
+			if len(ip.link_lookup(ifname=iface)) > 0:
+				rc = subprocess.call(['ip', 'link', 'del', 'dev', iface],
+					stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+				if rc != 0:
+					# Fall back to pyroute2; surface any error rather than
+					# masking it (matches the previous behaviour).
+					ip.link('remove', ifname=iface)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
-
-		# clean up the director
-		GLBDirectorTestBase.backend.cleanup()
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)
@@ -474,6 +494,9 @@ class GLBDirectorTestBase():
 				return # nothing more to receive, we timed out
 			else:
 				block, _ = s.recvfrom(4096)
+				# recvfrom returns bytes in Py3; decode so the string ops below work.
+				if isinstance(block, bytes):
+					block = block.decode('utf-8', errors='replace')
 				for data in block.split('\n'):
 					metric_name, metric_data = data.split(':', 1)
 					metric_info, metric_tags = metric_data.split('#', 1)
