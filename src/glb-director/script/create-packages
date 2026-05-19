@@ -36,6 +36,29 @@ cd $ROOTDIR
 
 . packaging/version.sh
 
+# GLB_CLI_ONLY=1 builds and packages only glb-director-cli (no DPDK).
+# Used on distros where the DPDK director is not built (e.g. noble), but where
+# glb-director-cli is still required as a runtime dep of glb-director-xdp.
+if [ "${GLB_CLI_ONLY:-0}" = "1" ]; then
+	make -C cli clean
+	make -C cli glb-director-cli
+
+	fpm -f -s dir -t deb \
+		-n glb-director-cli \
+		-v ${GLB_DIRECTOR_VERSION} \
+		-d 'libjansson4' \
+		--license 'BSD 3-Clause' \
+		--maintainer 'GitHub <opensource+glb-director@github.com>' \
+		cli/glb-director-cli=/usr/sbin/
+
+	if [ -d "$BUILDDIR" ]; then
+	  cp glb-director-cli_${GLB_DIRECTOR_VERSION}_amd64.deb $BUILDDIR/
+	fi
+
+	make -C cli clean
+	exit 0
+fi
+
 make clean
 make -C cli clean
 

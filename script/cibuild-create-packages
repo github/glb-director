@@ -30,10 +30,18 @@ begin_fold "Building packages"
   rm -rf tmp/build/
   mkdir -p tmp/build/
 
+  # The DPDK glb-director sub-build only works on focal (DPDK 17 / KNI).
+  # On other distros we skip it but still produce glb-director-cli (a runtime
+  # dep of glb-director-xdp).
+  EXTRA_MAKE_ENV=""
+  if [ "$DISTRO" != "focal" ]; then
+    EXTRA_MAKE_ENV="GLB_SKIP_DPDK_DIRECTOR=1"
+  fi
+
   docker run --rm \
     --volume "$HOSTPATH":/glb-director \
     "glb-director-build-$DISTRO" \
     bash -c "cd /glb-director &&
-      make BUILDDIR=/glb-director/tmp/build clean mkdeb"
+      make BUILDDIR=/glb-director/tmp/build $EXTRA_MAKE_ENV clean mkdeb"
 )
 end_fold

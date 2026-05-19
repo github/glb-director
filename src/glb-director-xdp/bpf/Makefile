@@ -1,7 +1,7 @@
 all: glb_encap.o glb_encap_trace.o passer.o tailcall.o
 
-CLANG=clang-10
-LLC=llc-10
+CLANG?=clang-10
+LLC?=llc-10
 
 ifeq ($(KVER),)
 KVER=$(shell uname -r)
@@ -23,6 +23,7 @@ endif
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include \
 		-I /usr/src/linux-headers-$(KVER)/include \
+		$(EXTRA_BPF_INCLUDES) \
 		-I include/ \
 		-I ../.. \
 		$< > .tmp.ll

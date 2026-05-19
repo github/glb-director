@@ -36,7 +36,10 @@ cd $ROOTDIR
 
 . packaging/version.sh
 
-make -C ../glb-director/cli
+# Only the cli tool is needed to build forwarding tables; avoid building the
+# rest of the cli/ targets (glb-config-check, glb-director-pcap, ...) since
+# they link DPDK and won't compile on distros without DPDK 17 (e.g. noble).
+make -C ../glb-director/cli glb-director-cli
 make
 
 ../glb-director/cli/glb-director-cli build-config ../glb-director/packaging/forwarding_table.json ../glb-director/packaging/forwarding_table.bin

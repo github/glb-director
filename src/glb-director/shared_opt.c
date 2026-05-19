@@ -33,6 +33,12 @@
 #include "shared_opt.h"
 #include <getopt.h>
 
+/* Single definition of the global debug flag declared in log.h / shared_opt.h.
+ * Newer GCC defaults to -fno-common, so a tentative definition in the header
+ * (the original `bool debug;` in log.h) is rejected as a duplicate symbol when
+ * multiple translation units include it. */
+bool debug;
+
 /* parses --config-file, --forwarding-table, and --debug cli options */
 
 void get_options(char *config_file, char *forwarding_table, int argc,

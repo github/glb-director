@@ -97,6 +97,11 @@ typedef struct {
 
 #include "../glb-director/glb_fwd_config.c"
 
+// Single definition of the global debug flag declared (extern) in log.h.
+// glb_fwd_config.c -> log.h is the only translation unit in this xdp build
+// that references it, so define it once here.
+bool debug = false;
+
 // cgo borked zero-size trailing arrays, so we return the pointer instead.
 struct glb_fwd_config_content_table *_get_tables(struct glb_fwd_config_content *content) {
 	return content->tables;
