@@ -7,9 +7,14 @@ cd "$(dirname "$0")/.."
 
 . script/helpers/folding.sh
 
+DISTRO="$1"
+if [ -z "$DISTRO" ]; then
+  DISTRO="focal"
+fi
+
 begin_fold "Preparing Docker build environment"
 (
-  docker build -t glb-director-build-stretch -f script/Dockerfile.stretch script
+  docker build -t glb-director-build-$DISTRO -f "script/Dockerfile.$DISTRO" script
 )
 end_fold
 
@@ -21,7 +26,7 @@ begin_fold "Building packages"
 
   docker run --rm \
     --volume "$HOSTPATH":/glb-director \
-    "glb-director-build-stretch" \
+    "glb-director-build-$DISTRO" \
     bash -c "cd /glb-director &&
       make BUILDDIR=/glb-director/tmp/build clean mkdeb"
 )
