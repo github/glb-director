@@ -54,10 +54,3 @@ RUN apt-get update && apt-get install -y valgrind
 
 # netcat and jq are required by the glb-healthcheck test suite
 RUN apt-get update && apt-get install -y netcat jq tcpdump
-
-# DPDK KNI kernel module. Needed at test runtime (`modprobe rte_kni`).
-# Building the .ko requires the running kernel's headers and is therefore
-# only loaded at container runtime by the test harness on hosts where the
-# kernel supports it (e.g. real Linux CI runners). The dkms package is
-# installed here so the source/module is available inside the container.
-RUN apt-get update && apt-get install -y dpdk-rte-kni-dkms || true
