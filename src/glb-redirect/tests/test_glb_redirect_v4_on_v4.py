@@ -41,7 +41,7 @@ class TestGLBRedirectModuleV4OnV4(GLBTestHelpers):
 
 			# expect a ICMP echo response back from self.PROXY_HOST (decapsulated)
 			resp_ip = self._sendrecv4(pkt, filter='host {} and icmp'.format(dst))
-			print repr(resp_ip)
+			print(repr(resp_ip))
 			assert isinstance(resp_ip, IP)
 			assert_equals(resp_ip.src, dst)
 			assert_equals(resp_ip.dst, self.SELF_HOST)

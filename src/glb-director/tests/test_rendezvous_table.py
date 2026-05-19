@@ -22,10 +22,10 @@ class TestGLBRendezvousTable():
 	def test_row_seeds(self):
 		"""GLBRendezvousTable correctly calculates valid row seeds"""
 
-		forwarding_table_seed = '49a3d861d661ae5ab06ed9326871a2f5'.decode('hex')
+		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
-		assert_equals(table.calculate_forwarding_table_row_seed(0x0000).encode('hex'), '491c53a72df4c837')
-		assert_equals(table.calculate_forwarding_table_row_seed(0xffff).encode('hex'), 'f223c0cc65161620')
+		assert_equals(table.calculate_forwarding_table_row_seed(0x0000).hex(), '491c53a72df4c837')
+		assert_equals(table.calculate_forwarding_table_row_seed(0xffff).hex(), 'f223c0cc65161620')
 
 	def test_order_hosts_0000(self):
 		"""
@@ -37,7 +37,7 @@ class TestGLBRendezvousTable():
 			1.1.1.4 6f022ce1ea607e16
 		"""
 
-		forwarding_table_seed = '49a3d861d661ae5ab06ed9326871a2f5'.decode('hex')
+		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']
@@ -54,7 +54,7 @@ class TestGLBRendezvousTable():
 			1.1.1.4 a1f610df9fbb2025
 		"""
 
-		forwarding_table_seed = '49a3d861d661ae5ab06ed9326871a2f5'.decode('hex')
+		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']
@@ -71,7 +71,7 @@ class TestGLBRendezvousTable():
 			1.1.1.4 0676eaf9cb7d2f85
 		"""
 
-		forwarding_table_seed = '49a3d861d661ae5ab06ed9326871a2f5'.decode('hex')
+		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']

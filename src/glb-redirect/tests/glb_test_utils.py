@@ -25,7 +25,7 @@ class GLBTestHelpers(object):
 		s.close()
 		if len(ret) == 0:
 			assert False, "Expected to receive a response packet, but none received."
-		print "Received packet:", repr(ret[0])
+		print("Received packet:", repr(ret[0]))
 		return ret[0]
 
 	def _sendrecvmany4(self, pkt, **kwargs):
@@ -36,7 +36,7 @@ class GLBTestHelpers(object):
 		if len(ret) == 0:
 			assert False, "Expected to receive a response packet, but none received."
 		for pkt in ret:
-			print "Received packet:", repr(pkt)
+			print("Received packet:", repr(pkt))
 		return ret
 
 	def _sendrecv4(self, pkt, **kwargs):

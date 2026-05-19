@@ -18,7 +18,8 @@
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
-from scapy.all import sniff, sendp, Ether, IP, IPv6, L2ListenSocket, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig
+from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig, conf
+from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
 from nose.tools import assert_equals
 import subprocess, time
@@ -79,7 +80,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			stderr=subprocess.STDOUT,
 		)
 
-		print('launched as pid', self.director.pid)
+		print(('launched as pid', self.director.pid))
 
 		ip = IPRoute()
 
@@ -116,7 +117,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			self.director.send_signal(signal.SIGUSR1)
 	
 	def kni(self):
-		return L2ListenSocket(iface=GLBDirectorTestBase.IFACE_NAME_KNI, promisc=True)
+		return L2Socket(iface=GLBDirectorTestBase.IFACE_NAME_KNI, promisc=True)
 
 class SystemdNotify(object):
 	def __init__(self, unix_path):
@@ -194,7 +195,7 @@ class XDPDirectorControl(DirectorControlBase):
 			env=notify_director.updated_env(),
 		)
 
-		print('launched as pid', self.director.pid)
+		print(('launched as pid', self.director.pid))
 
 		notify_director.wait()
 
@@ -299,7 +300,7 @@ class GLBDirectorTestBase():
 
 	@classmethod
 	def update_running_forwarding_tables(cls, config):
-		f = open('tests/test-tables.json', 'wb')
+		f = open('tests/test-tables.json', 'w')
 		f.write(json.dumps(config, indent=4))
 		f.close()
 
@@ -334,7 +335,7 @@ class GLBDirectorTestBase():
 		
 		GLBDirectorTestBase.py_side_mac = dict(ip.link('get', index=ip.link_lookup(ifname=cls.IFACE_NAME_PY))[0]['attrs'])['IFLA_ADDRESS']
 
-		with open('tests/director-config.json', 'wb') as f:
+		with open('tests/director-config.json', 'w') as f:
 			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
 
 		# set up a statsd receiver
@@ -353,7 +354,7 @@ class GLBDirectorTestBase():
 		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
 
 		# prepare our listener for return traffic from director
-		GLBDirectorTestBase.eth_tx = L2ListenSocket(iface=cls.IFACE_NAME_PY, promisc=True)
+		GLBDirectorTestBase.eth_tx = L2Socket(iface=cls.IFACE_NAME_PY, promisc=True)
 		GLBDirectorTestBase.kni_tx = GLBDirectorTestBase.backend.kni()
 
 	@classmethod
@@ -375,12 +376,12 @@ class GLBDirectorTestBase():
 		sendp(*args, **kwargs)
 
 	def wait_for_packet(self, iface, condition, timeout_seconds=5):
-		print('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds)
+		print(('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds))
 		try:
 			with timeout(timeout_seconds):
 				while True:
 					packet = iface.recv(MTU)
-					print(repr(packet))
+					print((repr(packet)))
 					if condition(packet):
 						return packet
 		except:
@@ -414,7 +415,7 @@ class GLBDirectorTestBase():
 		spec_matches = set()
 		for metric_name, metric_value, metric_type, metric_tags in self.stream_statsd_metrics(timeout=1):
 			metric_key = (metric_name, metric_tags)
-			print metric_key
+			print(metric_key)
 			if metric_key in spec:
 				assert spec[metric_key](metric_value), "Metric {} had unexpected value {}".format(metric_key, repr(metric_value))
 				spec_matches.add(metric_key)
@@ -456,7 +457,7 @@ class GLBDirectorTestBase():
 	def route_for_packet(self, test_packet, fields):
 		field_data = self._fields_for_packet(test_packet)
 		table = self._table_for_bind(field_data['dst_addr'], field_data['dst_port'])
-		rt = GLBRendezvousTable(table['seed'].decode('hex'))
+		rt = GLBRendezvousTable(bytes.fromhex(table['seed']))
 		hosts = self._hosts_for_table(table)
 
 		hash_key_bytes = self._key_for_bind(field_data['dst_addr'], field_data['dst_port'])
@@ -465,7 +466,7 @@ class GLBDirectorTestBase():
 		return rt.forwarding_table_entry(hash_row, hosts)[:2]
 
 	def _hosts_for_table(self, table):
-		return map(lambda b: b['ip'], table['backends'])
+		return [b['ip'] for b in table['backends']]
 
 	def _table_for_bind(self, dest_ip, dest_port):
 		config = GLBDirectorTestBase.running_forwarding_config
@@ -482,7 +483,7 @@ class GLBDirectorTestBase():
 		if table is None:
 			return None
 		else:
-			return table['hash_key'].decode('hex').rjust(16, '\x00')
+			return bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
 
 	def _fields_for_packet(self, packet):
 		ether = packet
