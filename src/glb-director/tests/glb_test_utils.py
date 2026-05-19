@@ -147,10 +147,17 @@ class SystemdNotify(object):
 		self.notify_sock.settimeout(2)
 		try:
 			data, addr = self.notify_sock.recvfrom(32)
-			assert data == 'READY=1' # only thing it will send
+			assert data == b'READY=1' # only thing it will send
 		except socket.timeout:
 			print('notify ready timed out')
-			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read())
+			try:
+				with open('director-output.txt', 'rb') as fh:
+					captured = fh.read().decode('utf-8', errors='replace')
+			except OSError as e:
+				captured = '<no director-output.txt: {}>'.format(e)
+			raise Exception(
+				'Timeout while waiting for director to signal ready, did it crash?\n\n'
+				+ captured)
 		
 		self.notify_sock.close()
 
@@ -160,9 +167,10 @@ class XDPDirectorControl(DirectorControlBase):
 	def __init__(self):
 		# XDP requires a Linux kernel with XDP support and the ability to
 		# attach BPF programs to veth interfaces. Docker Desktop on macOS /
-		# Windows runs a "linuxkit" kernel that doesn't support this. Detect
-		# that environment and skip rather than fail so script/test-local
-		# can still exercise the rest of the suite.
+		# Windows runs a "linuxkit" kernel that doesn't support this, and
+		# some CI runners (e.g. older GitHub Actions kernels) similarly
+		# can't attach XDP to veth. Detect that environment and skip rather
+		# than fail so the rest of the suite can still be exercised.
 		try:
 			kernel_release = os.uname().release
 		except Exception:
@@ -173,6 +181,32 @@ class XDPDirectorControl(DirectorControlBase):
 		if not os.path.isdir('/sys/fs/bpf'):
 			raise SkipTest("/sys/fs/bpf is not available; BPF filesystem not "
 				"mounted. Run on a Linux host with BPF support to execute these tests.")
+
+		# Functional probe: build a throwaway veth pair and try to attach
+		# the passer.o XDP program. If that fails the kernel can't run the
+		# rest of these tests anyway, so skip with the actual reason.
+		passer = os.path.abspath('../glb-director-xdp/bpf/passer.o')
+		if not os.path.exists(passer):
+			raise SkipTest("XDP passer.o not built at {}; build glb-director-xdp before running tests.".format(passer))
+		probe_a = 'glbxdpprobe0'
+		probe_b = 'glbxdpprobe1'
+		subprocess.call(['ip', 'link', 'del', 'dev', probe_a],
+			stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		try:
+			rc = subprocess.call(
+				['ip', 'link', 'add', probe_a, 'type', 'veth', 'peer', 'name', probe_b],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if rc != 0:
+				raise SkipTest("Unable to create veth pair (rc={}); container/kernel does not permit veth (kernel {}).".format(rc, kernel_release))
+			probe = subprocess.run(
+				['ip', 'link', 'set', 'dev', probe_a, 'xdp', 'obj', passer],
+				stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			if probe.returncode != 0:
+				err = probe.stderr.decode('utf-8', errors='replace').strip()
+				raise SkipTest("Kernel ({}) cannot attach XDP to veth: {}".format(kernel_release, err))
+		finally:
+			subprocess.call(['ip', 'link', 'del', 'dev', probe_a],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 		self.director = None
 	
