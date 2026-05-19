@@ -98,6 +98,14 @@ end_test () {
 
     echo "---- end_test: $test_description ----" >> $HC_LOGFILE
 
+    if [ -f "$TRASHDIR/.skipped" ]; then
+      reason=$(cat "$TRASHDIR/.skip_reason" 2>/dev/null)
+      rm -f "$TRASHDIR/.skipped" "$TRASHDIR/.skip_reason"
+      printf "test: %-60s SKIPPED (%s)\n" "$test_description ..." "$reason"
+      unset test_description
+      return 0
+    fi
+
     if [ "$test_status" -eq 0 ]; then
       if [ "$ex_fail" -eq 0 ]; then
         printf "test: %-60s OK (${elapsed_time}s)\n" "$test_description ..."
@@ -117,6 +125,33 @@ end_test () {
 # Mark the end of a test that is expected to fail.
 end_test_exfail () {
   end_test $? 1
+}
+
+# Mark the current test as skipped from inside the subshell. The marker file
+# is read by end_test below to report SKIPPED rather than OK/FAILED. This
+# mirrors the SkipTest pattern used by the director Python test suite so that
+# tests requiring infrastructure unavailable in the container (e.g. the
+# Vagrant proxy1/proxy2 backends) don't fail when run via script/test-local.
+skip_test () {
+    reason="${1:-no reason given}"
+    echo "SKIP: $reason"
+    : > "$TRASHDIR/.skipped"
+    echo "$reason" > "$TRASHDIR/.skip_reason"
+    exit 0
+}
+
+# Returns 0 if the Vagrant proxy backends (proxy1/proxy2) referenced by the
+# default forwarding table are reachable on their HTTP healthcheck port.
+# Used to decide whether to skip tests that depend on real backends being up.
+proxy_backends_available () {
+    # quick TCP probe with a short timeout; both proxies must answer on :80
+    for ip in 192.168.50.10 192.168.50.11; do
+        if ! (exec 3<>/dev/tcp/$ip/80) 2>/dev/null; then
+            return 1
+        fi
+        exec 3<&- 3>&- 2>/dev/null || true
+    done
+    return 0
 }
 
 atexit () {
@@ -156,6 +191,13 @@ setup() {
   trap cleanup TERM
 
   set -e
+
+  # When running under Docker (rather than the Vagrant director-test VM),
+  # the forwarding table references 192.168.50.5 as the local backend for
+  # the HTTP healthcheck test. Bind it to loopback so that the healthcheck
+  # daemon can actually reach a local HTTP server. Ignore failures (e.g.
+  # already added, or not running as root on the host).
+  ip addr add 192.168.50.5/32 dev lo 2>/dev/null || true
 
   # copy a backup of the initial version to reset later
   cp $TEMPDIR/forwarding_table.json $TEMPDIR/forwarding_table.json.bak

@@ -18,6 +18,11 @@ RUN wget --quiet https://golang.org/dl/go1.24.5.linux-amd64.tar.gz -O- | tar -C 
 ENV GOROOT /usr/local/go
 ENV GOPATH /go
 ENV PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+# Disable VCS stamping in Go 1.24+ builds. The repo is bind-mounted from the
+# host so git refuses to operate on it inside the container ("dubious
+# ownership"), which causes `go build` to fail with
+# "error obtaining VCS status: exit status 128".
+ENV GOFLAGS=-buildvcs=false
 
 # fpm for packaging
 RUN apt-get update && apt-get install -y ruby ruby-dev rubygems build-essential

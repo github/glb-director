@@ -71,6 +71,14 @@ end_test () {
     set +x -e
     exec 1>&3 2>&4
 
+    if [ -f "$TRASHDIR/.skipped" ]; then
+        reason=$(cat "$TRASHDIR/.skip_reason" 2>/dev/null)
+        rm -f "$TRASHDIR/.skipped" "$TRASHDIR/.skip_reason"
+        printf "test: %-60s SKIPPED (%s)\n" "$test_description ..." "$reason"
+        unset test_description
+        return 0
+    fi
+
     if [ "$test_status" -eq 0 ]; then
         printf "test: %-60s OK\n" "$test_description ..."
     else
@@ -89,4 +97,32 @@ end_test () {
 
 end_test_exfail () {
   end_test $? 1
+}
+
+# Mark the current test as skipped from inside the subshell. The marker file
+# is read by end_test to report SKIPPED rather than OK/FAILED. Mirrors the
+# SkipTest pattern used by the director Python suite so tests that require
+# infrastructure unavailable in the container (e.g. DPDK hugepages on
+# Docker Desktop / macOS) don't fail when run via script/test-local.
+skip_test () {
+    reason="${1:-no reason given}"
+    echo "SKIP: $reason"
+    : > "$TRASHDIR/.skipped"
+    echo "$reason" > "$TRASHDIR/.skip_reason"
+    exit 0
+}
+
+# Returns 0 if DPDK can use hugepages on this host. DPDK requires free
+# hugepages of one of the supported sizes; without them EAL initialization
+# fails with "Cannot get hugepage information." Docker Desktop on macOS
+# (linuxkit kernel) does not expose hugepages by default.
+hugepages_available () {
+    for f in /sys/kernel/mm/hugepages/hugepages-*/free_hugepages; do
+        [ -r "$f" ] || continue
+        n=$(cat "$f" 2>/dev/null || echo 0)
+        if [ "${n:-0}" -gt 0 ]; then
+            return 0
+        fi
+    done
+    return 1
 }

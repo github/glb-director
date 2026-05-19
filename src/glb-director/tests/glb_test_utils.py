@@ -158,6 +158,22 @@ class SystemdNotify(object):
 
 class XDPDirectorControl(DirectorControlBase):
 	def __init__(self):
+		# XDP requires a Linux kernel with XDP support and the ability to
+		# attach BPF programs to veth interfaces. Docker Desktop on macOS /
+		# Windows runs a "linuxkit" kernel that doesn't support this. Detect
+		# that environment and skip rather than fail so script/test-local
+		# can still exercise the rest of the suite.
+		try:
+			kernel_release = os.uname().release
+		except Exception:
+			kernel_release = ''
+		if 'linuxkit' in kernel_release:
+			raise SkipTest("Running on linuxkit kernel ({}); XDP/veth attach is "
+				"not supported. Run on a Linux host to execute these tests.".format(kernel_release))
+		if not os.path.isdir('/sys/fs/bpf'):
+			raise SkipTest("/sys/fs/bpf is not available; BPF filesystem not "
+				"mounted. Run on a Linux host with BPF support to execute these tests.")
+
 		self.director = None
 	
 	# veth pair implementation of XDP_TX silently drops packets unless the other side of the veth

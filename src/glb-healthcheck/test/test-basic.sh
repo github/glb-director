@@ -90,6 +90,8 @@ end_test
 
 begin_test "outputs the healthcheck file with valid health"
 (
+  proxy_backends_available || skip_test "Vagrant proxy1/proxy2 backends (192.168.50.10/11) not reachable; requires the Vagrant test network."
+
   setup
 
   sleep 3
@@ -107,6 +109,8 @@ end_test
 
 begin_test "reload should take effect"
 (
+  proxy_backends_available || skip_test "Vagrant proxy1/proxy2 backends (192.168.50.10/11) not reachable; requires the Vagrant test network."
+
   setup
 
   sleep 3
@@ -169,7 +173,7 @@ begin_test "responds to health check changes"
   [[ "$(jq -r '.tables[1].backends[3].healthy' $TEMPDIR/forwarding_table.hc.json)" == "false" ]]
 
   # start up a HTTP server
-  python -m SimpleHTTPServer 8765 &
+  python3 -m http.server 8765 &
   http_pid=$!
   echo "$http_pid" > "${TEMPDIR}/http.pid"
 
