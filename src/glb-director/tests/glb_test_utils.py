@@ -88,7 +88,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			stderr=subprocess.STDOUT,
 		)
 
-		print(('launched as pid', self.director.pid))
+		print('launched as pid', self.director.pid)
 
 		ip = IPRoute()
 
