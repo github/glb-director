@@ -21,8 +21,7 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig, conf
 from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
-from nose.tools import assert_equals
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 import subprocess, time
 import signal
 from contextlib import contextmanager
@@ -383,8 +382,8 @@ class GLBDirectorTestBase():
 		# set up a veth interface from python <-> director
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0:
 			ip.link('add', ifname=cls.IFACE_NAME_PY, peer=cls.IFACE_NAME_DIRECTOR, kind='veth')
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 1)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 1)
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 1
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) == 1
 
 		# bring up both ends of the veth pipe
 		for iface in [cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY]:
@@ -470,8 +469,8 @@ class GLBDirectorTestBase():
 					# Fall back to pyroute2; surface any error rather than
 					# masking it (matches the previous behaviour).
 					ip.link('remove', ifname=iface)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) == 0
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)

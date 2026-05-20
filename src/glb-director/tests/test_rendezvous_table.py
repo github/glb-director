@@ -16,7 +16,6 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from rendezvous_table import GLBRendezvousTable
-from nose.tools import assert_equals
 
 class TestGLBRendezvousTable():
 	def test_row_seeds(self):
@@ -24,8 +23,8 @@ class TestGLBRendezvousTable():
 
 		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
-		assert_equals(table.calculate_forwarding_table_row_seed(0x0000).hex(), '491c53a72df4c837')
-		assert_equals(table.calculate_forwarding_table_row_seed(0xffff).hex(), 'f223c0cc65161620')
+		assert table.calculate_forwarding_table_row_seed(0x0000).hex() == '491c53a72df4c837'
+		assert table.calculate_forwarding_table_row_seed(0xffff).hex() == 'f223c0cc65161620'
 
 	def test_order_hosts_0000(self):
 		"""
@@ -42,7 +41,7 @@ class TestGLBRendezvousTable():
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']
 		a,b,c,d = hosts
-		assert_equals(table.forwarding_table_entry(0x0000, hosts), [d,c,b,a])
+		assert table.forwarding_table_entry(0x0000, hosts) == [d,c,b,a]
 
 	def test_order_hosts_ffff(self):
 		"""
@@ -59,7 +58,7 @@ class TestGLBRendezvousTable():
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']
 		a,b,c,d = hosts
-		assert_equals(table.forwarding_table_entry(0xffff, hosts), [a,b,d,c])
+		assert table.forwarding_table_entry(0xffff, hosts) == [a,b,d,c]
 
 	def test_order_hosts_bb44(self):
 		"""
@@ -76,4 +75,4 @@ class TestGLBRendezvousTable():
 
 		hosts = ['1.1.1.1', '1.1.1.2', '1.1.1.3', '1.1.1.4']
 		a,b,c,d = hosts
-		assert_equals(table.forwarding_table_entry(0xbb44, hosts), [d,a,b,c])
+		assert table.forwarding_table_entry(0xbb44, hosts) == [d,a,b,c]

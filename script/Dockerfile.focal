@@ -44,7 +44,7 @@ RUN ln -s /usr/src/$(ls /usr/src/ | grep generic) /usr/src/linux-headers-$(uname
 RUN sed -i '1s/^/#define __USE_C99_MATH\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h 
 RUN sed -i '2s/^/#include <stdbool.h>\n/' /usr/src/$(ls /usr/src/ | grep generic)/include/linux/kasan-checks.h
 
-# Python test dependencies (scapy/nose etc.) used by the test suites.
+# Python test dependencies (scapy/pytest etc.) used by the test suites.
 RUN apt-get update && apt-get install -y python3 python3-pip python3-dev
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt

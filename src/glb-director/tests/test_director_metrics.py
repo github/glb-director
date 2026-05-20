@@ -17,11 +17,10 @@
 
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
-from nose.tools import assert_equals
-from nose.plugins.attrib import attr
+import pytest
 import socket, struct, time
 
-@attr(director_type='xdp')
+@pytest.mark.director_xdp
 class TestGLBDirectorMetrics(GLBDirectorTestBase):
 	def test_01_route_classified_increments_metrics(self):
 		self.clear_metrics()

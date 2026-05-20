@@ -17,7 +17,6 @@
 
 from glb_test_utils import GLBDirectorTestBase, GLBGUE
 from scapy.all import Ether, IP, IPv6, Packet, UDP, TCP, ICMP
-from nose.tools import assert_equals
 import socket, struct, time
 
 class GLBHashFieldsBase(GLBDirectorTestBase):
@@ -37,28 +36,28 @@ class GLBHashFieldsBase(GLBDirectorTestBase):
 			route_path = self.route_for_packet(test_packet, fields=self.route_fields)
 			if self.alt_route_fields is not None:
 				route_path.extend(self.route_for_packet(test_packet, fields=self.alt_route_fields))
-			assert_equals(route_path, expected_route)
+			assert route_path == expected_route
 
 			packet = self.wait_for_packet(self.eth_tx, lambda packet: isinstance(packet.payload, IP) and packet.payload.dst == route_path[0])
 
 			assert isinstance(packet, Ether)
-			assert_equals(packet.dst, self.py_side_mac)
+			assert packet.dst == self.py_side_mac
 
 			fou_ip = packet.payload
 			assert isinstance(fou_ip, IP) # Expecting an IP packet
-			assert_equals(fou_ip.src, '65.65.65.65')
-			assert_equals(fou_ip.dst, route_path[0])
+			assert fou_ip.src == '65.65.65.65'
+			assert fou_ip.dst == route_path[0]
 
 			fou_udp = fou_ip.payload
 			assert isinstance(fou_udp, UDP) # Expecting a FOU packet
-			assert_equals(fou_udp.sport, self.sport_for_packet(test_packet, fields=self.route_fields))
-			assert_equals(fou_udp.dport, self.DIRECTOR_GUE_PORT)
+			assert fou_udp.sport == self.sport_for_packet(test_packet, fields=self.route_fields)
+			assert fou_udp.dport == self.DIRECTOR_GUE_PORT
 
 			glb_gue = fou_udp.payload
 			assert isinstance(glb_gue, GLBGUE) # Expecting a GUE packet (scapy will always map this)
-			assert_equals(glb_gue.private_data[0].hop_count, len(route_path) - 1)
-			assert_equals(glb_gue.private_data[0].next_hop, 0)
-			assert_equals(glb_gue.private_data[0].hops, route_path[1:])
+			assert glb_gue.private_data[0].hop_count == len(route_path) - 1
+			assert glb_gue.private_data[0].next_hop == 0
+			assert glb_gue.private_data[0].hops == route_path[1:]
 
 class TestGLBHashFieldsSourceAddr(GLBHashFieldsBase):
 	config_ext = {
