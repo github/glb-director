@@ -69,11 +69,6 @@ RUN apt-get update && apt install -y iproute2 libbpf-dev linux-libc-dev clang-20
 # we ship clang-20 instead, so steer the BPF build at it.
 ENV CLANG=clang-20
 ENV LLC=llc-20
-# Noble's 6.8 kernel headers split rwonce.h into arch/x86/include/generated/asm.
-# Add only that one path; pulling in the full arch/x86/include drags in
-# asm/alternative.h which uses kernel-private types (s32/u16) that the bpf
-# clang invocation doesn't have, and that header isn't needed by focal.
-ENV EXTRA_BPF_INCLUDES="-I /usr/src/linux-headers-6.10.14-linuxkit/arch/x86/include/generated"
 
 
 # Hack because the kernel headers are not installed in the right place (linuxkit vs generic)

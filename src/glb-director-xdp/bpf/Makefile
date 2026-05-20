@@ -23,6 +23,7 @@ endif
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include \
 		-I /usr/src/linux-headers-$(KVER)/include \
+		-I /usr/src/linux-headers-$(KVER)/arch/x86/include/generated \
 		$(EXTRA_BPF_INCLUDES) \
 		-I include/ \
 		-I ../.. \
