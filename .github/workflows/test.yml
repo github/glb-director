@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: [focal]
+        distro: [focal, noble]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -48,7 +48,7 @@ jobs:
       fail-fast: false
       matrix:
         test-suite: [director, director-xdp, healthcheck, redirect]
-        distro: [focal]
+        distro: [focal, noble]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
