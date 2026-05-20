@@ -8,7 +8,7 @@ KVER=$(shell uname -r)
 endif
 
 %.o: %.c
-	$(CLANG) -c -O2 -emit-llvm -o - -D__KERNEL__ \
+	$(CLANG) -c -O2 -emit-llvm -o - -D__KERNEL__ -g \
 		-Wall \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member \

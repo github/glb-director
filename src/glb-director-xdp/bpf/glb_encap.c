@@ -52,7 +52,12 @@ typedef struct {
 
 /* xdpcap integration */
 #include "xdpcap_hook.h"
-struct bpf_map_def SEC("maps") xdpcap_hook = XDPCAP_HOOK();
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+	__uint(max_entries, 5);
+} xdpcap_hook SEC(".maps");
 
 typedef struct glb_bind {
 	uint32_t ipv4;
@@ -61,11 +66,11 @@ typedef struct glb_bind {
 	uint16_t port;
 } __attribute__((__packed__)) glb_bind_t;
 
-struct bpf_map_def SEC("maps") config_bits = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(uint32_t),
-	.value_size = 6, // maximum size stored
-	.max_entries = 5,
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(key_size, sizeof(uint32_t));
+	__uint(value_size, 6); // maximum size stored
+	__uint(max_entries, 5);
 
 	/*
 	0: 6 byes of gateway dst MAC
@@ -74,36 +79,36 @@ struct bpf_map_def SEC("maps") config_bits = {
 	3: 4 bytes of glb_director_hash_fields
 	4: 4 bytes of glb_director_hash_fields (alt)
 	*/
-};
+} config_bits SEC(".maps");
 
-struct bpf_map_def SEC("maps") glb_binds = {
-	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct glb_bind),
-	.value_size = sizeof(uint32_t),
-	.max_entries = BPF_MAX_BINDS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(struct glb_bind));
+	__uint(value_size, sizeof(uint32_t));
+	__uint(max_entries, BPF_MAX_BINDS);
+} glb_binds SEC(".maps");
 
-struct bpf_map_def SEC("maps") glb_tables = {
-	.type = BPF_MAP_TYPE_ARRAY_OF_MAPS,
-	.key_size = sizeof(uint32_t),
-	.max_entries = 4096,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__uint(key_size, sizeof(uint32_t));
+	__uint(max_entries, 4096);
+} glb_tables SEC(".maps");
 
-struct bpf_map_def SEC("maps") glb_table_secrets = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(uint32_t),
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(key_size, sizeof(uint32_t));
 #define GLB_FMT_SECURE_KEY_BYTES 16
-	.value_size = GLB_FMT_SECURE_KEY_BYTES,
-	.max_entries = 4096,
-};
+	__uint(value_size, GLB_FMT_SECURE_KEY_BYTES);
+	__uint(max_entries, 4096);
+} glb_table_secrets SEC(".maps");
 
-struct bpf_map_def SEC("maps") glb_global_packet_counters = {
-	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(uint32_t),
-	.value_size = sizeof(struct glb_global_stats),
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(key_size, sizeof(uint32_t));
+	__uint(value_size, sizeof(struct glb_global_stats));
 	/* we don't actually need an array, but PERCPU_* only has multi-element types */
-	.max_entries = 1,
-};
+	__uint(max_entries, 1);
+} glb_global_packet_counters SEC(".maps");
 
 static __always_inline uint16_t compute_ipv4_checksum(void *iph) {
 	uint16_t *iph16 = (uint16_t *)iph;

@@ -19,12 +19,12 @@
 
 #define ROOT_ARRAY_SIZE 3
 
-struct bpf_map_def SEC("maps") root_array = {
-  .type = BPF_MAP_TYPE_PROG_ARRAY,
-  .key_size = sizeof(__u32),
-  .value_size = sizeof(__u32),
-  .max_entries = ROOT_ARRAY_SIZE,
-};
+struct {
+  __uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+  __uint(key_size, sizeof(__u32));
+  __uint(value_size, sizeof(__u32));
+  __uint(max_entries, ROOT_ARRAY_SIZE);
+} root_array SEC(".maps");
 
 SEC("xdp-root")
 int xdp_root(struct xdp_md *ctx) {

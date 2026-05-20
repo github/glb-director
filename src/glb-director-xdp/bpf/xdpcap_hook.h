@@ -38,7 +38,16 @@
  * Create a bpf map suitable for use as an xdpcap hook point.
  *
  * For example:
- *   struct bpf_map_def xdpcap_hook = XDPCAP_HOOK();
+ *   struct {
+ *       __uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+ *       __uint(key_size, sizeof(int));
+ *       __uint(value_size, sizeof(int));
+ *       __uint(max_entries, 5);
+ *   } xdpcap_hook SEC(".maps");
+ *
+ * The legacy XDPCAP_HOOK() initializer macro is kept for source compat with
+ * older callers but new code should declare the map directly using the BTF
+ * style above (libbpf 1.0+ rejects the legacy "maps" section).
  */
 #define XDPCAP_HOOK() { \
 	.type = BPF_MAP_TYPE_PROG_ARRAY, \
