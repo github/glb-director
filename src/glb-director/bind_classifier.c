@@ -571,7 +571,7 @@ int classify_to_tables(struct rte_acl_ctx *classifier_v4,
 	uint32_t classifications_v4[num_packets];
 	uint32_t classifications_v6[num_packets];
 	uint8_t num_v4 = 0, num_v6 = 0;
-	uint8_t i;
+	unsigned int i;
 
 	for (i = 0; i < num_packets; i++) {
 		struct rte_mbuf *pkt = pkts_burst[i];
