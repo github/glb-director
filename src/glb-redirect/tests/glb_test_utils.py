@@ -16,7 +16,6 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from scapy.all import sniff, send, L3RawSocket, L3RawSocket6
-import os
 import socket
 from nose.plugins.skip import SkipTest
 

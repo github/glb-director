@@ -470,7 +470,7 @@ class GLBDirectorTestBase():
 		for iface in (cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY):
 			if len(ip.link_lookup(ifname=iface)) > 0:
 				rc = subprocess.call(['ip', 'link', 'del', 'dev', iface],
-					stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+					stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 				if rc != 0:
 					# Fall back to pyroute2; surface any error rather than
 					# masking it (matches the previous behaviour).
