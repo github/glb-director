@@ -7,9 +7,20 @@ cd "$(dirname "$0")/.."
 
 . script/helpers/folding.sh
 
+DISTRO="$1"
+if [ -z "$DISTRO" ]; then
+  DISTRO="focal"
+fi
+
+DOCKERFILE="script/Dockerfile.$DISTRO"
+if [ ! -f "$DOCKERFILE" ]; then
+  echo "Error: unsupported distro '$DISTRO' or missing Dockerfile '$DOCKERFILE'." >&2
+  exit 1
+fi
+
 begin_fold "Preparing Docker build environment"
 (
-  docker build -t glb-director-build-stretch -f script/Dockerfile.stretch script
+  docker build -t glb-director-build-$DISTRO -f "$DOCKERFILE" script
 )
 end_fold
 
@@ -21,7 +32,7 @@ begin_fold "Building packages"
 
   docker run --rm \
     --volume "$HOSTPATH":/glb-director \
-    "glb-director-build-stretch" \
+    "glb-director-build-$DISTRO" \
     bash -c "cd /glb-director &&
       make BUILDDIR=/glb-director/tmp/build clean mkdeb"
 )
