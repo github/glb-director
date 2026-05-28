@@ -144,12 +144,11 @@ skip_test () {
 # default forwarding table are reachable on their HTTP healthcheck port.
 # Used to decide whether to skip tests that depend on real backends being up.
 proxy_backends_available () {
-    # quick TCP probe with a short timeout; both proxies must answer on :80
+    # quick TCP probe with an explicit short timeout; both proxies must answer on :80
     for ip in 192.168.50.10 192.168.50.11; do
-        if ! (exec 3<>/dev/tcp/$ip/80) 2>/dev/null; then
+        if ! nc -z -w 1 "$ip" 80 >/dev/null 2>&1; then
             return 1
         fi
-        exec 3<&- 3>&- 2>/dev/null || true
     done
     return 0
 }

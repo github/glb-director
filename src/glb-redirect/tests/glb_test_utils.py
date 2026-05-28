@@ -16,25 +16,38 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from scapy.all import sniff, send, L3RawSocket, L3RawSocket6
-import os
 import socket
 from unittest import SkipTest
+
+
+def _tcp_probe(host, port, timeout=0.2):
+	"""Return True iff a TCP connect to host:port succeeds within `timeout`."""
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.settimeout(timeout)
+		rc = s.connect_ex((host, port))
+		s.close()
+		return rc == 0
+	except OSError:
+		return False
 
 
 def _proxy_backends_available():
 	"""Return True iff the Vagrant proxy backends (proxy1/proxy2) used by
 	these tests are reachable. They live in the Vagrant `glb_datacenter_network`
-	and aren't present when running under script/test-local in Docker."""
+	and aren't present when running under script/test-local in Docker.
+
+	Both SSH (22) and the test-snoop helper (9999) must answer: the
+	multi-host scenarios in test_glb_redirect_v*_on_v*.py use
+	RemoteSnoop -> tcp/9999 on each proxy, and probing only SSH would let
+	those tests run (and then hang on the SYNC handshake) on lab hosts
+	where test-snoop.service hasn't been started."""
 	for host in ('192.168.50.10', '192.168.50.11'):
-		try:
-			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			s.settimeout(0.2)
-			# port 22 is used as a liveness probe in the actual tests
-			rc = s.connect_ex((host, 22))
-			s.close()
-			if rc != 0:
-				return False
-		except OSError:
+		# port 22 is used as a liveness probe in the actual tests
+		if not _tcp_probe(host, 22):
+			return False
+		# port 9999 is script/helpers/test-snoop.py, required by RemoteSnoop
+		if not _tcp_probe(host, 9999):
 			return False
 	return True
 
@@ -46,9 +59,11 @@ def skip_if_no_vagrant_network():
 	the Docker test image."""
 	if not _proxy_backends_available():
 		raise SkipTest(
-			"Vagrant proxy backends (192.168.50.10/11) not reachable; "
-			"glb-redirect tests require the Vagrant test network with the "
-			"glb-redirect iptables module installed on proxy1/proxy2.")
+			"Vagrant proxy backends (192.168.50.10/11) not reachable on "
+			"both ssh/22 and test-snoop/9999; glb-redirect tests require "
+			"the Vagrant test network with the glb-redirect iptables "
+			"module installed on proxy1/proxy2 and test-snoop.service "
+			"running.")
 
 
 class GLBTestHelpers(object):

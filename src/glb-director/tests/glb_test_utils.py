@@ -87,7 +87,7 @@ class DPDKDirectorControl(DirectorControlBase):
 			stderr=subprocess.STDOUT,
 		)
 
-		print(('launched as pid', self.director.pid))
+		print('launched as pid', self.director.pid)
 
 		ip = IPRoute()
 
@@ -204,6 +204,11 @@ class XDPDirectorControl(DirectorControlBase):
 				err = probe.stderr.decode('utf-8', errors='replace').strip()
 				raise SkipTest("Kernel ({}) cannot attach XDP to veth: {}".format(kernel_release, err))
 		finally:
+			# If the attach above succeeded the veth still has XDP loaded;
+			# on some kernels `ip link del` then returns ENOTSUP. Detach
+			# first, mirroring the teardown_class workaround below.
+			subprocess.call(['ip', 'link', 'set', 'dev', probe_a, 'xdp', 'off'],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			subprocess.call(['ip', 'link', 'del', 'dev', probe_a],
 				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -252,7 +257,7 @@ class XDPDirectorControl(DirectorControlBase):
 			env=notify_director.updated_env(),
 		)
 
-		print(('launched as pid', self.director.pid))
+		print('launched as pid', self.director.pid)
 
 		notify_director.wait()
 
@@ -464,7 +469,7 @@ class GLBDirectorTestBase():
 		for iface in (cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY):
 			if len(ip.link_lookup(ifname=iface)) > 0:
 				rc = subprocess.call(['ip', 'link', 'del', 'dev', iface],
-					stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+					stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 				if rc != 0:
 					# Fall back to pyroute2; surface any error rather than
 					# masking it (matches the previous behaviour).
@@ -479,12 +484,12 @@ class GLBDirectorTestBase():
 		# Newer scapy L2ListenSocket no longer exposes `.iff`; fall back to
 		# `.iface` and finally repr() so the print never crashes the test.
 		iface_name = getattr(iface, 'iff', None) or getattr(iface, 'iface', None) or repr(iface)
-		print(('Waiting for packets on', iface_name, 'with timeout', timeout_seconds))
+		print('Waiting for packets on', iface_name, 'with timeout', timeout_seconds)
 		try:
 			with timeout(timeout_seconds):
 				while True:
 					packet = iface.recv(MTU)
-					print((repr(packet)))
+					print(repr(packet))
 					if condition(packet):
 						return packet
 		except:

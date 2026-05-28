@@ -49,7 +49,7 @@ class RemoteSnoop(object):
 			pkt_ether = Ether(pkt_raw)
 			pkt = pkt_ether.payload
 
-			if self.debug: print(("got packet from {}: {}".format(self.remote_host, repr(pkt))))
+			if self.debug: print("got packet from {}: {}".format(self.remote_host, repr(pkt)))
 			if recv_filter(pkt):
 				if self.debug: print(" -> match!")
 				return pkt
