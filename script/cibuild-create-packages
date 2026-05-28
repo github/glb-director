@@ -20,11 +20,7 @@ fi
 
 begin_fold "Preparing Docker build environment"
 (
-<<<<<<< HEAD
   docker build -t glb-director-build-$DISTRO -f "$DOCKERFILE" "$HOSTPATH"
-=======
-  docker build -t glb-director-build-$DISTRO -f "$DOCKERFILE" script
->>>>>>> origin/master
 )
 end_fold
 
