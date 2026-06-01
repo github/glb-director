@@ -17,7 +17,11 @@
 
 from scapy.all import sniff, send, L3RawSocket, L3RawSocket6
 import socket
+<<<<<<< HEAD
 from unittest import SkipTest
+=======
+from nose.plugins.skip import SkipTest
+>>>>>>> origin/master
 
 
 def _tcp_probe(host, port, timeout=0.2):

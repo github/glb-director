@@ -74,7 +74,11 @@ class TestGLBBinaryCLI():
 		subprocess.check_call(['cli/glb-director-cli', 'build-config', 'tests/test-config.json', 'tests/test-config.bin'])
 
 		f = open('tests/test-config.bin', 'rb')
+<<<<<<< HEAD
 		assert f.read(4) == b'GLBD'
+=======
+		assert_equals(f.read(4), b'GLBD')
+>>>>>>> origin/master
 
 		num_table_entries = 0x10000
 		max_num_backends = 0x100
@@ -107,10 +111,17 @@ class TestGLBBinaryCLI():
 						assert inet_family == 2
 						assert inet_addr == socket.inet_pton(socket.AF_INET6, backend['ip'])
 					else:
+<<<<<<< HEAD
 						assert inet_family == 1
 						assert inet_addr == socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00')
 					assert be_state == 1
 					assert be_health == 1
+=======
+						assert_equals(inet_family, 1)
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00'))
+					assert_equals(be_state, 1)
+					assert_equals(be_health, 1)
+>>>>>>> origin/master
 
 			# validate binds for this table
 			num_binds, = struct.unpack('<I', f.read(4))
@@ -126,6 +137,7 @@ class TestGLBBinaryCLI():
 						assert inet_addr == socket.inet_pton(socket.AF_INET6, bind['ip'])
 						assert ip_bits == 128
 					else:
+<<<<<<< HEAD
 						assert inet_family == 1
 						assert inet_addr == socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00')
 						assert ip_bits == 32
@@ -135,6 +147,17 @@ class TestGLBBinaryCLI():
 
 			# validate hash key for source hashing
 			assert f.read(16) == bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
+=======
+						assert_equals(inet_family, 1)
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00'))
+						assert_equals(ip_bits, 32)
+					assert_equals(bind_port_start, bind['port'])
+					assert_equals(bind_port_end, bind['port'])
+					assert_equals(bind_proto, 6 if bind['proto'] == 'tcp' else 17)
+
+			# validate hash key for source hashing
+			assert_equals(f.read(16), bytes.fromhex(table['hash_key']).rjust(16, b'\x00'))
+>>>>>>> origin/master
 
 			# validate table entries
 			for table_index in range(num_table_entries):

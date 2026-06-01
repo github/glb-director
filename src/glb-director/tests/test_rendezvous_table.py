@@ -23,8 +23,13 @@ class TestGLBRendezvousTable():
 
 		forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		table = GLBRendezvousTable(forwarding_table_seed)
+<<<<<<< HEAD
 		assert table.calculate_forwarding_table_row_seed(0x0000).hex() == '491c53a72df4c837'
 		assert table.calculate_forwarding_table_row_seed(0xffff).hex() == 'f223c0cc65161620'
+=======
+		assert_equals(table.calculate_forwarding_table_row_seed(0x0000).hex(), '491c53a72df4c837')
+		assert_equals(table.calculate_forwarding_table_row_seed(0xffff).hex(), 'f223c0cc65161620')
+>>>>>>> origin/master
 
 	def test_order_hosts_0000(self):
 		"""
