@@ -474,13 +474,8 @@ class GLBDirectorTestBase():
 					# Fall back to pyroute2; surface any error rather than
 					# masking it (matches the previous behaviour).
 					ip.link('remove', ifname=iface)
-<<<<<<< HEAD
 		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0
 		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) == 0
-=======
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
->>>>>>> origin/master
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)
