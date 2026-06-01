@@ -14,3 +14,13 @@ src/glb-redirect/*/*.mod
 *.symvers
 *.order
 *.deb
+*.bin
+
+# Runtime artifacts produced by script/test-local / the test suites
+src/glb-director/director-output.txt
+src/glb-director/cli/test-check-config
+src/glb-director/tests/director-config.json
+src/glb-director/tests/test-tables.json
+src/glb-director-xdp/glb-director-xdp
+src/glb-healthcheck/reload.txt
+src/glb-healthcheck/log/*
