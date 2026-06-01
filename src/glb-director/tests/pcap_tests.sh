@@ -36,6 +36,8 @@ set -e
 
 begin_test "run with pcap and example tables"
 (
+  hugepages_available || skip_test "DPDK hugepages not available; skipping pcap director run. Run on a Linux host with hugepages configured."
+
   $BASEDIR/cli/glb-director-cli build-config \
     $BASEDIR/tests/data/table.json \
     $BASEDIR/tests/data/test-tables.bin
@@ -50,12 +52,16 @@ end_test
 
 begin_test "tx: should be 1000 packets"
 (
+  hugepages_available || skip_test "DPDK hugepages not available; tx.pcap was not produced."
+
   sudo tcpdump -r $BASEDIR/build/tx.pcap | wc -l | grep 1000
 )
 end_test
 
 begin_test "tx: verify to/from"
 (
+  hugepages_available || skip_test "DPDK hugepages not available; tx.pcap was not produced."
+
   sudo tcpdump -nr $BASEDIR/build/tx.pcap | grep -q 'IP 65.65.65.65.61139 > 3.4.5.6.19523: UDP, length 52'
 )
 end_test

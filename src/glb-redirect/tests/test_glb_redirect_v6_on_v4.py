@@ -45,7 +45,7 @@ class TestGLBRedirectModuleV6OnV4(GLBTestHelpers):
 				GLBGUE(private_data=GLBGUEChainedRouting(hops=[self.ALT_HOST])) / \
 				IPv6(src=self.SELF_HOST_V6, dst=self.V4_TO_V6[dst]) / \
 				ICMPv6EchoRequest()
-			print repr(pkt)
+			print(repr(pkt))
 			# expect a ICMP echo response back from self.PROXY_HOST (decapsulated)
 			resp_ip = self._sendrecv6(pkt, lfilter=lambda p: isinstance(p, IPv6) and isinstance(p.payload, ICMPv6EchoReply))
 

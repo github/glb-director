@@ -107,8 +107,14 @@ begin_test "performing configuration requests/reloads"
 )
 end_test
 
-# clean up, to be sure
-sudo kill $(cat $BASEDIR/build/stub-server.pid) || true
+# clean up, to be sure. The test block above already kills the stub server on
+# the happy path; this is a belt-and-braces guard for abnormal exits. Probe
+# with `kill -0` first so we don't print "kill: (PID) - No such process" when
+# the PID is already gone.
+pid=$(cat "$BASEDIR/build/stub-server.pid" 2>/dev/null || true)
+if [ -n "$pid" ] && sudo kill -0 "$pid" 2>/dev/null; then
+    sudo kill "$pid"
+fi
 rm $BASEDIR/build/stub-server.pid
 
 begin_test "ensure we received three packets"

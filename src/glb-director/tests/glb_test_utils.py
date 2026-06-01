@@ -18,9 +18,11 @@
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
-from scapy.all import sniff, sendp, Ether, IP, IPv6, L2ListenSocket, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig
+from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig, conf
+from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
 from nose.tools import assert_equals
+from nose.plugins.skip import SkipTest
 import subprocess, time
 import signal
 from contextlib import contextmanager
@@ -60,7 +62,14 @@ class DirectorControlBase(object):
 
 class DPDKDirectorControl(DirectorControlBase):
 	def __init__(self):
-		assert os.path.exists('/dev/kni'), "KNI kernel module not loaded"
+		if not os.path.exists('/dev/kni'):
+			# The DPDK director requires the rte_kni out-of-tree kernel module
+			# (/dev/kni). When running in environments where it can't be loaded
+			# (e.g. Docker Desktop on macOS / linuxkit kernels), skip rather
+			# than fail so the suite can still be exercised locally.
+			raise SkipTest("rte_kni kernel module not loaded (/dev/kni missing); "
+				"skipping DPDK director tests. Run on a Linux host with rte_kni "
+				"available to execute these tests.")
 
 		self.director = None
 	
@@ -75,7 +84,7 @@ class DPDKDirectorControl(DirectorControlBase):
 				'--config-file', './tests/director-config.json',
 				'--forwarding-table', './tests/test-tables.bin'
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 		)
 
@@ -138,10 +147,17 @@ class SystemdNotify(object):
 		self.notify_sock.settimeout(2)
 		try:
 			data, addr = self.notify_sock.recvfrom(32)
-			assert data == 'READY=1' # only thing it will send
+			assert data == b'READY=1' # only thing it will send
 		except socket.timeout:
 			print('notify ready timed out')
-			raise Exception('Timeout while waiting for director to signal ready, did it crash?\n\n' + open('director-output.txt', 'rb').read())
+			try:
+				with open('director-output.txt', 'rb') as fh:
+					captured = fh.read().decode('utf-8', errors='replace')
+			except OSError as e:
+				captured = '<no director-output.txt: {}>'.format(e)
+			raise Exception(
+				'Timeout while waiting for director to signal ready, did it crash?\n\n'
+				+ captured)
 		
 		self.notify_sock.close()
 
@@ -149,6 +165,54 @@ class SystemdNotify(object):
 
 class XDPDirectorControl(DirectorControlBase):
 	def __init__(self):
+		# XDP requires a Linux kernel with XDP support and the ability to
+		# attach BPF programs to veth interfaces. Docker Desktop on macOS /
+		# Windows runs a "linuxkit" kernel that doesn't support this, and
+		# some CI runners (e.g. older GitHub Actions kernels) similarly
+		# can't attach XDP to veth. Detect that environment and skip rather
+		# than fail so the rest of the suite can still be exercised.
+		try:
+			kernel_release = os.uname().release
+		except Exception:
+			kernel_release = ''
+		if 'linuxkit' in kernel_release:
+			raise SkipTest("Running on linuxkit kernel ({}); XDP/veth attach is "
+				"not supported. Run on a Linux host to execute these tests.".format(kernel_release))
+		if not os.path.isdir('/sys/fs/bpf'):
+			raise SkipTest("/sys/fs/bpf is not available; BPF filesystem not "
+				"mounted. Run on a Linux host with BPF support to execute these tests.")
+
+		# Functional probe: build a throwaway veth pair and try to attach
+		# the passer.o XDP program. If that fails the kernel can't run the
+		# rest of these tests anyway, so skip with the actual reason.
+		passer = os.path.abspath('../glb-director-xdp/bpf/passer.o')
+		if not os.path.exists(passer):
+			raise SkipTest("XDP passer.o not built at {}; build glb-director-xdp before running tests.".format(passer))
+		probe_a = 'glbxdpprobe0'
+		probe_b = 'glbxdpprobe1'
+		subprocess.call(['ip', 'link', 'del', 'dev', probe_a],
+			stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		try:
+			rc = subprocess.call(
+				['ip', 'link', 'add', probe_a, 'type', 'veth', 'peer', 'name', probe_b],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if rc != 0:
+				raise SkipTest("Unable to create veth pair (rc={}); container/kernel does not permit veth (kernel {}).".format(rc, kernel_release))
+			probe = subprocess.run(
+				['ip', 'link', 'set', 'dev', probe_a, 'xdp', 'obj', passer],
+				stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			if probe.returncode != 0:
+				err = probe.stderr.decode('utf-8', errors='replace').strip()
+				raise SkipTest("Kernel ({}) cannot attach XDP to veth: {}".format(kernel_release, err))
+		finally:
+			# If the attach above succeeded the veth still has XDP loaded;
+			# on some kernels `ip link del` then returns ENOTSUP. Detach
+			# first, mirroring the teardown_class workaround below.
+			subprocess.call(['ip', 'link', 'set', 'dev', probe_a, 'xdp', 'off'],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			subprocess.call(['ip', 'link', 'del', 'dev', probe_a],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 		self.director = None
 	
 	# veth pair implementation of XDP_TX silently drops packets unless the other side of the veth
@@ -167,7 +231,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'/sys/fs/bpf/root_array@' + iface,
 				iface,
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_shim.updated_env(),
 		)
@@ -189,7 +253,7 @@ class XDPDirectorControl(DirectorControlBase):
 				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
 				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
 			],
-			stdout=open('director-output.txt', 'wba'),
+			stdout=open('director-output.txt', 'ab'),
 			stderr=subprocess.STDOUT,
 			env=notify_director.updated_env(),
 		)
@@ -299,7 +363,7 @@ class GLBDirectorTestBase():
 
 	@classmethod
 	def update_running_forwarding_tables(cls, config):
-		f = open('tests/test-tables.json', 'wb')
+		f = open('tests/test-tables.json', 'w')
 		f.write(json.dumps(config, indent=4))
 		f.close()
 
@@ -334,7 +398,7 @@ class GLBDirectorTestBase():
 		
 		GLBDirectorTestBase.py_side_mac = dict(ip.link('get', index=ip.link_lookup(ifname=cls.IFACE_NAME_PY))[0]['attrs'])['IFLA_ADDRESS']
 
-		with open('tests/director-config.json', 'wb') as f:
+		with open('tests/director-config.json', 'w') as f:
 			f.write(json.dumps(cls.get_initial_director_config(), indent=4))
 
 		# set up a statsd receiver
@@ -352,30 +416,76 @@ class GLBDirectorTestBase():
 		GLBDirectorTestBase.backend.setup(iface=cls.IFACE_NAME_DIRECTOR)
 		GLBDirectorTestBase.backend.setup_pyside(iface=cls.IFACE_NAME_PY)
 
+		# Scapy caches name->ifindex in conf.ifaces. Between test classes we
+		# tear down and recreate the veth pair, which assigns a new ifindex
+		# under the same name -- the stale cache then makes
+		# setsockopt(SOL_PACKET, PACKET_MR_PROMISC, ...) fail with ENODEV
+		# ("No such device"). Force a refresh before opening sockets.
+		try:
+			conf.ifaces.reload()
+		except Exception:
+			# Older scapy versions don't expose reload(); fall back to
+			# clearing the cache directly so it gets rebuilt on next lookup.
+			try:
+				conf.ifaces.data.clear()  # type: ignore[attr-defined]
+			except Exception:
+				pass
+
 		# prepare our listener for return traffic from director
 		GLBDirectorTestBase.eth_tx = L2ListenSocket(iface=cls.IFACE_NAME_PY, promisc=True)
 		GLBDirectorTestBase.kni_tx = GLBDirectorTestBase.backend.kni()
 
 	@classmethod
 	def teardown_class(cls):
-		ip = IPRoute()
+		# Stop the director / xdp-root-shim FIRST. While the xdp-root-shim is
+		# still running it holds pinned BPF programs attached to the veth,
+		# and the kernel refuses RTM_DELLINK on the device with
+		# ENOTSUP (95, "Operation not supported").
+		try:
+			GLBDirectorTestBase.backend.cleanup()
+		except Exception as e:
+			print('backend.cleanup() raised during teardown: {}'.format(e))
 
-		# tear down the veth pair
-		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
-		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) > 0:
-			ip.link('remove', ifname=cls.IFACE_NAME_DIRECTOR)
+		# Detach any XDP programs that may still be present (e.g. the
+		# passer.o we attached to the py-side of the veth).
+		for iface in (cls.IFACE_NAME_PY, cls.IFACE_NAME_DIRECTOR):
+			subprocess.call(['ip', 'link', 'set', 'dev', iface, 'xdp', 'off'],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+		# Also unpin anything the xdp-root-shim may have left behind in bpffs;
+		# stale pinned maps on the iface can also cause ENOTSUP on dellink.
+		for iface in (cls.IFACE_NAME_PY, cls.IFACE_NAME_DIRECTOR):
+			pin = '/sys/fs/bpf/root_array@' + iface
+			try:
+				if os.path.exists(pin):
+					os.unlink(pin)
+			except OSError as e:
+				print('Failed to unpin {}: {}'.format(pin, e))
+
+		# Tear down the veth pair. Use `ip link del` via subprocess; the
+		# pyroute2 path returns ENOTSUP on some kernels even when the
+		# equivalent userspace command works. Removing either end of a veth
+		# removes both, but try each in case only one side exists.
+		ip = IPRoute()
+		for iface in (cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY):
+			if len(ip.link_lookup(ifname=iface)) > 0:
+				rc = subprocess.call(['ip', 'link', 'del', 'dev', iface],
+					stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+				if rc != 0:
+					# Fall back to pyroute2; surface any error rather than
+					# masking it (matches the previous behaviour).
+					ip.link('remove', ifname=iface)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
 		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
-
-		# clean up the director
-		GLBDirectorTestBase.backend.cleanup()
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)
 
 	def wait_for_packet(self, iface, condition, timeout_seconds=5):
-		print('Waiting for packets on', iface.iff, 'with timeout', timeout_seconds)
+		# Newer scapy L2ListenSocket no longer exposes `.iff`; fall back to
+		# `.iface` and finally repr() so the print never crashes the test.
+		iface_name = getattr(iface, 'iff', None) or getattr(iface, 'iface', None) or repr(iface)
+		print('Waiting for packets on', iface_name, 'with timeout', timeout_seconds)
 		try:
 			with timeout(timeout_seconds):
 				while True:
@@ -384,12 +494,16 @@ class GLBDirectorTestBase():
 					if condition(packet):
 						return packet
 		except:
-			with open('director-output.txt', 'rb') as d:
-				sys.stdout.write('-' * 50 + '\n')
-				sys.stdout.write('Output from glb-director-ng\n')
-				sys.stdout.write('-' * 50 + '\n')
-				sys.stdout.write(d.read())
-				sys.stdout.write('-' * 50 + '\n')
+			try:
+				with open('director-output.txt', 'rb') as d:
+					captured = d.read().decode('utf-8', errors='replace')
+			except OSError as e:
+				captured = '<no director-output.txt: {}>'.format(e)
+			sys.stdout.write('-' * 50 + '\n')
+			sys.stdout.write('Output from glb-director-ng\n')
+			sys.stdout.write('-' * 50 + '\n')
+			sys.stdout.write(captured)
+			sys.stdout.write('-' * 50 + '\n')
 			raise
 
 	def stream_statsd_metrics(self, timeout=0):
@@ -400,6 +514,9 @@ class GLBDirectorTestBase():
 				return # nothing more to receive, we timed out
 			else:
 				block, _ = s.recvfrom(4096)
+				# recvfrom returns bytes in Py3; decode so the string ops below work.
+				if isinstance(block, bytes):
+					block = block.decode('utf-8', errors='replace')
 				for data in block.split('\n'):
 					metric_name, metric_data = data.split(':', 1)
 					metric_info, metric_tags = metric_data.split('#', 1)
@@ -414,7 +531,7 @@ class GLBDirectorTestBase():
 		spec_matches = set()
 		for metric_name, metric_value, metric_type, metric_tags in self.stream_statsd_metrics(timeout=1):
 			metric_key = (metric_name, metric_tags)
-			print metric_key
+			print(metric_key)
 			if metric_key in spec:
 				assert spec[metric_key](metric_value), "Metric {} had unexpected value {}".format(metric_key, repr(metric_value))
 				spec_matches.add(metric_key)
@@ -444,7 +561,7 @@ class GLBDirectorTestBase():
 			hash_parts.append(self._encode_port(dst_port))
 		
 		assert len(hash_parts) > 0
-		hash_data = ''.join(hash_parts)
+		hash_data = b''.join(hash_parts)
 
 		hash_bytes = siphash.SipHash_2_4(key, hash_data).digest()
 		hash_num, = struct.unpack('<Q', hash_bytes)
@@ -456,7 +573,7 @@ class GLBDirectorTestBase():
 	def route_for_packet(self, test_packet, fields):
 		field_data = self._fields_for_packet(test_packet)
 		table = self._table_for_bind(field_data['dst_addr'], field_data['dst_port'])
-		rt = GLBRendezvousTable(table['seed'].decode('hex'))
+		rt = GLBRendezvousTable(bytes.fromhex(table['seed']))
 		hosts = self._hosts_for_table(table)
 
 		hash_key_bytes = self._key_for_bind(field_data['dst_addr'], field_data['dst_port'])
@@ -465,7 +582,7 @@ class GLBDirectorTestBase():
 		return rt.forwarding_table_entry(hash_row, hosts)[:2]
 
 	def _hosts_for_table(self, table):
-		return map(lambda b: b['ip'], table['backends'])
+		return [b['ip'] for b in table['backends']]
 
 	def _table_for_bind(self, dest_ip, dest_port):
 		config = GLBDirectorTestBase.running_forwarding_config
@@ -482,7 +599,7 @@ class GLBDirectorTestBase():
 		if table is None:
 			return None
 		else:
-			return table['hash_key'].decode('hex').rjust(16, '\x00')
+			return bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
 
 	def _fields_for_packet(self, packet):
 		ether = packet

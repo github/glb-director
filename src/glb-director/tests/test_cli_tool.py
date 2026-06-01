@@ -63,11 +63,11 @@ class TestGLBBinaryCLI():
 
 	def get_example_table_reference_implementation(self, table_index):
 		table_config = self.get_example_config()['tables'][table_index]
-		return GLBRendezvousTable(table_config['seed'].decode('hex'))
+		return GLBRendezvousTable(bytes.fromhex(table_config['seed']))
 
 	def get_example_table_hosts(self, table_index):
 		table_config = self.get_example_config()['tables'][table_index]
-		return map(lambda b: b['ip'], table_config['backends'])
+		return [b['ip'] for b in table_config['backends']]
 
 	def test_generate_configs(self):
 		self.write_example_config()
@@ -75,7 +75,7 @@ class TestGLBBinaryCLI():
 		subprocess.check_call(['cli/glb-director-cli', 'build-config', 'tests/test-config.json', 'tests/test-config.bin'])
 
 		f = open('tests/test-config.bin', 'rb')
-		assert_equals(f.read(4), 'GLBD')
+		assert_equals(f.read(4), b'GLBD')
 
 		num_table_entries = 0x10000
 		max_num_backends = 0x100
@@ -109,7 +109,7 @@ class TestGLBBinaryCLI():
 						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET6, backend['ip']))
 					else:
 						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, '\x00'))
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00'))
 					assert_equals(be_state, 1)
 					assert_equals(be_health, 1)
 
@@ -128,14 +128,14 @@ class TestGLBBinaryCLI():
 						assert_equals(ip_bits, 128)
 					else:
 						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, '\x00'))
+						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00'))
 						assert_equals(ip_bits, 32)
 					assert_equals(bind_port_start, bind['port'])
 					assert_equals(bind_port_end, bind['port'])
 					assert_equals(bind_proto, 6 if bind['proto'] == 'tcp' else 17)
 
 			# validate hash key for source hashing
-			assert_equals(f.read(16), table['hash_key'].decode('hex').rjust(16, '\x00'))
+			assert_equals(f.read(16), bytes.fromhex(table['hash_key']).rjust(16, b'\x00'))
 
 			# validate table entries
 			for table_index in range(num_table_entries):
@@ -149,10 +149,10 @@ class TestGLBBinaryCLI():
 
 				assert_equals(actual_first_ips, expected_first_ips[:2])
 
-		# forwarding_table_seed = '49a3d861d661ae5ab06ed9326871a2f5'.decode('hex')
+		# forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		# table = GLBRendezvousTable(forwarding_table_seed)
-		# assert_equals(table.calculate_forwarding_table_row_seed(0x0000).encode('hex'), '491c53a72df4c837')
-		# assert_equals(table.calculate_forwarding_table_row_seed(0xffff).encode('hex'), 'f223c0cc65161620')
+		# assert_equals(table.calculate_forwarding_table_row_seed(0x0000).hex(), '491c53a72df4c837')
+		# assert_equals(table.calculate_forwarding_table_row_seed(0xffff).hex(), 'f223c0cc65161620')
 
 	def test_atomic_write_no_temp_file_remains(self):
 		"""Verify that no temporary file is left behind after a successful build."""
