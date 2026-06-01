@@ -73,19 +73,22 @@ class DPDKDirectorControl(DirectorControlBase):
 		self.director = None
 	
 	def setup(self, iface):
-		# launch the glb director, mocking an eth device with the dpdk end of our veth
-		self.director = subprocess.Popen(
-			[
-				'./build/glb-director',
-				'--vdev=eth_pcap0,iface=' + iface,
-				'--',
-				'--debug',
-				'--config-file', './tests/director-config.json',
-				'--forwarding-table', './tests/test-tables.bin'
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-		)
+		# launch the glb director, mocking an eth device with the dpdk end of our veth.
+		# `with open(...)` closes the parent-side fd after Popen has dup2'd it
+		# into the child, so we don't leak an fd per test class.
+		with open('director-output.txt', 'ab') as out:
+			self.director = subprocess.Popen(
+				[
+					'./build/glb-director',
+					'--vdev=eth_pcap0,iface=' + iface,
+					'--',
+					'--debug',
+					'--config-file', './tests/director-config.json',
+					'--forwarding-table', './tests/test-tables.bin'
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+			)
 
 		print('launched as pid', self.director.pid)
 
@@ -223,17 +226,21 @@ class XDPDirectorControl(DirectorControlBase):
 
 	def setup(self, iface):
 		notify_shim = SystemdNotify('/tmp/glb-notify-shim.sock')
-		self.xdp_root = subprocess.Popen(
-			[
-				'../glb-director-xdp/xdp-root-shim/xdp-root-shim',
-				os.path.abspath('../glb-director-xdp/bpf/tailcall.o'),
-				'/sys/fs/bpf/root_array@' + iface,
-				iface,
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-			env=notify_shim.updated_env(),
-		)
+		# `with open(...)` closes the parent-side fd after Popen dup2's it
+		# into the child; otherwise this fd leaks for the lifetime of the
+		# test process.
+		with open('director-output.txt', 'ab') as out:
+			self.xdp_root = subprocess.Popen(
+				[
+					'../glb-director-xdp/xdp-root-shim/xdp-root-shim',
+					os.path.abspath('../glb-director-xdp/bpf/tailcall.o'),
+					'/sys/fs/bpf/root_array@' + iface,
+					iface,
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+				env=notify_shim.updated_env(),
+			)
 		notify_shim.wait()
 
 		self.director_iface = iface
@@ -241,21 +248,25 @@ class XDPDirectorControl(DirectorControlBase):
 	
 	def launch_director(self):
 		notify_director = SystemdNotify('/tmp/glb-notify.sock')
-		self.director = subprocess.Popen(
-			[
-				# 'strace',
-				'../glb-director-xdp/glb-director-xdp',
-				'--pid-file', '/tmp/glb-director-xdp.pid',
-				'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
-				'--debug',
-				'--config-file', os.path.abspath('./tests/director-config.json'),
-				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
-				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-			env=notify_director.updated_env(),
-		)
+		# `with open(...)` closes the parent-side fd after Popen dup2's it
+		# into the child; otherwise this fd leaks for the lifetime of the
+		# test process.
+		with open('director-output.txt', 'ab') as out:
+			self.director = subprocess.Popen(
+				[
+					# 'strace',
+					'../glb-director-xdp/glb-director-xdp',
+					'--pid-file', '/tmp/glb-director-xdp.pid',
+					'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
+					'--debug',
+					'--config-file', os.path.abspath('./tests/director-config.json'),
+					'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
+					'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+				env=notify_director.updated_env(),
+			)
 
 		print('launched as pid', self.director.pid)
 
