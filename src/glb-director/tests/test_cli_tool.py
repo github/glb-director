@@ -147,6 +147,8 @@ class TestGLBBinaryCLI():
 				]
 
 				assert actual_first_ips == expected_first_ips[:2]
+				
+		f.close()
 
 		# forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		# table = GLBRendezvousTable(forwarding_table_seed)
