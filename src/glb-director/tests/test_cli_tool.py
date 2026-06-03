@@ -131,7 +131,7 @@ class TestGLBBinaryCLI():
 							assert ip_bits == 32
 						assert bind_port_start == bind['port']
 						assert bind_port_end == bind['port']
-						assert bind_proto == 6 if bind['proto'] == 'tcp' else 17
+						assert bind_proto == (6 if bind['proto'] == 'tcp' else 17)
 
 				# validate hash key for source hashing
 				assert f.read(16) == bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
