@@ -35,7 +35,7 @@ RUN apt-get install --assume-yes --fix-broken \
 # and the script is wrapped so `dkms mkdeb ...` calls the legacy binary.
 RUN set -eux; \
     cd /tmp; \
-    wget -q http://archive.ubuntu.com/ubuntu/pool/main/d/dkms/dkms_2.8.1-5ubuntu2_all.deb; \
+    wget -q https://archive.ubuntu.com/ubuntu/pool/main/d/dkms/dkms_2.8.1-5ubuntu2_all.deb; \
     dpkg-deb -x dkms_2.8.1-5ubuntu2_all.deb /tmp/dkms-focal; \
     cp -r /tmp/dkms-focal/etc/dkms/template-dkms-mkdeb /etc/dkms/template-dkms-mkdeb; \
     install -m 0755 /tmp/dkms-focal/usr/sbin/dkms /usr/sbin/dkms-legacy; \
