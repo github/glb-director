@@ -34,7 +34,7 @@ jobs:
           docker save glb-director-build-${{ matrix.distro }}:latest --output glb-director-build-${{ matrix.distro }}.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
