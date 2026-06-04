@@ -1,0 +1,48 @@
+#!/usr/bin/make -f
+# Build the glb-redirect-iptables DKMS source package.
+#
+# This is a source-only DKMS package (Architecture: all): nothing is compiled
+# at package-build time. The module is built on the target host by DKMS at
+# install time, and the userspace libxt_GLBREDIRECT.so extension is built by
+# the dkms.conf POST_INSTALL hook (install-ipt.sh).
+
+# Module name + version come from dkms.conf so they stay in lock-step with it.
+NAME    := $(shell sed -n 's/^PACKAGE_NAME=//p' dkms.conf)
+VERSION := $(shell sed -n 's/^PACKAGE_VERSION=//p' dkms.conf)
+PKG     := glb-redirect-iptables-dkms
+SRCDIR  := debian/$(PKG)/usr/src/$(NAME)-$(VERSION)
+
+# Files DKMS needs on the target to build + install the module.
+DKMS_SOURCES := \
+	dkms.conf \
+	Makefile \
+	install-ipt.sh \
+	ipt_GLBREDIRECT.c \
+	ipt_glbredirect.h \
+	libxt_GLBREDIRECT.c
+
+%:
+	dh $@ --with dkms
+
+# Source-only package: never compile the kernel module at package-build time.
+# DKMS builds it on the target host instead (the build env has no matching
+# KDIR). Override both dh_auto_build and dh_auto_install so the project
+# Makefile's `all`/`install` targets (which invoke kbuild) are not run.
+override_dh_auto_build:
+
+override_dh_auto_install:
+
+override_dh_auto_clean:
+	rm -f libxt_GLBREDIRECT.so
+
+# Stage the module source tree under /usr/src/<name>-<version>/ where DKMS
+# expects it.
+override_dh_install:
+	install -d $(SRCDIR)
+	install -m 0644 $(DKMS_SOURCES) $(SRCDIR)/
+	# install-ipt.sh is executed as a POST_INSTALL hook, so make it executable.
+	chmod 0755 $(SRCDIR)/install-ipt.sh
+
+# Register the module with DKMS (writes postinst/prerm + dkms.conf handling).
+override_dh_dkms:
+	dh_dkms -V $(VERSION)

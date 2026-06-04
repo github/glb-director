@@ -1,0 +1,18 @@
+Source: glb-redirect-iptables
+Section: kernel
+Priority: optional
+Maintainer: GitHub <opensource+glb-director@github.com>
+Build-Depends: debhelper-compat (= 12), dkms
+Standards-Version: 4.5.0
+Homepage: https://github.com/github/glb-director
+
+Package: glb-redirect-iptables-dkms
+Architecture: all
+Depends: ${misc:Depends}, dkms, pkg-config, libxtables12 | libxtables10, libxtables-dev | libxtables10
+Description: GLB redirect iptables kernel module (DKMS)
+ The ipt_GLBREDIRECT iptables target used by GitHub Load Balancer (GLB)
+ directors to redirect packets to a secondary backend (the "second chance"
+ design) without breaking established flows.
+ .
+ This package ships the module source and builds it on the target host via
+ DKMS, and installs the matching libxt_GLBREDIRECT.so iptables extension.
