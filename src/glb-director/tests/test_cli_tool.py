@@ -16,7 +16,6 @@
 # along with this project.  If not, see <https://www.gnu.org/licenses/>.
 
 from rendezvous_table import GLBRendezvousTable
-from nose.tools import assert_equals
 import glob
 import json, subprocess, struct, socket, os, tempfile
 
@@ -74,80 +73,80 @@ class TestGLBBinaryCLI():
 		
 		subprocess.check_call(['cli/glb-director-cli', 'build-config', 'tests/test-config.json', 'tests/test-config.bin'])
 
-		f = open('tests/test-config.bin', 'rb')
-		assert_equals(f.read(4), b'GLBD')
+		with open('tests/test-config.bin', 'rb') as f:
+			assert f.read(4) == b'GLBD'
 
-		num_table_entries = 0x10000
-		max_num_backends = 0x100
-		max_num_binds = 0x100
+			num_table_entries = 0x10000
+			max_num_backends = 0x100
+			max_num_binds = 0x100
 
-		file_header = struct.unpack('<IIIII', f.read(5*4))
-		assert_equals(file_header, (
-			0x02, # version
-			2, # number of tables
-			num_table_entries, # entries per table
-			max_num_backends, # max number of backends
-			max_num_binds, # max number of binds
-		))
+			file_header = struct.unpack('<IIIII', f.read(5*4))
+			assert file_header == (
+				0x02, # version
+				2, # number of tables
+				num_table_entries, # entries per table
+				max_num_backends, # max number of backends
+				max_num_binds, # max number of binds
+			)
 
-		for i, table in enumerate(self.get_example_config()['tables']):
-			rt = self.get_example_table_reference_implementation(i)
-			hosts = self.get_example_table_hosts(i)
+			for i, table in enumerate(self.get_example_config()['tables']):
+				rt = self.get_example_table_reference_implementation(i)
+				hosts = self.get_example_table_hosts(i)
 
-			# validate backends for this table
-			num_backends, = struct.unpack('<I', f.read(4))
-			assert_equals(num_backends, len(table['backends']))
-			backend_to_index = {}
+				# validate backends for this table
+				num_backends, = struct.unpack('<I', f.read(4))
+				assert num_backends == len(table['backends'])
+				backend_to_index = {}
 
-			for bi in range(max_num_backends):
-				inet_family, inet_addr, be_state, be_health = struct.unpack('<I16sHH', f.read(16+4+2+2))
-				if bi < num_backends:
-					# legitimate entry, validate the contents
-					backend = table['backends'][bi]
-					if ':' in backend['ip']:
-						assert_equals(inet_family, 2)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET6, backend['ip']))
-					else:
-						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00'))
-					assert_equals(be_state, 1)
-					assert_equals(be_health, 1)
+				for bi in range(max_num_backends):
+					inet_family, inet_addr, be_state, be_health = struct.unpack('<I16sHH', f.read(16+4+2+2))
+					if bi < num_backends:
+						# legitimate entry, validate the contents
+						backend = table['backends'][bi]
+						if ':' in backend['ip']:
+							assert inet_family == 2
+							assert inet_addr == socket.inet_pton(socket.AF_INET6, backend['ip'])
+						else:
+							assert inet_family == 1
+							assert inet_addr == socket.inet_pton(socket.AF_INET, backend['ip']).ljust(16, b'\x00')
+						assert be_state == 1
+						assert be_health == 1
 
-			# validate binds for this table
-			num_binds, = struct.unpack('<I', f.read(4))
-			assert_equals(num_binds, len(table['binds']))
+				# validate binds for this table
+				num_binds, = struct.unpack('<I', f.read(4))
+				assert num_binds == len(table['binds'])
 
-			for bi in range(max_num_binds):
-				inet_family, inet_addr, ip_bits, bind_port_start, bind_port_end, bind_proto, _ = struct.unpack('<I16sHHHBB', f.read(16+4+4+2+2))
-				if bi < num_binds:
-					# legitimate entry, validate the contents
-					bind = table['binds'][bi]
-					if ':' in bind['ip']:
-						assert_equals(inet_family, 2)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET6, bind['ip']))
-						assert_equals(ip_bits, 128)
-					else:
-						assert_equals(inet_family, 1)
-						assert_equals(inet_addr, socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00'))
-						assert_equals(ip_bits, 32)
-					assert_equals(bind_port_start, bind['port'])
-					assert_equals(bind_port_end, bind['port'])
-					assert_equals(bind_proto, 6 if bind['proto'] == 'tcp' else 17)
+				for bi in range(max_num_binds):
+					inet_family, inet_addr, ip_bits, bind_port_start, bind_port_end, bind_proto, _ = struct.unpack('<I16sHHHBB', f.read(16+4+4+2+2))
+					if bi < num_binds:
+						# legitimate entry, validate the contents
+						bind = table['binds'][bi]
+						if ':' in bind['ip']:
+							assert inet_family == 2
+							assert inet_addr == socket.inet_pton(socket.AF_INET6, bind['ip'])
+							assert ip_bits == 128
+						else:
+							assert inet_family == 1
+							assert inet_addr == socket.inet_pton(socket.AF_INET, bind['ip']).ljust(16, b'\x00')
+							assert ip_bits == 32
+						assert bind_port_start == bind['port']
+						assert bind_port_end == bind['port']
+						assert bind_proto == (6 if bind['proto'] == 'tcp' else 17)
 
-			# validate hash key for source hashing
-			assert_equals(f.read(16), bytes.fromhex(table['hash_key']).rjust(16, b'\x00'))
+				# validate hash key for source hashing
+				assert f.read(16) == bytes.fromhex(table['hash_key']).rjust(16, b'\x00')
 
-			# validate table entries
-			for table_index in range(num_table_entries):
-				primary_idx, secondary_idx = struct.unpack('<II', f.read(4*2))
-				
-				expected_first_ips = rt.forwarding_table_entry(table_index, hosts)
-				actual_first_ips = [
-					table['backends'][primary_idx]['ip'],
-					table['backends'][secondary_idx]['ip']
-				]
+				# validate table entries
+				for table_index in range(num_table_entries):
+					primary_idx, secondary_idx = struct.unpack('<II', f.read(4*2))
 
-				assert_equals(actual_first_ips, expected_first_ips[:2])
+					expected_first_ips = rt.forwarding_table_entry(table_index, hosts)
+					actual_first_ips = [
+						table['backends'][primary_idx]['ip'],
+						table['backends'][secondary_idx]['ip']
+					]
+
+					assert actual_first_ips == expected_first_ips[:2]
 
 		# forwarding_table_seed = bytes.fromhex('49a3d861d661ae5ab06ed9326871a2f5')
 		# table = GLBRendezvousTable(forwarding_table_seed)
@@ -174,8 +173,7 @@ class TestGLBBinaryCLI():
 
 		# No temp files should remain in the output directory
 		tmp_files = glob.glob(os.path.join(output_dir, '.glb-table-*'))
-		assert_equals(len(tmp_files), 0,
-			"No temporary files should remain after successful build")
+		assert len(tmp_files) == 0, "No temporary files should remain after successful build"
 
 	def test_atomic_write_preserves_existing_on_failure(self):
 		"""Verify that an existing valid file is not corrupted by a failed build."""
@@ -213,8 +211,7 @@ class TestGLBBinaryCLI():
 
 		# The original file should be unchanged
 		with open(output_file, 'rb') as f:
-			assert_equals(f.read(), valid_content,
-				"Original file should not be modified on failure")
+			assert f.read() == valid_content, "Original file should not be modified on failure"
 
 		# Clean up
 		os.unlink('tests/test-bad-config.json')
@@ -243,8 +240,7 @@ class TestGLBBinaryCLI():
 
 		# No temp files should remain
 		tmp_files = glob.glob(os.path.join(output_dir, '.glb-table-*'))
-		assert_equals(len(tmp_files), 0,
-			"No temporary files should remain after failed build")
+		assert len(tmp_files) == 0, "No temporary files should remain after failed build"
 
 		# Clean up
 		os.unlink('tests/test-bad-config.json')

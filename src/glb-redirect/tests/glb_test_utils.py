@@ -17,8 +17,7 @@
 
 from scapy.all import sniff, send, L3RawSocket, L3RawSocket6
 import socket
-from nose.plugins.skip import SkipTest
-
+from unittest import SkipTest
 
 def _tcp_probe(host, port, timeout=0.2):
 	"""Return True iff a TCP connect to host:port succeeds within `timeout`."""

@@ -21,8 +21,7 @@ logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import sniff, sendp, Ether, IP, IPv6, MTU, Packet, UDP, TCP, bind_layers, ICMP, ICMPv6PacketTooBig, conf
 from scapy.arch.linux import L2ListenSocket
 from pyroute2 import IPRoute, NetlinkError
-from nose.tools import assert_equals
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 import subprocess, time
 import signal
 from contextlib import contextmanager
@@ -74,19 +73,22 @@ class DPDKDirectorControl(DirectorControlBase):
 		self.director = None
 	
 	def setup(self, iface):
-		# launch the glb director, mocking an eth device with the dpdk end of our veth
-		self.director = subprocess.Popen(
-			[
-				'./build/glb-director',
-				'--vdev=eth_pcap0,iface=' + iface,
-				'--',
-				'--debug',
-				'--config-file', './tests/director-config.json',
-				'--forwarding-table', './tests/test-tables.bin'
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-		)
+		# launch the glb director, mocking an eth device with the dpdk end of our veth.
+		# `with open(...)` closes the parent-side fd after Popen has dup2'd it
+		# into the child, so we don't leak an fd per test class.
+		with open('director-output.txt', 'ab') as out:
+			self.director = subprocess.Popen(
+				[
+					'./build/glb-director',
+					'--vdev=eth_pcap0,iface=' + iface,
+					'--',
+					'--debug',
+					'--config-file', './tests/director-config.json',
+					'--forwarding-table', './tests/test-tables.bin'
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+			)
 
 		print('launched as pid', self.director.pid)
 
@@ -224,17 +226,21 @@ class XDPDirectorControl(DirectorControlBase):
 
 	def setup(self, iface):
 		notify_shim = SystemdNotify('/tmp/glb-notify-shim.sock')
-		self.xdp_root = subprocess.Popen(
-			[
-				'../glb-director-xdp/xdp-root-shim/xdp-root-shim',
-				os.path.abspath('../glb-director-xdp/bpf/tailcall.o'),
-				'/sys/fs/bpf/root_array@' + iface,
-				iface,
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-			env=notify_shim.updated_env(),
-		)
+		# `with open(...)` closes the parent-side fd after Popen dup2's it
+		# into the child; otherwise this fd leaks for the lifetime of the
+		# test process.
+		with open('director-output.txt', 'ab') as out:
+			self.xdp_root = subprocess.Popen(
+				[
+					'../glb-director-xdp/xdp-root-shim/xdp-root-shim',
+					os.path.abspath('../glb-director-xdp/bpf/tailcall.o'),
+					'/sys/fs/bpf/root_array@' + iface,
+					iface,
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+				env=notify_shim.updated_env(),
+			)
 		notify_shim.wait()
 
 		self.director_iface = iface
@@ -242,21 +248,25 @@ class XDPDirectorControl(DirectorControlBase):
 	
 	def launch_director(self):
 		notify_director = SystemdNotify('/tmp/glb-notify.sock')
-		self.director = subprocess.Popen(
-			[
-				# 'strace',
-				'../glb-director-xdp/glb-director-xdp',
-				'--pid-file', '/tmp/glb-director-xdp.pid',
-				'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
-				'--debug',
-				'--config-file', os.path.abspath('./tests/director-config.json'),
-				'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
-				'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
-			],
-			stdout=open('director-output.txt', 'ab'),
-			stderr=subprocess.STDOUT,
-			env=notify_director.updated_env(),
-		)
+		# `with open(...)` closes the parent-side fd after Popen dup2's it
+		# into the child; otherwise this fd leaks for the lifetime of the
+		# test process.
+		with open('director-output.txt', 'ab') as out:
+			self.director = subprocess.Popen(
+				[
+					# 'strace',
+					'../glb-director-xdp/glb-director-xdp',
+					'--pid-file', '/tmp/glb-director-xdp.pid',
+					'--xdp-root-path=/sys/fs/bpf/root_array@' + self.director_iface,
+					'--debug',
+					'--config-file', os.path.abspath('./tests/director-config.json'),
+					'--forwarding-table', os.path.abspath('./tests/test-tables.bin'),
+					'--bpf-program', os.path.abspath('../glb-director-xdp/bpf/glb_encap.o'),
+				],
+				stdout=out,
+				stderr=subprocess.STDOUT,
+				env=notify_director.updated_env(),
+			)
 
 		print('launched as pid', self.director.pid)
 
@@ -388,8 +398,8 @@ class GLBDirectorTestBase():
 		# set up a veth interface from python <-> director
 		if len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0:
 			ip.link('add', ifname=cls.IFACE_NAME_PY, peer=cls.IFACE_NAME_DIRECTOR, kind='veth')
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 1)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 1)
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 1
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) == 1
 
 		# bring up both ends of the veth pipe
 		for iface in [cls.IFACE_NAME_DIRECTOR, cls.IFACE_NAME_PY]:
@@ -475,8 +485,8 @@ class GLBDirectorTestBase():
 					# Fall back to pyroute2; surface any error rather than
 					# masking it (matches the previous behaviour).
 					ip.link('remove', ifname=iface)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)), 0)
-		assert_equals(len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)), 0)
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_PY)) == 0
+		assert len(ip.link_lookup(ifname=cls.IFACE_NAME_DIRECTOR)) == 0
 
 	def sendp(self, *args, **kwargs):
 		sendp(*args, **kwargs)
