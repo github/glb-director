@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v4
 
       - name: Build image
         run: |
@@ -34,7 +34,7 @@ jobs:
           docker save glb-director-build-${{ matrix.distro }}:latest --output glb-director-build-${{ matrix.distro }}.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-${{ matrix.distro }}
           path: glb-director-build-${{ matrix.distro }}.tar
@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build-${{ matrix.distro }}
       
