@@ -37,7 +37,7 @@
  * Newer GCC defaults to -fno-common, so a tentative definition in the header
  * (the original `bool debug;` in log.h) is rejected as a duplicate symbol when
  * multiple translation units include it. */
-bool debug;
+bool debug = false;
 
 /* parses --config-file, --forwarding-table, and --debug cli options */
 
