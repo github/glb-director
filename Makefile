@@ -8,16 +8,16 @@ mkdeb:
 	make -C src/glb-redirect mkdeb
 	make -C src/glb-healthcheck mkdeb
 	cd src/glb-director-xdp && script/create-packages
-ifeq ($(GLB_SKIP_DPDK_DIRECTOR),)
-	cd src/glb-director && script/create-packages
-else
+ifeq ($(GLB_SKIP_DPDK_DIRECTOR),1)
 	cd src/glb-director && GLB_CLI_ONLY=1 script/create-packages
+else
+	cd src/glb-director && script/create-packages
 endif
 
 clean:
 	make -C src/glb-redirect clean
 	make -C src/glb-healthcheck clean
-ifeq ($(GLB_SKIP_DPDK_DIRECTOR),)
+ifneq ($(GLB_SKIP_DPDK_DIRECTOR),1)
 	make -C src/glb-director clean
 endif
 	make -C src/glb-director/cli clean
