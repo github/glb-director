@@ -27,19 +27,30 @@ RUN apt-get install --assume-yes --fix-broken \
     debhelper \
     libxtables-dev
 
-# `dkms mkdeb` was removed in dkms 3.x (which is what noble ships). The
-# glb-redirect Makefile uses the older `template-dkms-mkdeb` flow plus
-# `dkms mkdeb --source-only`. Restore both by installing the focal dkms
-# package alongside dkms 3.x: focal's /etc/dkms/template-dkms-mkdeb/ and the
-# `mkdeb` code path in /usr/sbin/dkms are extracted into a parallel location
-# and the script is wrapped so `dkms mkdeb ...` calls the legacy binary.
+# noble's dkms 3.x dropped `dkms mkdeb`, which the glb-redirect Makefile needs
+# (template-dkms-mkdeb + `dkms mkdeb --source-only`). Restore it by extracting
+# focal's dkms 2.x alongside 3.x and shimming `dkms mkdeb` to the legacy binary.
+#
+# We `apt-get download` the focal dkms from a GPG-verified focal source (full
+# apt chain of trust, no hardcoded/unverified URL). The focal pockets are
+# pinned below noble's so they're only used for this download, never installs.
 RUN set -eux; \
+    keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg; \
+    printf 'deb [signed-by=%s] http://archive.ubuntu.com/ubuntu focal main\ndeb [signed-by=%s] http://archive.ubuntu.com/ubuntu focal-updates main\n' "$keyring" "$keyring" > /etc/apt/sources.list.d/focal-dkms.list; \
+    printf 'Package: *\nPin: release n=focal\nPin-Priority: 100\n\nPackage: *\nPin: release n=focal-updates\nPin-Priority: 100\n' > /etc/apt/preferences.d/focal-dkms.pref; \
+    apt-get update; \
+    # Sanity check: the focal pin must not change the dkms candidate (stays 3.x).
+    case "$(apt-cache policy dkms | awk '/Candidate:/{print $2}')" in 3.*) : ;; *) echo "ERROR: dkms candidate changed by focal pin" >&2; exit 1 ;; esac; \
     cd /tmp; \
-    wget -q https://archive.ubuntu.com/ubuntu/pool/main/d/dkms/dkms_2.8.1-5ubuntu2_all.deb; \
-    dpkg-deb -x dkms_2.8.1-5ubuntu2_all.deb /tmp/dkms-focal; \
+    apt-get download dkms/focal-updates; \
+    deb="$(ls dkms_*_all.deb)"; \
+    dpkg-deb -x "$deb" /tmp/dkms-focal; \
     cp -r /tmp/dkms-focal/etc/dkms/template-dkms-mkdeb /etc/dkms/template-dkms-mkdeb; \
     install -m 0755 /tmp/dkms-focal/usr/sbin/dkms /usr/sbin/dkms-legacy; \
-    rm -rf /tmp/dkms-focal /tmp/dkms_2.8.1-5ubuntu2_all.deb; \
+    rm -rf /tmp/dkms-focal "/tmp/$deb"; \
+    # Remove the temporary focal source + pin so they don't linger in the image.
+    rm -f /etc/apt/sources.list.d/focal-dkms.list /etc/apt/preferences.d/focal-dkms.pref; \
+    apt-get update; \
     printf '#!/bin/sh\nif [ "$1" = "mkdeb" ]; then exec /usr/sbin/dkms-legacy "$@"; fi\nexec /usr/sbin/dkms.real "$@"\n' > /usr/local/bin/dkms; \
     chmod 0755 /usr/local/bin/dkms; \
     mv /usr/sbin/dkms /usr/sbin/dkms.real
