@@ -1,14 +1,14 @@
 all: glb_encap.o glb_encap_trace.o passer.o tailcall.o
 
-CLANG=clang-10
-LLC=llc-10
+CLANG?=clang-10
+LLC?=llc-10
 
 ifeq ($(KVER),)
 KVER=$(shell uname -r)
 endif
 
 %.o: %.c
-	$(CLANG) -c -O2 -emit-llvm -o - -D__KERNEL__ \
+	$(CLANG) -c -O2 -emit-llvm -o - -D__KERNEL__ -g \
 		-Wall \
 		-Wno-gnu-variable-sized-type-not-at-end \
 		-Wno-address-of-packed-member \
@@ -23,6 +23,8 @@ endif
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include/uapi \
 		-I /usr/src/linux-headers-$(KVER:-amd64=-common)/include \
 		-I /usr/src/linux-headers-$(KVER)/include \
+		-I /usr/src/linux-headers-$(KVER)/arch/x86/include/generated \
+		$(EXTRA_BPF_INCLUDES) \
 		-I include/ \
 		-I ../.. \
 		$< > .tmp.ll

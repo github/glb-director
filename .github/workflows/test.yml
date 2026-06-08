@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: [focal]
+        distro: [focal, noble]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -49,7 +49,14 @@ jobs:
       fail-fast: false
       matrix:
         test-suite: [director, director-xdp, healthcheck, redirect]
-        distro: [focal]
+        distro: [focal, noble]
+        exclude:
+          # The DPDK-based glb-director only builds on focal (DPDK 17 / KNI).
+          # On other distros the supported forwarder is glb-director-xdp, so
+          # skip the director suite there. This mirrors the same exclusion in
+          # script/test-local.
+          - distro: noble
+            test-suite: director
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

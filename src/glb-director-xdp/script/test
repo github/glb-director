@@ -42,7 +42,7 @@ export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 
 begin_fold "Building glb-director-xdp for testing"
 (
-  make -j4 -C ../glb-director/cli
+  make -j4 -C ../glb-director/cli glb-director-cli
   make # scan-build bricks go
 )
 end_fold

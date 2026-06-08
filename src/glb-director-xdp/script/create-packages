@@ -36,7 +36,10 @@ cd $ROOTDIR
 
 . packaging/version.sh
 
-make -C ../glb-director/cli
+# Only the cli tool is needed to build forwarding tables; avoid building the
+# rest of the cli/ targets (glb-config-check, glb-director-pcap, ...) since
+# they link DPDK and won't compile on distros without DPDK 17 (e.g. noble).
+make -C ../glb-director/cli glb-director-cli
 make
 
 ../glb-director/cli/glb-director-cli build-config ../glb-director/packaging/forwarding_table.json ../glb-director/packaging/forwarding_table.bin
@@ -45,7 +48,7 @@ fpm -f -s dir -t deb \
 	-n glb-director-xdp \
 	-v ${GLB_DIRECTOR_XDP_VERSION} \
 	-d "xdp-root-shim" \
-	-d "libbpf0" \
+	-d "libbpf1 | libbpf0" \
   -d "glb-director-cli >= ${GLB_DIRECTOR_VERSION}" \
 	--conflicts 'glb-director' \
     --license 'BSD 3-Clause' \
@@ -64,7 +67,7 @@ fpm -f -s dir -t deb \
 fpm -f -s dir -t deb \
 	-n xdp-root-shim \
 	-v ${XDP_ROOT_SHIM_VERSION} \
-	-d "libbpf0" \
+	-d "libbpf1 | libbpf0" \
 	--license 'BSD 3-Clause' \
     --maintainer 'GitHub <opensource+glb-director@github.com>' \
 	--deb-systemd packaging/xdp-root-shim\@.service \

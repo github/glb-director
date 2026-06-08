@@ -25,7 +25,13 @@ cd "$HOSTPATH"
 echo "==> Building Docker image for ${DISTRO}..."
 docker build --platform linux/amd64 --file "${DOCKERFILE}" --tag "${IMAGE}" .
 
-TEST_SUITES=(director director-xdp healthcheck redirect)
+# The DPDK-based glb-director only builds on focal (DPDK 17 / KNI).
+# On other distros, skip that suite; XDP is the supported forwarder.
+if [[ "$DISTRO" == "focal" ]]; then
+  TEST_SUITES=(director director-xdp healthcheck redirect)
+else
+  TEST_SUITES=(director-xdp healthcheck redirect)
+fi
 
 for suite in "${TEST_SUITES[@]}"; do
   echo ""

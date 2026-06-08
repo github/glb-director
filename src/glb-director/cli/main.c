@@ -43,6 +43,12 @@
 
 #include "log.h"
 
+/* Standalone definition of the global debug flag declared in log.h.
+ * The cli/glb-director-cli target compiles only main.c + siphash24.c, so it
+ * needs to provide its own definition (other targets get it from shared_opt.c
+ * or, for test-check-config, from tests/test_check_config.c). */
+bool debug = false;
+
 #define GLB_BACKEND_HEALTH_DOWN 0
 #define GLB_BACKEND_HEALTH_UP 1
 
