@@ -274,8 +274,27 @@ func (app *Application) SyncConfigMap() {
 	configMap.Put(unsafe.Pointer(&configKey), unsafe.Pointer(&hashFields))
 }
 
+// ValidateForwardingTableConfig checks that the forwarding table file can be
+// loaded and passes validation. Returns nil on success or an error describing
+// the failure. This is used to pre-validate before exec'ing a new process.
+func ValidateForwardingTableConfig(path string) error {
+	fwdConfig := C.create_glb_fwd_config(C.CString(path))
+	if fwdConfig == nil {
+		return fmt.Errorf("forwarding table validation failed for %s", path)
+	}
+	C.glb_fwd_config_ctx_decref(fwdConfig)
+	return nil
+}
+
 func (app *Application) ReloadForwardingTable() {
 	fwdConfig := C.create_glb_fwd_config(C.CString(app.ForwardingTablePath))
+	if fwdConfig == nil {
+		if app.StatsClient != nil {
+			app.StatsClient.Incr("config.reload_failure", []string{"reason:invalid_config"}, 1)
+			app.StatsClient.Flush()
+		}
+		log.Fatalf("Failed to load forwarding table from %s: config validation failed (0 tables, backends, or binds)", app.ForwardingTablePath)
+	}
 	defer C.glb_fwd_config_ctx_decref(fwdConfig)
 
 	tableMap4 := app.Collection.Maps["glb_binds"]
@@ -459,8 +478,18 @@ func (app *Application) runStatsCollection(globalCounters *ebpf.Map) {
 	}
 }
 
-func gracefullReloadByExec() {
+func (app *Application) gracefullReloadByExec() {
 	fmt.Printf("Reloading by exec-ing a new version of glb-director-xdp\n")
+
+	// Pre-validate the forwarding table before exec'ing. If the config is
+	// invalid, reject the reload and keep serving with the current config.
+	if err := ValidateForwardingTableConfig(app.ForwardingTablePath); err != nil {
+		log.Printf("gracefullReloadByExec: %v. Rejecting reload, continuing with current config.", err)
+		if app.StatsClient != nil {
+			app.StatsClient.Incr("config.reload_rejected", []string{"reason:invalid_config"}, 1)
+		}
+		return
+	}
 
 	// give us a temp working dir for socket comm
 	tmpDir, err := ioutil.TempDir("/tmp", "glb-xdp")
@@ -495,6 +524,9 @@ func gracefullReloadByExec() {
 	err = cmd.Start()
 	if err != nil {
 		log.Printf("gracefullReloadByExec: Failed to launch, error: %v", err)
+		if app.StatsClient != nil {
+			app.StatsClient.Incr("config.reload_rejected", []string{"reason:launch_failed"}, 1)
+		}
 		return
 	}
 
@@ -522,9 +554,15 @@ func gracefullReloadByExec() {
 			os.Exit(0)
 		} else {
 			log.Printf("gracefullReloadByExec: Expected READY=1, but got '%v', so assuming failure. Not reloading.", readyResponse)
+			if app.StatsClient != nil {
+				app.StatsClient.Incr("config.reload_rejected", []string{"reason:new_process_failed"}, 1)
+			}
 		}
 	case <-time.After(30 * time.Second):
 		log.Printf("gracefullReloadByExec: Expected READY=1 from new process, but timed out after 30 seconds. Not reloading.")
+		if app.StatsClient != nil {
+			app.StatsClient.Incr("config.reload_rejected", []string{"reason:timeout"}, 1)
+		}
 	}
 }
 
@@ -656,7 +694,7 @@ func main() {
 		sig := <-sigs
 
 		if sig == syscall.SIGUSR1 {
-			gracefullReloadByExec()
+			app.gracefullReloadByExec()
 		} else {
 			break
 		}

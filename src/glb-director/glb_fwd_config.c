@@ -82,7 +82,6 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 		    "glb-config loading failed: could not allocate context "
 		    "struct");
 		munmap(source_data, fs.st_size);
-		goto cleanup;
 		goto fail;
 	}
 
@@ -100,7 +99,6 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 		    "copy");
 		munmap(source_data, fs.st_size);
 		goto cleanup;
-		goto fail;
 	}
 
 	memcpy(ctx->raw_config, source_data, ctx->raw_config_size);
@@ -112,7 +110,6 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 	config_status = check_config(ctx);
 	if (config_status != 0) {
 		goto cleanup;
-		goto fail;
 	}
 
 #ifndef NO_DPDK
@@ -129,7 +126,6 @@ struct glb_fwd_config_ctx *create_glb_fwd_config(const char *config_file)
 		    "glb-config loading failed: could not create a bind "
 		    "classifier");
 		goto cleanup;
-		goto fail;
 	}
 #endif
 
@@ -140,7 +136,7 @@ cleanup:
 
 fail:
 	close(fd);
-	exit(1);
+	return NULL;
 
 }
 
