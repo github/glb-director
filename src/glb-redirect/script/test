@@ -22,4 +22,69 @@ set -e
 HOSTPATH=$(cd $(dirname "$0") && cd .. && pwd)
 cd "$(dirname "$0")/.."
 
+# ---------------------------------------------------------------------------
+# Compile-check the kernel module and userspace xtables target.
+#
+# The glb-redirect package ships as a source-only DKMS deb, so ipt_GLBREDIRECT.ko
+# and libxt_GLBREDIRECT.so are normally only compiled at install time on a real
+# host. Building them here catches kernel-API / toolchain regressions (e.g. the
+# __cookie_v[46]_check() arity change on 6.x kernels, or `_init` colliding with
+# crti.o's `_init` on newer binutils) -- the scapy tests below need the Vagrant
+# proxy network and are skipped otherwise.
+# ---------------------------------------------------------------------------
+compile_check() {
+  local kdir generic kasan kcsan
+
+  # Resolve kernel headers. Prefer the distro's *-generic headers -- that's what
+  # DKMS builds against on a real host, and it's the meaningful target here
+  # (noble GA = 6.8, focal = 5.x). In the glb-director build image,
+  # /usr/src/linux-headers-$(uname -r) is only a symlink to those generic
+  # headers carrying a misleading 'linuxkit' name (the Docker Desktop VM
+  # kernel), so resolve the real generic dir directly for clear, correct output.
+  # Fall back to the running kernel's headers on hosts running a non-generic
+  # flavour (e.g. -aws / -azure).
+  generic="$(ls -d /usr/src/linux-headers-*-generic 2>/dev/null | sort -V | tail -1 || true)"
+  if [ -n "$generic" ] && [ -d "$generic" ]; then
+    kdir="$generic"
+  elif [ -d "/usr/src/linux-headers-$(uname -r)" ]; then
+    kdir="/usr/src/linux-headers-$(uname -r)"
+  else
+    kdir=""
+  fi
+
+  # Skip gracefully where the build toolchain isn't available (e.g. the Vagrant
+  # director-test client VM, which only runs the scapy tests below).
+  if [ -z "$kdir" ] || [ ! -d "$kdir" ] || \
+     ! command -v cc >/dev/null 2>&1 || \
+     ! command -v make >/dev/null 2>&1 || \
+     ! pkg-config --exists xtables 2>/dev/null; then
+    echo "compile-check: build toolchain or kernel headers unavailable; skipping module compile." >&2
+    return 0
+  fi
+
+  # The glb-director build image globally patches these in-tree kernel headers
+  # for its BPF/clang XDP build (injecting <stdbool.h>/<stddef.h>), which breaks
+  # a normal gcc kernel-module compile. Strip the injected lines if present;
+  # this is a no-op on pristine headers (real hosts / Vagrant test VM).
+  kasan="$kdir/include/linux/kasan-checks.h"
+  kcsan="$kdir/include/linux/kcsan-checks.h"
+  if [ -w "$kasan" ]; then
+    sed -i '1,3{/^#define __USE_C99_MATH$/d; /^#include <stdbool.h>$/d}' "$kasan"
+  fi
+  if [ -w "$kcsan" ]; then
+    sed -i '1,3{/^#include <stddef.h>$/d}' "$kcsan"
+  fi
+
+  echo "compile-check: building glb-redirect (lib + kmod) against ${kdir}"
+  make KDIR="$kdir" clean lib kmod
+  test -f libxt_GLBREDIRECT.so
+  test -f ipt_GLBREDIRECT.ko
+  echo "compile-check: ok (libxt_GLBREDIRECT.so + ipt_GLBREDIRECT.ko built)"
+
+  # Tidy up build artifacts so they don't linger in the source tree.
+  make KDIR="$kdir" clean >/dev/null 2>&1 || true
+}
+
+compile_check
+
 PYTHONPATH=$(pwd)/../scapy-glb-gue/:$PYTHONPATH pytest -v tests/

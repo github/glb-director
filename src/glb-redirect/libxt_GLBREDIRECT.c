@@ -74,7 +74,12 @@ static struct xtables_target glbredirect_tg_reg = {
 	.x6_options    = GLBREDIRECT_opts,
 };
 
-void _init(void)
+/*
+ * Use a constructor function instead of the legacy `_init` symbol, which
+ * collides with crti.o's `_init` on newer toolchains (gcc-13/binutils on
+ * noble). libxtables runs the constructor on dlopen, same as before.
+ */
+static void __attribute__((constructor)) glbredirect_tg_init(void)
 {
 	xtables_register_target(&glbredirect_tg_reg);
 }

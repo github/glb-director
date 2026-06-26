@@ -611,7 +611,13 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			    	                !tcp_synq_no_recent_overflow(listen_sk));
 
 				if (want_cookie) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+					/* The cookie/mss argument was removed; the kernel now
+					 * derives it from th->ack_seq internally. */
+					int mss = __cookie_v4_check(iph_v4, th);
+#else
 					int mss = __cookie_v4_check(iph_v4, th, ntohl(th->ack_seq) - 1);
+#endif
 					if (mss > 0)
 						ret = 1;
 				}
@@ -651,7 +657,13 @@ static unsigned int is_valid_locally(struct net *net, struct sk_buff *skb, int i
 			    	                !tcp_synq_no_recent_overflow(listen_sk));
 
 				if (want_cookie) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+					/* The cookie/mss argument was removed; the kernel now
+					 * derives it from th->ack_seq internally. */
+					int mss = __cookie_v6_check(iph_v6, th);
+#else
 					int mss = __cookie_v6_check(iph_v6, th, ntohl(th->ack_seq) - 1);
+#endif
 					if (mss > 0)
 						ret = 1;
 				}
