@@ -111,7 +111,8 @@ int siphash(uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8_t *k)
 
 		v0 ^= m;
 	}
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 	switch (left) {
 	case 7:
 		b |= ((uint64_t)in[6]) << 48;
@@ -137,6 +138,8 @@ int siphash(uint8_t *out, const uint8_t *in, uint64_t inlen, const uint8_t *k)
 	case 0:
 		break;
 	}
+
+#pragma GCC diagnostic pop
 
 	v3 ^= b;
 
